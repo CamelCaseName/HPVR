@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35013.160
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HPVR", "HPVR.csproj", "{6598F6BA-6919-481B-8B72-F072795B0493}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SteamVR_Melon", "..\SteamVR_Melon\SteamVR_Melon.csproj", "{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SteamXR_Melon", "..\SteamXR_Melon\SteamXR_Melon.csproj", "{CD3DEA01-4B00-4882-BABA-06429E875CE8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Debug|Any CPU.Build.0 = Debug|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Debug|x64.ActiveCfg = Debug|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Debug|x64.Build.0 = Debug|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Release|Any CPU.ActiveCfg = Release|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Release|Any CPU.Build.0 = Release|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Release|x64.ActiveCfg = Release|x64
+		{6598F6BA-6919-481B-8B72-F072795B0493}.Release|x64.Build.0 = Release|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Debug|Any CPU.Build.0 = Debug|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Debug|x64.ActiveCfg = Debug|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Debug|x64.Build.0 = Debug|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Release|Any CPU.ActiveCfg = Release|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Release|Any CPU.Build.0 = Release|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Release|x64.ActiveCfg = Release|x64
+		{D09C5600-A19F-4CDC-BC9C-1CC2824AC74B}.Release|x64.Build.0 = Release|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Debug|Any CPU.Build.0 = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Debug|x64.ActiveCfg = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Debug|x64.Build.0 = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Release|Any CPU.ActiveCfg = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Release|Any CPU.Build.0 = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Release|x64.ActiveCfg = Debug|x64
+		{CD3DEA01-4B00-4882-BABA-06429E875CE8}.Release|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AAE3CAE4-E3DC-43A0-A2A8-B5BD39B239CB}
+	EndGlobalSection
+EndGlobal
