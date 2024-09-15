@@ -213,6 +213,16 @@ namespace HPVR.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] OpenVRSettings {
+            get {
+                object obj = ResourceManager.GetObject("OpenVRSettings", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] SteamVR_Melon {
             get {
                 object obj = ResourceManager.GetObject("SteamVR_Melon", resourceCulture);

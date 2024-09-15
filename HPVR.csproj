@@ -113,7 +113,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy .\bin\x64\Debug\net6.0\HPVR.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\HPVR.dll&quot; /y &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\UserLibs\SteamVR_Melon.dll&quot;" />
+    <Exec Command="copy .\bin\x64\Debug\net6.0\HPVR.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\HPVR.dll&quot; /y &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\UserLibs\SteamVR_Melon.dll&quot; &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\UserLibs\SteamXR_Melon.dll&quot;" />
   </Target>
 
 </Project>

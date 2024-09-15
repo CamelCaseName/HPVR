@@ -92,12 +92,13 @@ namespace HPVR
 
         public HPVR()
         {
-            string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
-            CreateAndSavePlugin(folderPath, "openvr_api");
-            CreateAndSavePlugin(folderPath, "XRSDKOpenVR");
-            CreateAndSavePlugin(folderPath, "ucrtbased");
+            CreateAndSavePlugin("openvr_api");
+            CreateAndSavePlugin("XRSDKOpenVR");
+            CreateAndSavePlugin("ucrtbased");
 
-            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "StreamingAssets", "SteamVR_Melon");
+            string HousePartyMainLocation = Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName;
+
+            string folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR_Melon");
             if (!File.Exists(Path.Combine(folderPath, "actions.json")))
             {
                 Directory.CreateDirectory(folderPath);
@@ -114,33 +115,19 @@ namespace HPVR
                 }
             }
 
-            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "StreamingAssets");
-            if (!File.Exists(Path.Combine(folderPath, "vrshaders")))
+            folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets");
+            CreateAndSaveToPath(folderPath, "vrshaders", "");
+            CreateAndSaveToPath(folderPath, "vrshaders1", ".manifest", "vrshaders");
+
+            folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "UnitySubsystems", "XRSDKOpenVR");
+            CreateAndSaveToPath(folderPath, "UnitySubsystemManifest", ".json");
+
+            folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR");
+            CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
+
+            static void CreateAndSavePlugin(string name)
             {
-                Directory.CreateDirectory(folderPath);
-
-                File.WriteAllBytes(Path.Combine(folderPath, "vrshaders"), Resources.vrshaders);
-                Stream s = File.OpenRead(Path.Combine(folderPath, "vrshaders"));
-                s.Close();
-                File.WriteAllBytes(Path.Combine(folderPath, "vrshaders.manifest"), Resources.vrshaders1);
-                s = File.OpenRead(Path.Combine(folderPath, "vrshaders.manifest"));
-                s.Close();
-                MelonLogger.Warning($"Loaded vrshaders and the manifest file from our embedded resources, saving for next time");
-            }
-
-            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "UnitySubsystems", "XRSDKOpenVR");
-            if (!File.Exists(Path.Combine(folderPath, "UnitySubsystemsManifest.json")))
-            {
-                Directory.CreateDirectory(folderPath);
-
-                File.WriteAllBytes(Path.Combine(folderPath, "UnitySubsystemsManifest.json"), Resources.UnitySubsystemsManifest);
-                Stream s = File.OpenRead(Path.Combine(folderPath, "UnitySubsystemsManifest.json"));
-                s.Close();
-                MelonLogger.Warning($"Loaded XRSDKOpenVR/UnitySubsystemsManifest.json and the manifest file from our embedded resources, saving for next time");
-            }
-
-            static void CreateAndSavePlugin(string folderPath, string name)
-            {
+                string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
                 string path = Path.Combine(folderPath, name + ".dll");
                 if (!File.Exists(path))
                 {
@@ -164,6 +151,29 @@ namespace HPVR
                     }
                 }
             }
+
+            static void CreateAndSaveToPath(string folderPath, string name, string ending, string filename = "")
+            {
+                if (String.IsNullOrEmpty(filename))
+                    filename = name;
+                string path = Path.Combine(folderPath, filename + ending);
+                if (!File.Exists(path))
+                {
+                    Directory.CreateDirectory(folderPath);
+                    foreach (var field in typeof(Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+
+                        if (field.Name == name)
+                        {
+                            File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
+                            Stream s = File.OpenRead(path);
+                            s.Close();
+                            MelonLogger.Warning($"Loaded {name}{ending} from our embedded resources, saving to {folderPath} for next time");
+                            return;
+                        }
+                    }
+                }
+            }
         }
 
         public override void OnInitializeMelon()
@@ -171,10 +181,9 @@ namespace HPVR
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
+            //do steamvr before melonxr
             SteamVR.Initialize(false);
-            ScriptableObject.CreateInstance<Unity.XR.OpenVR.OpenVRSettings>();
-            PluginImporter.LoadPlugin(OpenVRMagic.XRSDKOpenVR);
-            OpenVREvents.Initialize();
+            MelonXR.Initialize();
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
