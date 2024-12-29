@@ -183,6 +183,10 @@ namespace HPVR
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
             //do steamvr before melonxr
             SteamVR.Initialize(false);
+            if(SteamVR.instance is null)
+            {
+                this.Unregister("VR Headset was not connected before starting the game", false);
+            }
             MelonXR.Initialize();
         }
 
@@ -192,8 +196,8 @@ namespace HPVR
             {
                 return;
             }
-            MelonLogger.Msg("[HPVR] hpvr loading");
 
+            MelonLogger.Msg("[HPVR] hpvr loading");
             MelonLogger.Msg("[HPVR] adding steamvr");
             //Camera.main.gameObject.AddComponent<SteamVR_Fade>();
             Camera.main.gameObject.AddComponent<SteamVR_Camera>();
