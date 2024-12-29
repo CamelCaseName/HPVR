@@ -33,4 +33,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: MelonColor(255, 220, 180, 0)]
 [assembly: MelonInfo(typeof(HPVR.HPVR), nameof(HPVR.HPVR), 1, 0, 0, "Lenny")]
+[assembly: MelonOptionalDependencies("SteamVR_Melon.dll", "SteamXR_Melon.dll", "SteamVR_Melon", "SteamXR_Melon")]
 [assembly: MelonGame("Eek.House Party")]
