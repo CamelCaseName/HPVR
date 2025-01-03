@@ -8,10 +8,66 @@
       <GenerateTargetFramework>false</GenerateTargetFramework>
       <PlatformTarget>x64</PlatformTarget>
       <Platforms>x64</Platforms>
+      <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="intiface-engine.exe" />
+    <None Remove="Resources\actions\actions.json" />
+    <None Remove="Resources\actions\bindings_holographic_controller.json" />
+    <None Remove="Resources\actions\bindings_knuckles.json" />
+    <None Remove="Resources\actions\bindings_logitech_stylus.json" />
+    <None Remove="Resources\actions\bindings_oculus_touch.json" />
+    <None Remove="Resources\actions\bindings_vive_controller.json" />
+    <None Remove="Resources\actions\bindings_vive_cosmos_controller.json" />
+    <None Remove="Resources\actions\binding_holographic_hmd.json" />
+    <None Remove="Resources\actions\binding_index_hmd.json" />
+    <None Remove="Resources\actions\binding_rift.json" />
+    <None Remove="Resources\actions\binding_vive.json" />
+    <None Remove="Resources\actions\binding_vive_cosmos.json" />
+    <None Remove="Resources\actions\binding_vive_pro.json" />
+    <None Remove="Resources\actions\binding_vive_tracker_camera.json" />
+    <None Remove="Resources\HPUI.dll" />
+    <None Remove="Resources\OpenVRSettings.asset" />
+    <None Remove="Resources\openvr_api.dll" />
+    <None Remove="Resources\SteamVR_Melon.dll" />
+    <None Remove="Resources\SteamXR_Melon.dll" />
+    <None Remove="Resources\System.Security.Permissions.dll" />
+    <None Remove="Resources\System.Threading.Channels.dll" />
+    <None Remove="Resources\ucrtbased.dll" />
+    <None Remove="Resources\UnitySubsystemsManifest.json" />
+    <None Remove="Resources\vrshaders\vrshaders" />
+    <None Remove="Resources\vrshaders\vrshaders.manifest" />
+    <None Remove="Resources\XRSDKOpenVR.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\actions\actions.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_holographic_controller.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_knuckles.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_logitech_stylus.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_oculus_touch.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_vive_controller.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_vive_cosmos_controller.json" />
+    <EmbeddedResource Include="Resources\actions\binding_holographic_hmd.json" />
+    <EmbeddedResource Include="Resources\actions\binding_index_hmd.json" />
+    <EmbeddedResource Include="Resources\actions\binding_rift.json" />
+    <EmbeddedResource Include="Resources\actions\binding_vive.json" />
+    <EmbeddedResource Include="Resources\actions\binding_vive_cosmos.json" />
+    <EmbeddedResource Include="Resources\actions\binding_vive_pro.json" />
+    <EmbeddedResource Include="Resources\actions\binding_vive_tracker_camera.json" />
+    <EmbeddedResource Include="Resources\HPUI.dll" />
+    <EmbeddedResource Include="Resources\OpenVRSettings.asset" />
+    <EmbeddedResource Include="Resources\openvr_api.dll" />
+    <EmbeddedResource Include="Resources\SteamVR_Melon.dll" />
+    <EmbeddedResource Include="Resources\SteamXR_Melon.dll" />
+    <EmbeddedResource Include="Resources\System.Security.Permissions.dll" />
+    <EmbeddedResource Include="Resources\System.Threading.Channels.dll" />
+    <EmbeddedResource Include="Resources\ucrtbased.dll" />
+    <EmbeddedResource Include="Resources\UnitySubsystemsManifest.json" />
+    <EmbeddedResource Include="Resources\vrshaders\vrshaders" />
+    <EmbeddedResource Include="Resources\vrshaders\vrshaders.manifest" />
+    <EmbeddedResource Include="Resources\XRSDKOpenVR.dll" />
   </ItemGroup>
 
   <ItemGroup>
@@ -86,25 +142,6 @@
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.UIModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Resources\vrshaders\" />
   </ItemGroup>
 
   <ItemGroup>

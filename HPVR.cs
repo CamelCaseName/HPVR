@@ -1,19 +1,15 @@
 ﻿using Il2Cpp;
 using Il2CppEekCharacterEngine;
-using Il2CppEekCharacterEngine.Motion;
-using Il2CppMono.Globalization.Unicode;
 using MelonLoader;
-using SteamVR_Melon.Standalone;
 using SteamXR_Melon;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
-using Unity.XR.OpenVR;
+using System.Xml.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Valve.VR;
 using Object = UnityEngine.Object;
-using Resources = HPVR.Properties.Resources;
 
 namespace HPVR
 {
@@ -30,14 +26,16 @@ namespace HPVR
         private Vector3 vrCamPositionStart = new();
         private Vector3 vrCamVelocity = new();
         private Vector3 hmdPositionDelta = new();
+        private InputControl? PlayerMoveGamePad = null;
+        private InputAction? PlayerMove = null;
 
         private GameObject? Playerneck = null;
 
         private Vector2 trackpad;
 
-        public SteamVR_Input_Sources Hand;//Set Hand To Get Input From
+        //public SteamVR_Input_Sources Hand;//Set Hand To Get Input From
         public float speed = 20f;
-        public CapsuleCollider Collider;
+        //public CapsuleCollider Collider;
         public float Deadzone = 0.0f;//the Deadzone of the trackpad. used to prevent unwanted walking.
 
         #region dirtyStuff
@@ -46,32 +44,33 @@ namespace HPVR
         {
             //MelonLogger.Msg("Static init");
             SetOurResolveHandlerAtFront();
+            //foreach (var item in Assembly.GetExecutingAssembly().GetManifestResourceNames())
+            //{
+            //    MelonLogger.Msg(item);
+            //}
         }
+
         private static Assembly AssemblyResolveEventListener(object sender, ResolveEventArgs args)
         {
             if (args is null)
             {
                 return null!;
             }
-
-            string dllName = args.Name[..args.Name.IndexOf(',')];
-            var name = "HPVR.Resources.resources" + dllName + ".dll";
-            string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", dllName + ".dll");
-            foreach (var field in typeof(Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+            string cleanName = args.Name[..args.Name.IndexOf(',')];
+            string name = "HPVR.Resources." + cleanName + ".dll";
+            //MelonLogger.Msg(cleanName + " -> " + name);
+            using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
+            if (str is not null)
             {
+                var context = new AssemblyLoadContext(name, false);
+                string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", cleanName + ".dll");
+                FileStream fstr = new(path, FileMode.Create);
+                str.CopyTo(fstr);
+                fstr.Close();
+                str.Position = 0;
 
-                if (field.Name == dllName.Replace('.', '_'))
-                {
-                    var context = new AssemblyLoadContext(name, false);
-                    MelonLogger.Warning($"Loaded {args.Name} from our embedded resources, saving to userlibs for next time");
-                    File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
-                    Stream s = File.OpenRead(path);
-                    var asm = context.LoadFromStream(s);
-                    s.Close();
-                    return asm;
-                }
+                return context.LoadFromStream(str);
             }
-            //MelonLogger.Error($"{args.Name} not found in resources");
             return null!;
         }
 
@@ -122,6 +121,10 @@ namespace HPVR
 
         public HPVR()
         {
+        }
+
+        private static void LateStart()
+        {
             CreateAndSavePlugin("openvr_api");
             CreateAndSavePlugin("XRSDKOpenVR");
             CreateAndSavePlugin("ucrtbased");
@@ -132,82 +135,88 @@ namespace HPVR
             if (!File.Exists(Path.Combine(folderPath, "actions.json")))
             {
                 Directory.CreateDirectory(folderPath);
-                foreach (var field in typeof(Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                foreach (var fullNames in Assembly.GetExecutingAssembly().GetManifestResourceNames())
                 {
-
-                    if (field.Name == "actions" || field.Name.StartsWith("bindings_") || field.Name.StartsWith("binding_"))
+                    var name = fullNames.Split('.')[^2];
+                    if (name.StartsWith("bindings_") || name.StartsWith("binding_") || name == "actions")
                     {
-                        File.WriteAllBytes(Path.Combine(folderPath, field.Name + ".json"), (byte[])field.GetValue(null)!);
-                        Stream s = File.OpenRead(Path.Combine(folderPath, field.Name + ".json"));
-                        s.Close();
-                        MelonLogger.Warning($"Loaded {field.Name}.json from our embedded resources, saving for next time");
+                        CreateAndSaveToPath(folderPath, "actions." + name, ".json", name);
                     }
                 }
             }
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets");
-            CreateAndSaveToPath(folderPath, "vrshaders", "");
-            CreateAndSaveToPath(folderPath, "vrshaders1", ".manifest", "vrshaders");
+            CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", "", "vrshaders");
+            CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "UnitySubsystems", "XRSDKOpenVR");
             CreateAndSaveToPath(folderPath, "UnitySubsystemManifest", ".json");
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR");
             CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
+        }
 
-            static void CreateAndSavePlugin(string name)
+        static void CreateAndSavePlugin(string name)
+        {
+            string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
+            string path = Path.Combine(folderPath, name + ".dll");
+            if (!File.Exists(path))
             {
-                string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
-                string path = Path.Combine(folderPath, name + ".dll");
-                if (!File.Exists(path))
-                {
-                    Directory.CreateDirectory(folderPath);
-                    foreach (var field in typeof(Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
-                    {
+                Directory.CreateDirectory(folderPath);
 
-                        if (field.Name == name)
-                        {
-                            File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
-                            Stream s = File.OpenRead(path);
-                            s.Close();
-                            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "Plugins");
-                            path = Path.Combine(folderPath, name + ".dll");
-                            File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
-                            s = File.OpenRead(path);
-                            s.Close();
-                            MelonLogger.Warning($"Loaded {name} from our embedded resources, saving for next time");
-                            return;
-                        }
+                using (Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources." + name + ".dll"))
+                {
+                    if (str is not null)
+                    {
+                        FileStream fstr = new(path, FileMode.Create);
+                        str.CopyTo(fstr);
+                        fstr.Close();
                     }
                 }
+
+                folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "Plugins");
+                path = Path.Combine(folderPath, name + ".dll");
+                using (Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources." + name + ".dll"))
+                {
+                    if (str is not null)
+                    {
+                        FileStream fstr = new(path, FileMode.Create);
+                        str.CopyTo(fstr);
+                        fstr.Close();
+                    }
+                }
+                MelonLogger.Warning($"Loaded {name} from our embedded resources, saving for next time");
+                return;
+            }
+        }
+
+        static void CreateAndSaveToPath(string folderPath, string name, string ending, string filename = "")
+        {
+            if (string.IsNullOrEmpty(filename))
+            {
+                filename = name;
             }
 
-            static void CreateAndSaveToPath(string folderPath, string name, string ending, string filename = "")
+            string path = Path.Combine(folderPath, filename + ending);
+            if (!File.Exists(path))
             {
-                if (String.IsNullOrEmpty(filename))
-                    filename = name;
-                string path = Path.Combine(folderPath, filename + ending);
-                if (!File.Exists(path))
+                Directory.CreateDirectory(folderPath);
+                var fullName = "HPVR.Resources." + name + ending;
+                MelonLogger.Msg("Loading " + fullName);
+                using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream(fullName);
+                if (str is not null)
                 {
-                    Directory.CreateDirectory(folderPath);
-                    foreach (var field in typeof(Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
-                    {
-
-                        if (field.Name == name)
-                        {
-                            File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
-                            Stream s = File.OpenRead(path);
-                            s.Close();
-                            MelonLogger.Warning($"Loaded {name}{ending} from our embedded resources, saving to {folderPath} for next time");
-                            return;
-                        }
-                    }
+                    FileStream fstr = new(path, FileMode.Create);
+                    str.CopyTo(fstr);
+                    fstr.Close();
+                    MelonLogger.Msg("saved " + fullName + " to " + path);
                 }
             }
         }
 
         public override void OnInitializeMelon()
         {
+            LateStart();
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
@@ -256,8 +265,85 @@ namespace HPVR
                 PlayerCharacter.Player.transform.FindChild("neckUpper")?.gameObject?.SetActive(false);
             }
 
+            if (PlayerMoveGamePad is null)
+            {
+                foreach (var action in Il2Cpp.InputManager.Singleton.AllActionsToCheck)
+                {
+                    if (action.name == "Move" && action.actionMap.name == "Player")
+                    {
+                        PlayerMove = action;
+                        foreach (var control in action.controls)
+                        {
+                            if (control.name == "leftStick")
+                            {
+                                PlayerMoveGamePad = control;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             SteamVR_Actions._default.Activate();
             SteamVR_Actions.platformer_Move.actionSet.Activate(priority: 1);
+
+            PlayerControlManager.add_OnInput_Navigate(new System.Action(() =>
+             {
+                 if (PlayerMoveGamePad is null)
+                 {
+                     return;
+                 }
+
+                 var buffer = new byte[PlayerMoveGamePad.valueSizeInBytes];
+                 float[] flaots = new float[2];
+                 unsafe
+                 {
+                     fixed (byte* ptr = buffer)
+                     {
+                         PlayerMoveGamePad.ReadValueIntoBuffer(ptr, buffer.Length);
+                         fixed (float* ptr2 = flaots)
+                         {
+                             byte* ptr3 = (byte*)(void*)ptr2;
+                             for (int i = 0; i < 2; i++)
+                             {
+                                 *(ptr + i) = *(ptr3 + i);
+                             }
+                         }
+                     }
+                 }
+
+                 string s = "0x";
+                 for (int i = 0; i < buffer.Length; i++)
+                 {
+                     s += $"{buffer[i]:x}";
+                 }
+                 s += ";";
+                 MelonLogger.Msg(PlayerMoveGamePad.name + " -> " + s + " : " + flaots[0] + " " + flaots[1]);
+
+                 foreach (var device in InputDevice.all)
+                 {
+                     foreach (var device2 in device.children)
+                     {
+                         MelonLogger.Msg(device2.path + " " + device2.name);
+                     }
+                     foreach (var device2 in device.allControls)
+                     {
+                         MelonLogger.Msg(device2.path + " " + device2.name);
+                     }
+                 }
+             }));
+
+
+            foreach (var c in UnityEngine.XR.WindowsMR.Input.WMRSpatialController.all)
+            {
+                foreach (var c2 in c.allControls)
+                {
+                    MelonLogger.Msg(c2.path);
+                }
+            }
+
+            //keyboard keys give 0x0000 for inactive and 0x00803f for active
+            //leftpad on the controller gives 0x00000000 for inactive and 
 
             MelonLogger.Msg($"{SteamVR_Actions.platformer_Move.activeBinding}");
 
@@ -265,6 +351,108 @@ namespace HPVR
             var res = SteamVR_Camera.GetSceneResolution();
             MelonLogger.Msg($"[HPVR] {res.width}:{res.height}");
         }
+
+        /*[20:06:19.936] /OpenVRHeadsetOculusQuest2/trackingstate
+[20:06:19.936] /OpenVRHeadsetOculusQuest2/istracked
+[20:06:19.937] /OpenVRHeadsetOculusQuest2/userpresence
+[20:06:19.937] /OpenVRHeadsetOculusQuest2/deviceposition
+[20:06:19.937] /OpenVRHeadsetOculusQuest2/devicerotation
+[20:06:19.938] /OpenVRHeadsetOculusQuest2/devicevelocity
+[20:06:19.938] /OpenVRHeadsetOculusQuest2/deviceangularvelocity
+[20:06:19.939] /OpenVRHeadsetOculusQuest2/lefteyeposition
+[20:06:19.939] /OpenVRHeadsetOculusQuest2/lefteyerotation
+[20:06:19.939] /OpenVRHeadsetOculusQuest2/lefteyevelocity
+[20:06:19.940] /OpenVRHeadsetOculusQuest2/lefteyeangularvelocity
+[20:06:19.940] /OpenVRHeadsetOculusQuest2/righteyeposition
+[20:06:19.940] /OpenVRHeadsetOculusQuest2/righteyerotation
+[20:06:19.940] /OpenVRHeadsetOculusQuest2/righteyevelocity
+[20:06:19.940] /OpenVRHeadsetOculusQuest2/righteyeangularvelocity
+[20:06:19.941] /OpenVRHeadsetOculusQuest2/centereyeposition
+[20:06:19.941] /OpenVRHeadsetOculusQuest2/centereyerotation
+[20:06:19.941] /OpenVRHeadsetOculusQuest2/centereyevelocity
+[20:06:19.941] /OpenVRHeadsetOculusQuest2/centereyeangularvelocity
+[20:06:19.941] /OpenVRHeadsetOculusQuest2/deviceposition/x
+[20:06:19.942] /OpenVRHeadsetOculusQuest2/deviceposition/y
+[20:06:19.942] /OpenVRHeadsetOculusQuest2/deviceposition/z
+[20:06:19.942] /OpenVRHeadsetOculusQuest2/devicerotation/x
+[20:06:19.942] /OpenVRHeadsetOculusQuest2/devicerotation/y
+[20:06:19.942] /OpenVRHeadsetOculusQuest2/devicerotation/z
+[20:06:19.943] /OpenVRHeadsetOculusQuest2/devicerotation/w
+[20:06:19.943] /OpenVRHeadsetOculusQuest2/devicevelocity/x
+[20:06:19.943] /OpenVRHeadsetOculusQuest2/devicevelocity/y
+[20:06:19.944] /OpenVRHeadsetOculusQuest2/devicevelocity/z
+[20:06:19.946] /OpenVRHeadsetOculusQuest2/deviceangularvelocity/x
+[20:06:19.946] /OpenVRHeadsetOculusQuest2/deviceangularvelocity/y
+[20:06:19.946] /OpenVRHeadsetOculusQuest2/deviceangularvelocity/z
+[20:06:19.946] /OpenVRHeadsetOculusQuest2/lefteyeposition/x
+[20:06:19.946] /OpenVRHeadsetOculusQuest2/lefteyeposition/y
+[20:06:19.949] /OpenVRHeadsetOculusQuest2/lefteyeposition/z
+[20:06:19.950] /OpenVRHeadsetOculusQuest2/lefteyerotation/x
+[20:06:19.950] /OpenVRHeadsetOculusQuest2/lefteyerotation/y
+[20:06:19.950] /OpenVRHeadsetOculusQuest2/lefteyerotation/z
+[20:06:19.950] /OpenVRHeadsetOculusQuest2/lefteyerotation/w
+[20:06:19.951] /OpenVRHeadsetOculusQuest2/lefteyevelocity/x
+[20:06:19.951] /OpenVRHeadsetOculusQuest2/lefteyevelocity/y
+[20:06:19.951] /OpenVRHeadsetOculusQuest2/lefteyevelocity/z
+[20:06:19.951] /OpenVRHeadsetOculusQuest2/lefteyeangularvelocity/x
+[20:06:19.952] /OpenVRHeadsetOculusQuest2/lefteyeangularvelocity/y
+[20:06:19.952] /OpenVRHeadsetOculusQuest2/lefteyeangularvelocity/z
+[20:06:19.952] /OpenVRHeadsetOculusQuest2/righteyeposition/x
+[20:06:19.952] /OpenVRHeadsetOculusQuest2/righteyeposition/y
+[20:06:19.953] /OpenVRHeadsetOculusQuest2/righteyeposition/z
+[20:06:19.953] /OpenVRHeadsetOculusQuest2/righteyerotation/x
+[20:06:19.953] /OpenVRHeadsetOculusQuest2/righteyerotation/y
+[20:06:19.954] /OpenVRHeadsetOculusQuest2/righteyerotation/z
+[20:06:19.955] /OpenVRHeadsetOculusQuest2/righteyerotation/w
+[20:06:19.955] /OpenVRHeadsetOculusQuest2/righteyevelocity/x
+[20:06:19.956] /OpenVRHeadsetOculusQuest2/righteyevelocity/y
+[20:06:19.956] /OpenVRHeadsetOculusQuest2/righteyevelocity/z
+[20:06:19.956] /OpenVRHeadsetOculusQuest2/righteyeangularvelocity/x
+[20:06:19.956] /OpenVRHeadsetOculusQuest2/righteyeangularvelocity/y
+[20:06:19.956] /OpenVRHeadsetOculusQuest2/righteyeangularvelocity/z
+[20:06:19.957] /OpenVRHeadsetOculusQuest2/centereyeposition/x
+[20:06:19.957] /OpenVRHeadsetOculusQuest2/centereyeposition/y
+[20:06:19.957] /OpenVRHeadsetOculusQuest2/centereyeposition/z
+[20:06:19.957] /OpenVRHeadsetOculusQuest2/centereyerotation/x
+[20:06:19.958] /OpenVRHeadsetOculusQuest2/centereyerotation/y
+[20:06:19.958] /OpenVRHeadsetOculusQuest2/centereyerotation/z
+[20:06:19.958] /OpenVRHeadsetOculusQuest2/centereyerotation/w
+[20:06:19.958] /OpenVRHeadsetOculusQuest2/centereyevelocity/x
+[20:06:19.958] /OpenVRHeadsetOculusQuest2/centereyevelocity/y
+[20:06:19.959] /OpenVRHeadsetOculusQuest2/centereyevelocity/z
+[20:06:19.959] /OpenVRHeadsetOculusQuest2/centereyeangularvelocity/x
+[20:06:19.961] /OpenVRHeadsetOculusQuest2/centereyeangularvelocity/y
+[20:06:19.961] /OpenVRHeadsetOculusQuest2/centereyeangularvelocity/z
+[20:06:19.961] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceposition
+[20:06:19.961] /OpenVRControllerOculusQuest2LeftControllerLeft/devicerotation
+[20:06:19.961] /OpenVRControllerOculusQuest2LeftControllerLeft/devicevelocity
+[20:06:19.962] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceangularvelocity
+[20:06:19.962] /OpenVRControllerOculusQuest2LeftControllerLeft/trackingstate
+[20:06:19.962] /OpenVRControllerOculusQuest2LeftControllerLeft/istracked
+[20:06:19.962] /OpenVRControllerOculusQuest2LeftControllerLeft/thumbstick
+[20:06:19.962] /OpenVRControllerOculusQuest2LeftControllerLeft/trigger
+[20:06:19.963] /OpenVRControllerOculusQuest2LeftControllerLeft/grip
+[20:06:19.963] /OpenVRControllerOculusQuest2LeftControllerLeft/primaryButton
+[20:06:19.963] /OpenVRControllerOculusQuest2LeftControllerLeft/secondaryButton
+[20:06:19.963] /OpenVRControllerOculusQuest2LeftControllerLeft/gripPressed
+[20:06:19.963] /OpenVRControllerOculusQuest2LeftControllerLeft/triggerPressed
+[20:06:19.964] /OpenVRControllerOculusQuest2LeftControllerLeft/thumbstickClicked
+[20:06:19.964] /OpenVRControllerOculusQuest2LeftControllerLeft/thumbstickTouched
+[20:06:19.964] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceposition/x
+[20:06:19.964] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceposition/y
+[20:06:19.964] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceposition/z
+[20:06:19.965] /OpenVRControllerOculusQuest2LeftControllerLeft/devicerotation/x
+[20:06:19.965] /OpenVRControllerOculusQuest2LeftControllerLeft/devicerotation/y
+[20:06:19.965] /OpenVRControllerOculusQuest2LeftControllerLeft/devicerotation/z
+[20:06:19.965] /OpenVRControllerOculusQuest2LeftControllerLeft/devicerotation/w
+[20:06:19.965] /OpenVRControllerOculusQuest2LeftControllerLeft/devicevelocity/x
+[20:06:19.966] /OpenVRControllerOculusQuest2LeftControllerLeft/devicevelocity/y
+[20:06:19.966] /OpenVRControllerOculusQuest2LeftControllerLeft/devicevelocity/z
+[20:06:19.966] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceangularvelocity/x
+[20:06:19.966] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceangularvelocity/y
+[20:06:19.967] /OpenVRControllerOculusQuest2LeftControllerLeft/deviceangularvelocity/z
+[20:06:19.967] /OpenVRControllerOculusQuest2LeftControllerLeft/thumbstick/x
+[20:06:19.970] /OpenVRControllerOculusQuest2LeftControllerLeft/thumbstick/y*/
 
         private void Rotate(float rotation)
         {
@@ -291,84 +479,157 @@ namespace HPVR
 
         public override void OnUpdate()
         {
-            if (usingVrCamera)
+            if (!usingVrCamera)
             {
-                float seconds = predictSecondsFromNow();
-                TrackedDevicePose_t[] poses = new TrackedDevicePose_t[4];
-                OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-                //MelonLogger.Msg(poses[0].ToStringDetail());
-                vrCamRotation = vrCamRotationStart * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-                if (vrCamPositionStart.sqrMagnitude == 0)
+                return;
+            }
+            if (PlayerMoveGamePad is null)
+            {
+                foreach (var action in Il2Cpp.InputManager.Singleton.AllActionsToCheck)
                 {
-                    vrCamPositionStart = new Vector3(poses[0].mDeviceToAbsoluteTracking.GetPosition().x, 0, poses[0].mDeviceToAbsoluteTracking.GetPosition().z);
-                }
-                vrCamPosition = new(-poses[0].mDeviceToAbsoluteTracking.GetPosition().x - vrCamPositionStart.x, poses[0].mDeviceToAbsoluteTracking.GetPosition().y, -poses[0].mDeviceToAbsoluteTracking.GetPosition().z - vrCamPositionStart.z);
-                //MelonLogger.Msg($"{poses[0].mDeviceToAbsoluteTracking.GetPosition().x}-{vrCamPositionStart.x}={vrCamPosition.x} | {poses[0].mDeviceToAbsoluteTracking.GetPosition().z}-{vrCamPositionStart.z}={vrCamPosition.z}");
-                vrCamVelocity = new Vector3(poses[0].vVelocity.v0, poses[0].vVelocity.v1, poses[0].vVelocity.v2);
-
-                if (inGameMain && SteamVR_Camera.instance?.transform is not null && PlayerCharacter.Player?.Head is not null)
-                {
-                    if (Playerneck is null)
+                    if (action.name == "Move" && action.actionMap.name == "Player")
                     {
-                        if (PlayerCharacter.Player.Gender == Il2CppEekEvents.Genders.Female)
+                        PlayerMove = action;
+                        foreach (var control in action.controls)
                         {
-                            GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+                            if (control.name == "leftStick")
+                            {
+                                PlayerMoveGamePad = control;
+                                break;
+                            }
                         }
-                        else
-                        {
-                            GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-                        }
-                        Playerneck = PlayerCharacter.Player.transform.FindChild("neckUpper")?.gameObject;
-                        Playerneck?.SetActive(false);
-                    }
-
-                    //todo add controller based snap rotation
-                    vrCamRotation = Quaternion.AngleAxis(vrControllerRotation, Vector3.up) * vrCamRotation;
-                    SteamVR_Camera.instance.transform.rotation = vrCamRotation;
-                    PlayerCharacter.Player.transform.rotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
-
-                    var oldPos = SteamVR_Camera.instance.transform.position;
-                    SteamVR_Camera.instance.transform.position = PlayerCharacter.Player.transform.position + vrCamPosition;
-                    //todo add real hmd xyz movement here as well somehow. maybe force player to crouch after some point?
-                    //maybe we can force the player to IK to some height? like stretch them outside the range crouching gives us
-
-                    var moveDirectionForward = PlayerCharacter.Player.transform.rotation * Vector3.forward;//get the angle of the touch and correct it for the rotation of the controller
-                    var moveDirectionSide = PlayerCharacter.Player.transform.rotation * Vector3.right;//get the angle of the touch and correct it for the rotation of the controller
-                    updateInput();
-
-                    if (PlayerCharacter.Player.CurrentMovementSpeed < 1f && trackpad.magnitude > Deadzone)
-                    {//make sure the touch isn't in the deadzone and we aren't going to fast.
-                        hmdPositionDelta = new Vector3(PlayerCharacter.Player.transform.position.x - SteamVR_Camera.instance.transform.position.x, 0, PlayerCharacter.Player.transform.position.z - SteamVR_Camera.instance.transform.position.z);
-                        //MelonLogger.Msg($"{trackpad.x} : {trackpad.y}");
-                        var joystickdelta = (moveDirectionForward * trackpad.y * (trackpad.sqrMagnitude / speed))
-                            + (moveDirectionSide * trackpad.x * (trackpad.sqrMagnitude / speed));
-                        //MelonLogger.Msg($"{hmdPositionDelta.x} : {hmdPositionDelta.z}    {joystickdelta.x} {joystickdelta.z}");
-
-                        if (hmdPositionDelta.sqrMagnitude > 0.3f)
-                        {
-                            var sum = joystickdelta + (hmdPositionDelta * Time.deltaTime);
-                            PlayerCharacter.Player.Controller.Move_Injected(ref sum);
-                            hmdPositionDelta = Vector3.zero;
-                        }
-                        else
-                        {
-                            PlayerCharacter.Player.Controller.Move_Injected(ref joystickdelta);
-                            //PlayerCharacter.Player._controlManager._move.
-                        }
-
-                        //MelonLogger.Msg($"player root{PlayerCharacter.Player.PlayerRootTransform.position.x}|{PlayerCharacter.Player.PlayerRootTransform.position.y}|{PlayerCharacter.Player.PlayerRootTransform.position.z}    cam pos{SteamVR_Camera.instance.transform.position.x}|{SteamVR_Camera.instance.transform.position.y}|{SteamVR_Camera.instance.transform.position.z}");
                     }
                 }
             }
-            //if (Camera.main is null)
+
+            //if (PlayerControlManager.OnInput_Navigate is not null)
             //{
-            //    MelonLogger.Msg("main camera was set to null!");
+            //    MelonLogger.Msg("navigate delegates:");
+            //    foreach (var deleg in PlayerControlManager.OnInput_Navigate.delegates)
+            //    {
+            //        MelonLogger.Msg(deleg.method_info?.Name + " " + deleg.Method?.Name);
+            //    }
+            //}
+            //if (PlayerMove != null)
+            //{
+            //    if (PlayerMove.m_OnStarted is not null)
+            //    {
+            //        MelonLogger.Msg("action move delegates:");
+            //        for (int i = 0; i <= PlayerMove.m_OnStarted.length; i++)
+            //        {
+            //            MelonLogger.Msg(PlayerMove.m_OnStarted[i].method_info?.Name);
+            //            foreach (var deleg in PlayerMove.m_OnStarted[i].delegates)
+            //            {
+            //                MelonLogger.Msg("    " + deleg.method_info?.Name + " " + deleg.Method?.Name);
+            //            }
+            //        }
+            //    }
+            //}
+            //else
+            //{
+            //    MelonLogger.Msg("playermove was null");
             //}
 
-            //if (Keyboard.current.qKey.wasPressedThisFrame)
-            //{
-            //    SteamVR_Camera.DumpRenderTexture();
-            //}
+            float seconds = predictSecondsFromNow();
+            TrackedDevicePose_t[] poses = new TrackedDevicePose_t[4];
+            OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
+            //MelonLogger.Msg(poses[0].ToStringDetail());
+            vrCamRotation = vrCamRotationStart * poses[0].mDeviceToAbsoluteTracking.GetRotation();
+            if (vrCamPositionStart.sqrMagnitude == 0)
+            {
+                vrCamPositionStart = new Vector3(poses[0].mDeviceToAbsoluteTracking.GetPosition().x, 0, poses[0].mDeviceToAbsoluteTracking.GetPosition().z);
+            }
+            vrCamPosition = new(-poses[0].mDeviceToAbsoluteTracking.GetPosition().x - vrCamPositionStart.x, poses[0].mDeviceToAbsoluteTracking.GetPosition().y, -poses[0].mDeviceToAbsoluteTracking.GetPosition().z - vrCamPositionStart.z);
+            //MelonLogger.Msg($"{poses[0].mDeviceToAbsoluteTracking.GetPosition().x}-{vrCamPositionStart.x}={vrCamPosition.x} | {poses[0].mDeviceToAbsoluteTracking.GetPosition().z}-{vrCamPositionStart.z}={vrCamPosition.z}");
+            vrCamVelocity = new Vector3(poses[0].vVelocity.v0, poses[0].vVelocity.v1, poses[0].vVelocity.v2);
+
+            if (!inGameMain || SteamVR_Camera.instance?.transform is null || PlayerCharacter.Player?.Head is null)
+            {
+                return;
+            }
+
+            if (Playerneck is null)
+            {
+                if (PlayerCharacter.Player.Gender == Il2CppEekEvents.Genders.Female)
+                {
+                    GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+                }
+                else
+                {
+                    GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
+                }
+                Playerneck = PlayerCharacter.Player.transform.FindChild("neckUpper")?.gameObject;
+                Playerneck?.SetActive(false);
+            }
+
+            //todo add controller based snap rotation
+            vrCamRotation = Quaternion.AngleAxis(vrControllerRotation, Vector3.up) * vrCamRotation;
+            SteamVR_Camera.instance.transform.rotation = vrCamRotation;
+            PlayerCharacter.Player.transform.rotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
+
+            var oldPos = SteamVR_Camera.instance.transform.position;
+            SteamVR_Camera.instance.transform.position = PlayerCharacter.Player.transform.position + vrCamPosition;
+            //maybe we can force the player to IK to some height? like stretch them outside the range crouching gives us (sizing player to fit the height between crouch and stuff)
+
+            var moveDirectionForward = PlayerCharacter.Player.transform.rotation * Vector3.forward;//get the angle of the touch and correct it for the rotation of the controller
+            var moveDirectionSide = PlayerCharacter.Player.transform.rotation * Vector3.right;//get the angle of the touch and correct it for the rotation of the controller
+            updateInput();
+
+            if (PlayerCharacter.Player.CurrentMovementSpeed < 1f && trackpad.magnitude > Deadzone)
+            {//make sure the touch isn't in the deadzone and we aren't going to fast.
+                hmdPositionDelta = new Vector3(PlayerCharacter.Player.transform.position.x - SteamVR_Camera.instance.transform.position.x, 0, PlayerCharacter.Player.transform.position.z - SteamVR_Camera.instance.transform.position.z);
+                //MelonLogger.Msg($"{trackpad.x} : {trackpad.y}");
+                var joystickdelta = (moveDirectionForward * trackpad.y * (trackpad.sqrMagnitude / speed))
+                    + (moveDirectionSide * trackpad.x * (trackpad.sqrMagnitude / speed));
+                //MelonLogger.Msg($"{hmdPositionDelta.x} : {hmdPositionDelta.z}    {joystickdelta.x} {joystickdelta.z}");
+
+                //if (hmdPositionDelta.sqrMagnitude > 0.3f)
+                if (false)
+                {
+                    var sum = joystickdelta + (hmdPositionDelta * Time.deltaTime);
+                    PlayerCharacter.Player.Controller.Move_Injected(ref sum);
+                    hmdPositionDelta = Vector3.zero;
+                }
+                else
+                {
+                    //hmmm
+                    //PlayerCharacter.Player.Controller.Move_Injected(ref joystickdelta);
+
+                    //todo investigatethis, maybe we can copy a callback context and then just change the value from it?
+                    if (PlayerMoveGamePad is null)
+                    {
+                        return;
+                    }
+                    unsafe
+                    {
+                        var adjustedPad = trackpad * int.MaxValue;
+                        var ints = new int[2] { (int)adjustedPad.x, (int)adjustedPad.y };
+                        string s2 = "0x";
+                        fixed (int* p = ints)
+                        {
+                            var buffer = (byte*)(void*)p;
+                            for (int i = 0; i < 8; i++)
+                            {
+                                s2 += $"{buffer[i]:x}";
+                            }
+                            s2 += ";";
+                        }
+
+                        MelonLogger.Msg("simulated ints -> " + s2);
+                        //PlayerMoveGamePad.WriteValueIntoState(trackpad, PlayerMoveGamePad.currentStatePtr);
+                        //InputState.Change
+                        // https://discussions.unity.com/t/recording-and-replaying-input/756993
+                        //InputState.
+                        //PlayerMove.currentState.
+
+                        //maybe via ControlMappingInput.singleton?
+                    }
+                    //PlayerCharacter.Player._controlManager._move.
+                    var context = new InputAction.CallbackContext();
+                    //context.
+                    PlayerCharacter.Player._controlManager.InputNavigate(context);
+                }
+            }
         }
 
         private float predictSecondsFromNow()
