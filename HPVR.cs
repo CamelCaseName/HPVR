@@ -1,16 +1,15 @@
 ﻿using Il2Cpp;
 using Il2CppEekCharacterEngine;
+using Il2CppEekEvents;
 using Il2CppEekEvents.Helper;
+using Il2CppEekUI;
+using Il2CppHouseParty;
 using MelonLoader;
 using SteamXR_Melon;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
-using System.Xml.Linq;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.XR;
 using Valve.VR;
 using Object = UnityEngine.Object;
 
@@ -45,25 +44,24 @@ namespace HPVR
 
     public class HPVR : MelonMod
     {
-        //public CapsuleCollider Collider;
-        public float Deadzone = 0.0f;
-
-        //public SteamVR_Input_Sources Hand;//Set Hand To Get Input From
-        public float speed = 20f;
-
-        private Vector3 hmdPositionDelta = new();
+        private bool colliding = false;
         private bool inGameMain = false;
-        private GameObject? Playerneck = null;
-        private Vector2 trackpad;
-        private bool usingVrCamera = false;
-        private Vector3 vrCamPosition = new(0, 1.75f, 0);
-        private Vector3 vrCamPositionStart = new();
+        private bool inMainMenu = false;
+        private bool inFade = false;
+        private GameObject? playerEye = null;
         private Quaternion vrCamRotation = Quaternion.identity;
         private Quaternion vrControllerRotation = Quaternion.identity;
-        private Quaternion vrCamRotationStart = new();
+        private readonly bool debugMotion = false;
+        private TrackedDevicePose_t[]? poses;
+        private Vector3 hmdAbsolutePosition = new();
+        private Vector3 hmdVsPlayer = new();
+        private Vector3 lastControllerMove = new();
+        private Vector3 vrCamPosition = new(0, 1.75f, 0);
+        private Vector3 vrCamPositionStart = new();
         private Vector3 vrControllerPosition = new();
-        private bool inTurn = false;
-        private TrackedDevicePose_t[] poses = new TrackedDevicePose_t[4];
+        public float Deadzone = 0.05f;
+        public float speed = 25f;
+        public Transform? player;
 
         #region dirtyStuff
 
@@ -148,6 +146,11 @@ namespace HPVR
 
         public HPVR()
         {
+        }
+
+        public override void OnInitializeMelon()
+        {
+            poses = new TrackedDevicePose_t[4];
             CreateAndSavePlugin("openvr_api");
             CreateAndSavePlugin("XRSDKOpenVR");
             CreateAndSavePlugin("ucrtbased");
@@ -177,12 +180,7 @@ namespace HPVR
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR");
             CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
-        }
 
-        //TODO move the vr cam in x and z with the controller, rotation as well. then just set the player to move to where the head is and rotate the player the same way the cam is
-
-        public override void OnInitializeMelon()
-        {
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
@@ -197,17 +195,16 @@ namespace HPVR
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            if (sceneName is not ("GameMain" or "MainMenu"))
-            {
-                usingVrCamera = false;
-                return;
-            }
-            usingVrCamera = true;
+            playerEye = null;
             inGameMain = sceneName == "GameMain";
+            inMainMenu = sceneName == "MainMenu";
 
             if (inGameMain)
             {
-                vrControllerRotation = Quaternion.Euler(0, 0, 0);//Quaternion.AngleAxis(180, Vector3.up);
+                player = PlayerCharacter.Player.transform;
+                SetUpSteamActions();
+
+                vrControllerRotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
                 vrControllerPosition = new(0.7f, 0, 3.55f);
             }
             else
@@ -215,18 +212,22 @@ namespace HPVR
                 vrControllerRotation = Quaternion.Euler(355, 0, 0);
                 vrControllerPosition = new(0.55f, 0.6635f, -10);
             }
-            MelonLogger.Msg($"controller start rot ({vrControllerRotation.eulerAngles.x}|{vrControllerRotation.eulerAngles.y}|{vrControllerRotation.eulerAngles.z}) start pos ({vrControllerPosition.x}|{vrControllerPosition.y}|{vrControllerPosition.z})");
+            if (inMainMenu)
+            {
+                MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
+            }
 
-            OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, 0, poses);
-            Vector3 hmdabsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
-            vrCamPositionStart = new Vector3(hmdabsolutePosition.x, 0, hmdabsolutePosition.z);
-            vrCamRotationStart = Quaternion.Inverse(poses[0].mDeviceToAbsoluteTracking.GetRotation());
-            MelonLogger.Msg($"hmd start rot ({vrCamRotationStart.eulerAngles.x}|{vrCamRotationStart.eulerAngles.y}|{vrCamRotationStart.eulerAngles.z}) start pos ({vrCamPositionStart.x}|{vrCamPositionStart.y}|{vrCamPositionStart.z})");
+            if (debugMotion)
+            {
+                MelonLogger.Msg($"controller start rot ({vrControllerRotation.eulerAngles.x}|{vrControllerRotation.eulerAngles.y}|{vrControllerRotation.eulerAngles.z}) start pos ({vrControllerPosition.x}|{vrControllerPosition.y}|{vrControllerPosition.z})");
+            }
 
-            MelonLogger.Msg("[HPVR] hpvr loading");
+            SetHMDStartPos();
+
+            MelonLogger.Msg("[HPVR] HPVR loading");
             MelonLogger.Msg("[HPVR] adding steamvr");
-            //Camera.main.gameObject.AddComponent<SteamVR_Fade>();
             Camera.main.gameObject.AddComponent<SteamVR_Camera>();
+
 
             var eekCam = Object.FindObjectOfType<EekCamera>();
             if (eekCam is not null)
@@ -241,83 +242,198 @@ namespace HPVR
 
             if (inGameMain && PlayerCharacter.Player is not null)
             {
-                GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
-                GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-                PlayerCharacter.Player.transform.FindChild("neckUpper")?.gameObject?.SetActive(false);
+                RemovePlayerHead();
             }
 
+            MelonLogger.Msg("[HPVR] HPVR loaded");
+            var res = SteamVR_Camera.GetSceneResolution();
+            MelonLogger.Msg($"[HPVR] Resolution: {res.width}:{res.height}");
+        }
+
+        //todo add colliders on the outside of the floor collider in the main menu
+        //todo allow walking in the customizer 
+        //todo put all canvasses in worlspace, regular transform scale down in front of the camera -> translate raycast from 
+        //maybe do IK with the player object -> finalik dokumentation
+
+        private void SetHMDStartPos()
+        {
+            OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, 0, poses);
+            hmdAbsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
+            vrCamPositionStart = new Vector3(hmdAbsolutePosition.x, 0, hmdAbsolutePosition.z);
+        }
+
+        private void SetUpSteamActions()
+        {
             SteamVR_Actions._default.Activate();
             SteamVR_Actions.platformer_Move.actionSet.Activate(priority: 1);
 
-            MelonLogger.Msg("[HPVR] hpvr loaded");
-            var res = SteamVR_Camera.GetSceneResolution();
-            MelonLogger.Msg($"[HPVR] {res.width}:{res.height}");
+            SteamVR_Actions.platformer_Move.onAxis += (SteamVR_Action_Vector2 fromAction, SteamVR_Input_Sources fromSource, Vector2 axis, Vector2 delta) =>
+            {
+                if (axis.magnitude > Deadzone)
+                {
+                    var yRotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
+                    var moveDirectionForward = yRotation * Vector3.forward;//get the angle of the touch and correct it for the rotation of the controller
+                    var moveDirectionSide = yRotation * Vector3.right;//get the angle of the touch and correct it for the rotation of the controller
+
+                    lastControllerMove = (moveDirectionForward * axis.y * (axis.sqrMagnitude / speed))
+                        + (moveDirectionSide * axis.x * (axis.sqrMagnitude / speed));
+                }
+                else
+                {
+                    lastControllerMove = Vector3.zero;
+                }
+            };
+
+            SteamVR_Actions.default_SnapTurnLeft.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
+            {
+                SetHMDStartPos();
+                vrControllerPosition = vrCamPosition;
+                vrControllerRotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                //UpdateHMDPositions();
+            };
+            SteamVR_Actions.default_SnapTurnRight.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
+            {
+                SetHMDStartPos();
+                vrControllerPosition = vrCamPosition;
+                vrControllerRotation *= Quaternion.AngleAxis(45, Vector3.up);
+                //UpdateHMDPositions();
+            };
         }
 
         public override void OnUpdate()
         {
-            if (!usingVrCamera)
+            if (SteamVR_Camera.instance?.transform is null)
             {
                 return;
             }
 
-            UpdateInput();
             UpdateHMDPositions();
 
-            if (!inGameMain || SteamVR_Camera.instance?.transform is null || PlayerCharacter.Player?.Head is null)
+            if (!inGameMain || player is null)
             {
                 return;
             }
 
             //todo maybe we can force the player to IK to some height? like stretch them outside the range crouching gives us (sizing player to fit the height between crouch and stuff)
-            //Transform cameraTransform = SteamVR_Camera.instance.transform;
-            //PlayerCharacter.Player.transform.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
-            //hmdPositionDelta = new Vector3(cameraTransform.position.x - PlayerCharacter.Player.transform.position.x, 0, cameraTransform.position.z - PlayerCharacter.Player.transform.position.z);
-            //PlayerCharacter.Player.Controller.Move_Injected(ref hmdPositionDelta);
-            ////todo detect when the player is colliding with a wall (position differnce or collision flags) then stop controller movement and only resume it once no longer colliding
+            Transform cameraTransform = SteamVR_Camera.instance.transform;
+            player.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
 
+            hmdVsPlayer = new Vector3(cameraTransform.position.x - player.position.x, 0, cameraTransform.position.z - player.position.z) + lastControllerMove + ((player.rotation * Vector3.back) * 0.1f);
 
-            //if (Playerneck is null)
-            //{
-            //    if (PlayerCharacter.Player.Gender == Il2CppEekEvents.Genders.Female)
-            //    {
-            //        GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
-            //    }
-            //    else
-            //    {
-            //        GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-            //    }
-            //    Playerneck = PlayerCharacter.Player.transform.FindDeepChild("neckUpper")?.gameObject;
-            //    Playerneck?.SetActive(false);
-            //}
+            colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
+            if (!colliding)
+            {
+                if (inFade)
+                {
+                    inFade = false;
+                    SteamVR_Fade.View(Color.clear, 0.3f);
+                }
+                if (!DialogueUI.Singleton.IsShowing)
+                {
+                    vrControllerPosition += lastControllerMove;
+                }
+            }
+            else
+            {
+                if (!inFade)
+                {
+                    inFade = true;
+                    SteamVR_Fade.View(Color.black, 0.3f);
+                }
+            }
+            lastControllerMove = Vector3.zero;
+
+            if (playerEye is null)
+            {
+                RemovePlayerHead();
+            }
+
+            //MelonLogger.Msg(hmdAbsolutePosition.y);
+            if (hmdAbsolutePosition.y > 1f)
+            {
+                if (PlayerCharacter.Player.Gender == Genders.Male)
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(hmdAbsolutePosition.y / 1.75f);
+                }
+                else
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(hmdAbsolutePosition.y / 1.65f);
+                }
+                PlayerCharacter.Player.IsCrouching = false;
+            }
+            else
+            {
+                if (PlayerCharacter.Player.Gender == Genders.Male)
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(hmdAbsolutePosition.y / 0.8f);
+                }
+                else
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(hmdAbsolutePosition.y / 0.73f);
+                }
+                PlayerCharacter.Player.IsCrouching = true;
+            }
+        }
+
+        private void RemovePlayerHead()
+        {
+            if (PlayerCharacter.Player.Gender == Genders.Female)
+            {
+                GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+            }
+            else
+            {
+                GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
+            }
+            playerEye = player.FindDeepChild("lEye")?.gameObject;
+            player.FindDeepChild("rEye")?.gameObject.SetActive(false);
+            player.FindDeepChild("head")?.gameObject.SetActive(false);
+            playerEye?.SetActive(false);
         }
 
         private void UpdateHMDPositions()
         {
             float seconds = PredictSecondsFromNow();
-            TrackedDevicePose_t[] poses = new TrackedDevicePose_t[4];
+            poses = new TrackedDevicePose_t[4];
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-            Vector3 hmdabsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
+            hmdAbsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
             //this is fine
-            if (inGameMain && PlayerCharacter.Player != null)
+            vrCamRotation = vrControllerRotation * (poses[0].mDeviceToAbsoluteTracking.GetRotation());
+            //this rotates by vrcontrollerrotation around the vrcampositionstart. we want to rotate it around hmd absolute position, so the other way around
+            vrCamPosition = vrControllerPosition + (vrControllerRotation * (hmdAbsolutePosition - vrCamPositionStart));
+
+            vrCamPosition.y = hmdAbsolutePosition.y;
+            if (inGameMain && player != null)
             {
-                hmdabsolutePosition.y += PlayerCharacter.Player.transform.position.y;
+                vrCamPosition.y += player.position.y;
             }
 
-            vrCamRotation = vrControllerRotation * (poses[0].mDeviceToAbsoluteTracking.GetRotation() * vrCamRotationStart);
-            vrCamPosition = vrControllerPosition + vrControllerRotation * (hmdabsolutePosition - vrCamPositionStart);
-
-            MelonLogger.Msg($"update hmd: ({vrCamRotation.eulerAngles.x}|{vrCamRotation.eulerAngles.y}|{vrCamRotation.eulerAngles.z}) act pos ({vrCamPosition.x}|{vrCamPosition.y}|{vrCamPosition.z})");
-
+            if (debugMotion)
+            {
+                MelonLogger.Msg($"update hmd: ({vrCamRotation.eulerAngles.x}|{vrCamRotation.eulerAngles.y}|{vrCamRotation.eulerAngles.z}) act pos ({vrCamPosition.x}|{vrCamPosition.y}|{vrCamPosition.z})");
+            }
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
         }
 
         static void CreateAndSavePlugin(string name)
         {
-            string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "Plugins", "x86_64");
+            string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
             string path = Path.Combine(folderPath, name + ".dll");
+            if (!File.Exists(path))
+            {
+                Directory.CreateDirectory(folderPath);
+                using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources." + name + ".dll");
+                if (str is not null)
+                {
+                    FileStream fstr = new(path, FileMode.Create);
+                    str.CopyTo(fstr);
+                    fstr.Close();
+                }
+            }
+            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "Plugins", "x86_64");
+            path = Path.Combine(folderPath, name + ".dll");
             if (!File.Exists(path))
             {
                 Directory.CreateDirectory(folderPath);
@@ -359,7 +475,7 @@ namespace HPVR
             }
         }
 
-        private float PredictSecondsFromNow()
+        private static float PredictSecondsFromNow()
         {
             float fSecondsSinceLastVsync = 0.0f;
             ulong zero = 0;
@@ -369,38 +485,6 @@ namespace HPVR
             float fFrameDuration = 1.0f / fDisplayFrequency;
             float fVsyncToPhotons = OpenVR.System.GetFloatTrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_SecondsFromVsyncToPhotons_Float, ref error);
             return fFrameDuration - fSecondsSinceLastVsync + fVsyncToPhotons;
-        }
-
-        private void UpdateInput()
-        {
-            if (!inGameMain)
-            {
-                return;
-            }
-
-            trackpad = SteamVR_Actions.platformer_Move.axis;
-
-            if (inGameMain && trackpad.magnitude > Deadzone)
-            {
-                var yRotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
-                var moveDirectionForward = yRotation * Vector3.forward;//get the angle of the touch and correct it for the rotation of the controller
-                var moveDirectionSide = yRotation * Vector3.right;//get the angle of the touch and correct it for the rotation of the controller
-
-                vrControllerPosition += (moveDirectionForward * trackpad.y * (trackpad.sqrMagnitude / speed))
-                    + (moveDirectionSide * trackpad.x * (trackpad.sqrMagnitude / speed));
-            }
-
-            float snapTurn = SteamVR_Actions.default_SnapTurnLeft.state ? -1f : SteamVR_Actions.default_SnapTurnRight.state ? 1f : 0;
-
-            //only turn once
-            if (!inTurn && snapTurn != 0)
-            {
-                vrControllerRotation *= Quaternion.AngleAxis(snapTurn * 45, Vector3.up);
-            }
-
-            inTurn = snapTurn != 0;
-
-            MelonLogger.Msg($"input: ({vrControllerRotation.eulerAngles.x}|{vrControllerRotation.eulerAngles.y}|{vrControllerRotation.eulerAngles.z}) start pos ({vrControllerPosition.x}|{vrControllerPosition.y}|{vrControllerPosition.z})");
         }
     }
 }
