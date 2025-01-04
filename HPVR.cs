@@ -1,5 +1,6 @@
 ﻿using Il2Cpp;
 using Il2CppEekCharacterEngine;
+using Il2CppEekEvents.Helper;
 using MelonLoader;
 using SteamXR_Melon;
 using System.Diagnostics.CodeAnalysis;
@@ -299,6 +300,7 @@ namespace HPVR
                 vrCamPositionStart = new Vector3(poses[0].mDeviceToAbsoluteTracking.GetPosition().x, 0, poses[0].mDeviceToAbsoluteTracking.GetPosition().z);
             }
 
+            var oldVrCamPosition = vrCamPosition;
             vrCamPosition = new(-poses[0].mDeviceToAbsoluteTracking.GetPosition().x - vrCamPositionStart.x, poses[0].mDeviceToAbsoluteTracking.GetPosition().y, -poses[0].mDeviceToAbsoluteTracking.GetPosition().z - vrCamPositionStart.z);
             vrCamVelocity = new Vector3(poses[0].vVelocity.v0, poses[0].vVelocity.v1, poses[0].vVelocity.v2);
 
@@ -317,7 +319,7 @@ namespace HPVR
                 {
                     GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
                 }
-                Playerneck = PlayerCharacter.Player.transform.FindChild("neckUpper")?.gameObject;
+                Playerneck = PlayerCharacter.Player.transform.FindDeepChild("neckUpper")?.gameObject;
                 Playerneck?.SetActive(false);
             }
 
@@ -327,7 +329,10 @@ namespace HPVR
             PlayerCharacter.Player.transform.rotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
 
             var oldPos = SteamVR_Camera.instance.transform.position;
-            SteamVR_Camera.instance.transform.position = PlayerCharacter.Player.transform.position + vrCamPosition;
+            var hmdDelta = vrCamPosition - oldVrCamPosition;
+            hmdDelta = vrControllerRotationAccumulated * hmdDelta;
+            hmdDelta = vrCamPosition + hmdDelta;
+            SteamVR_Camera.instance.transform.position = PlayerCharacter.Player.transform.position + hmdDelta;
             //maybe we can force the player to IK to some height? like stretch them outside the range crouching gives us (sizing player to fit the height between crouch and stuff)
 
             var moveDirectionForward = PlayerCharacter.Player.transform.rotation * Vector3.forward;//get the angle of the touch and correct it for the rotation of the controller
