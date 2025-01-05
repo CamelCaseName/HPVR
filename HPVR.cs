@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using UnityEngine;
 using Valve.VR;
+using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
 
 namespace HPVR
@@ -26,6 +27,8 @@ namespace HPVR
         private bool inFade = false;
         private bool SetUpInput = false;
         private GameObject? playerEye = null;
+        private GameObject? leftController = null;
+        private GameObject? rightController = null;
         private Quaternion vrCamRotation = Quaternion.identity;
         private Quaternion vrControllerRotation = Quaternion.identity;
         private TrackedDevicePose_t[]? poses;
@@ -40,6 +43,7 @@ namespace HPVR
         public float Deadzone = 0.0f;
         public float speed = 0.5f;
         public Transform? player;
+        private Il2CppAssetBundle? bundle;
 
         #region dirtyStuff
 
@@ -159,6 +163,19 @@ namespace HPVR
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR");
             CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
 
+            var assetBundleMemory = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources.SteamVR_Melon.assets")!;
+            var assetBundleBytes = new Byte[assetBundleMemory.Length];
+            assetBundleMemory.Read(assetBundleBytes, 0, (int)assetBundleMemory.Length);
+            bundle = Il2CppAssetBundleManager.LoadFromMemory(assetBundleBytes);
+
+            MelonLogger.Msg(bundle?.mainAsset.name ?? "asset bundle empty?");
+            if (bundle is not null)
+            {
+                foreach (var assetname in bundle.GetAllScenePaths())
+                {
+                    MelonLogger.Msg(assetname);
+                }
+            }
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
@@ -221,9 +238,29 @@ namespace HPVR
                 RemovePlayerHead();
             }
 
+            //set up controller objects
+            SetUpControllers();
+
             MelonLogger.Msg("[HPVR] HPVR loaded");
             var res = SteamVR_Camera.GetSceneResolution();
             MelonLogger.Msg($"[HPVR] Resolution: {res.width}:{res.height}");
+        }
+
+        private void SetUpControllers()
+        {
+            leftController = new GameObject("Controller (left)");
+            //todo add all childs and references as in the example scene
+            var leftPose = leftController.AddComponent<SteamVR_Behaviour_Pose>();
+            leftPose.transform = leftController.transform;
+            leftPose.inputSource = SteamVR_Input_Sources.LeftHand;
+            var leftHand = leftController.AddComponent<Hand>();
+            //leftHand.renderModelPrefab = bundle.Load("LeftRenderModel").Cast<GameObject>();
+            leftHand.handType = SteamVR_Input_Sources.LeftHand;
+            var leftPhysics = leftController.AddComponent<HandPhysics>();
+            //build stuff then 
+            //leftPhysics.Initialize(prefab);
+            //leftPhysics.handColliderPrefab = bundle.Load("HandColliderLeft").Cast<HandCollider>();
+
         }
 
         private void MoveUIToWorldSpace()

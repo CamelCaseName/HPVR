@@ -30,6 +30,7 @@
     <None Remove="Resources\HPUI.dll" />
     <None Remove="Resources\OpenVRSettings.asset" />
     <None Remove="Resources\openvr_api.dll" />
+    <None Remove="Resources\SteamVR_Melon.assets" />
     <None Remove="Resources\SteamVR_Melon.dll" />
     <None Remove="Resources\SteamXR_Melon.dll" />
     <None Remove="Resources\System.Security.Permissions.dll" />
@@ -59,6 +60,7 @@
     <EmbeddedResource Include="Resources\HPUI.dll" />
     <EmbeddedResource Include="Resources\OpenVRSettings.asset" />
     <EmbeddedResource Include="Resources\openvr_api.dll" />
+    <EmbeddedResource Include="Resources\SteamVR_Melon.assets" />
     <EmbeddedResource Include="Resources\SteamVR_Melon.dll" />
     <EmbeddedResource Include="Resources\SteamXR_Melon.dll" />
     <EmbeddedResource Include="Resources\System.Security.Permissions.dll" />
@@ -119,12 +121,20 @@
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.AudioModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Il2CppAssetBundleManager">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\net6\UnityEngine.Il2CppAssetBundleManager.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
