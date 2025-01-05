@@ -4,49 +4,25 @@ using Il2CppEekEvents;
 using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
 using Il2CppHouseParty;
+using Il2CppInterop.Runtime;
+using Il2CppSystem.Runtime.CompilerServices;
 using MelonLoader;
 using SteamXR_Melon;
 using System.Reflection;
 using System.Runtime.Loader;
-using System.Text;
 using UnityEngine;
 using Valve.VR;
 using Object = UnityEngine.Object;
 
 namespace HPVR
 {
-
-    public static class Extensions
-    {
-        public static string Beautify(this TrackedDevicePose_t[] values, string seperator = ", ")
-        {
-            StringBuilder stringBuilder = new(values.Length * 3);
-
-            foreach (TrackedDevicePose_t value in values)
-            {
-                stringBuilder.Append(value.ToStringDetail() ?? null);
-                stringBuilder.Append(seperator);
-            }
-            stringBuilder.Remove(stringBuilder.Length - 3, 2);
-
-            return stringBuilder.ToString();
-        }
-
-        public static string ToStringDetail(this TrackedDevicePose_t data)
-        {
-            var pos = data.mDeviceToAbsoluteTracking.GetPosition();
-            var rot = data.mDeviceToAbsoluteTracking.GetRotation().eulerAngles;
-            var vel = data.vVelocity;
-            var ang = data.vAngularVelocity;
-            return $"pos: x{pos.x} y{pos.y} z{pos.z} |rot: x{rot.x} y{rot.y} z{rot.z} |vel: x{vel.v0} y{vel.v1} z{vel.v2} |ang: x{ang.v0} y{ang.v1} z{ang.v2}";
-        }
-    }
-
     public class HPVR : MelonMod
     {
         private bool colliding = false;
         private bool inGameMain = false;
         private bool inMainMenu = false;
+        private bool inLoadingScreen;
+        private bool inDisclaimer;
         private bool inFade = false;
         private bool SetUpInput = false;
         private GameObject? playerEye = null;
@@ -60,6 +36,7 @@ namespace HPVR
         private Vector3 vrCamPositionStart = new();
         private Vector3 vrControllerPosition = new();
         private readonly List<BoxCollider> colliders = new(5);
+        private readonly List<Transform> canvasses = new();
         public float Deadzone = 0.0f;
         public float speed = 0.5f;
         public Transform? player;
@@ -201,6 +178,8 @@ namespace HPVR
             playerEye = null;
             inGameMain = sceneName == "GameMain";
             inMainMenu = sceneName == "MainMenu";
+            inLoadingScreen = sceneName == "LoadingScreen";
+            inDisclaimer = sceneName == "Disclaimer";
             SetUpSteamActionsIfNeeded();
 
             if (inGameMain)
@@ -222,6 +201,8 @@ namespace HPVR
 
                 CreateMainMenuBoundary();
             }
+
+            MoveUIToWorldSpace();
 
             SetHMDStartPos();
 
@@ -245,8 +226,72 @@ namespace HPVR
             MelonLogger.Msg($"[HPVR] Resolution: {res.width}:{res.height}");
         }
 
+        private void MoveUIToWorldSpace()
+        {
+            canvasses.Clear();
+            //only move ui which is notr already world space
+            //set scale to 0.001 for all axis
+            //set about 1.7 units in front of the vr cam
+            foreach (var gameObject in GameObject.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
+            {
+                var canvas = gameObject.TryCast<Canvas>();
+                if (canvas is null || gameObject.hideFlags != HideFlags.None)
+                {
+                    //MelonLogger.Msg(gameObject.name + " " + ((int)gameObject.hideFlags));
+                    continue;
+                }
+                switch (canvas.renderMode)
+                {
+                    case RenderMode.WorldSpace:
+                        continue;
+                    case RenderMode.ScreenSpaceCamera:
+                        canvas.transform.localScale *= 0.02f;
+                        break;
+                    default:
+                        canvas.transform.localScale *= 0.001f;
+                        break;
+                }
+                canvas.renderMode = RenderMode.WorldSpace;
+                canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                canvasses.Add(canvas.transform);
+            }
+            UpdateUIPositions();
+        }
+
+        private void UpdateUIPositions()
+        {
+            if (inMainMenu)
+            {
+                foreach (var canvas in canvasses)
+                {
+                    canvas.position = new(1, 1, -8.3f);
+                }
+            }
+            else
+            {
+                foreach (var canvas in canvasses)
+                {
+                    if (canvas.gameObject.active)
+                    {
+
+                        canvas.position = vrCamPosition + vrCamRotation * Vector3.forward * 1.65f;
+                        canvas.rotation = vrCamRotation;
+                    }
+                }
+            }
+        }
+
+        private void UpdateUIInteraction()
+        {
+            //for hitreg, cast ray out of both hands, if it lands on an active ui show a beam
+            //or if the controller is in the bounds send a mouse event if the respective trigger is hit
+            //send mouse event to that canvas with the simulated coords, as if it were screen size
+            //https://github.com/sinai-dev/UnityExplorer/blob/1e1fb0e27bff9ab0212b4e61ef1ecb38a502b290/src/Inspectors/MouseInspectors/UiInspector.cs#L80
+        }
+
         private void CreateMainMenuBoundary()
         {
+            colliders.Clear();
             Material m = new(GameObject.Find("Floor").GetComponent<MeshRenderer>().material);
 
             //set up colliders around the menu area so we cannot fall off
@@ -297,8 +342,9 @@ namespace HPVR
             colliders.Add(border4.GetComponent<BoxCollider>());
         }
 
-        //todo add colliders on the outside of the floor collider in the main menu
-        //todo put all canvasses in worlspace, regular transform scale down in front of the camera -> translate raycast from 
+        //todo remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
+        //todo curve ui canvases slightly
+        //todo render ui on top of everything?
         //maybe do IK with the player object -> finalik dokumentation
 
         private void SetHMDStartPos()
@@ -411,11 +457,11 @@ namespace HPVR
                 if (inFade)
                 {
                     inFade = false;
-                    SteamVR_Fade.View(Color.clear, 0.3f);
+                    SteamVR_Fade.View(Color.clear, 0.2f);
                 }
                 if (inGameMain)
                 {
-                    if (!DialogueUI.Singleton.IsShowing)
+                    if (!PlayerCharacter.Player.IsImmobile)
                     {
                         vrControllerPosition += lastControllerMove;
                     }
@@ -429,7 +475,7 @@ namespace HPVR
             if (colliding && !inFade)
             {
                 inFade = true;
-                SteamVR_Fade.View(Color.black, 0.3f);
+                SteamVR_Fade.View(Color.black, 0.2f);
             }
 
             lastControllerMove = Vector3.zero;
@@ -442,6 +488,21 @@ namespace HPVR
                 }
 
                 ScalePlayerToHMDHeight();
+            }
+
+            if (!inMainMenu)
+            {
+                //dont update position in menu as we have to do some very fine controls and not just answer stuff
+                UpdateUIPositions();
+            }
+
+            if (inGameMain || inMainMenu)
+            {
+                UpdateUIInteraction();
+            }
+            else if (inLoadingScreen || inDisclaimer)
+            {
+                //for the loading screen and disclaimer we have to do something different
             }
         }
 
