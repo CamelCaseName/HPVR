@@ -36,7 +36,6 @@ namespace HPVR
         private Vector3 hmdVsPlayer = new();
         private Vector3 lastControllerMove = new();
         private Vector3 vrCamPosition = new(0, 1.75f, 0);
-        private Vector3 vrCamPositionStart = new();
         private GameObject vrPlayer = null!;
         private GameObject SteamVRobject = null!;
         private readonly List<BoxCollider> colliders = new(5);
@@ -50,7 +49,7 @@ namespace HPVR
         private AssetBundle? bundle;
         private readonly bool debug = true;
         private bool InitializedSteamRVObjects = false;
-        private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground");
+        private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character");
 
         #region dirtyStuff
 
@@ -158,7 +157,7 @@ namespace HPVR
                 playerChar = PlayerCharacter.Player.transform;
 
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
-                vrPlayer.transform.position = new(0.7f, 0, 3.55f);
+                vrPlayer.transform.position = new(0.65f, 0, 3.55f);
 
                 if (inGameMain && PlayerCharacter.Player is not null)
                 {
@@ -168,7 +167,7 @@ namespace HPVR
             else if (inMainMenu)
             {
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
-                vrPlayer.transform.position = new(0.55f, 0.6635f, -10);
+                vrPlayer.transform.position = new(0.55f, 0, -10);
 
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
@@ -178,12 +177,9 @@ namespace HPVR
             else
             {
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
-                vrPlayer.transform.position = new(1, 1, 1);
             }
 
-            MoveUIToWorldSpace();
-
-            SetHMDStartPos();
+            PrepareUIforVR();
 
             MelonLogger.Msg("[HPVR] scene preparation done");
         }
@@ -203,11 +199,11 @@ namespace HPVR
             SteamVRobject.transform.parent = vrPlayer.transform;
 
             var player = vrPlayer.AddComponent<Player>();
-            player.trackingOriginTransform = player.transform;
+            player.trackingOriginTransform = vrPlayer.transform;
             player.hmdTransforms = new Transform[] { Camera.main.transform };
+            player.audioListener = Camera.main.transform;
             player.headCollider = SetUpCamera();
             player.rigSteamVR = SteamVRobject;
-            player.audioListener = Camera.main.transform;
             player.headsetOnHead = SteamVR_Actions.default_HeadsetOnHead;
             player.allowToggleTo2D = false;
 
@@ -227,6 +223,9 @@ namespace HPVR
             {
                 Object.DestroyImmediate(eekCam);
             }
+
+            Player.instance.hmdTransforms = new Transform[] { Camera.main.transform };
+            Player.instance.audioListener = Camera.main.transform;
 
             return headCollider;
         }
@@ -482,6 +481,14 @@ namespace HPVR
             MelonLogger.Warning("built the right hand physics");
 
             Object.DontDestroyOnLoad(rightController);
+
+            var sphere1 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere1.transform.parent = leftController.transform;
+
+            var sphere2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere2.transform.parent = rightController.transform;
+            sphere1.transform.localScale = Vector3.one * 0.1f;
+            sphere2.transform.localScale = Vector3.one * 0.1f;
         }
 
         /*
@@ -520,7 +527,7 @@ namespace HPVR
          assets/steamvr/resources/steamvr_externalcamera.prefab
          */
 
-        private void MoveUIToWorldSpace()
+        private void PrepareUIforVR()
         {
             canvasses.Clear();
             //only move ui which is notr already world space
@@ -552,12 +559,29 @@ namespace HPVR
                         canvas.transform.localScale *= 0.0009f;
                         break;
                 }
+
                 //todo tune
                 //canvas.scaleFactor *= 1.1f;
                 canvas.renderMode = RenderMode.WorldSpace;
                 canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                 canvasses.Add(canvas.transform);
             }
+
+            //foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Button>()))
+            //{
+            //    var button = obj.TryCast<Button>();
+            //    if (button is null)
+            //    {
+            //        continue;
+            //    }
+
+            //    var alreadyHasComponent = button.gameObject.GetComponent<UIElement>() != null;
+            //    if (!alreadyHasComponent)
+            //    {
+            //        button.gameObject.AddComponent<UIElement>();
+            //    }
+            //}
+
             UpdateUIPositions();
         }
 
@@ -658,22 +682,6 @@ namespace HPVR
             colliders.Add(border4.GetComponent<BoxCollider>());
         }
 
-        //todo remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
-        //todo curve ui canvases slightly
-        //todo between stand and crouch move the root player transform towards the ground so its legs bend?
-        //maybe do IK with the player object -> finalik dokumentation
-
-        private void SetHMDStartPos()
-        {
-            OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, 0, poses);
-            if (poses is null)
-            {
-                return;
-            }
-            hmdAbsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
-            vrCamPositionStart = new Vector3(hmdAbsolutePosition.x, 0, hmdAbsolutePosition.z);
-        }
-
         private void SetUpSteamActionsIfNeeded()
         {
             SteamVR_Actions._default.Activate();
@@ -700,6 +708,7 @@ namespace HPVR
 
                         lastControllerMove = (moveDirectionForward * axis.y * (axis.sqrMagnitude / speed * Time.deltaTime))
                             + (moveDirectionSide * axis.x * (axis.sqrMagnitude / speed * Time.deltaTime));
+                        lastControllerMove.y = 0;
                     }
                     else
                     {
@@ -712,8 +721,14 @@ namespace HPVR
             {
                 if (inGameMain || inMainMenu)
                 {
-                    SetHMDStartPos();
-                    vrPlayer.transform.position = vrCamPosition;
+                    if (inGameMain && playerChar is not null)
+                    {
+                        vrPlayer.transform.position = new(vrCamPosition.x, playerChar.position.y, vrCamPosition.z);
+                    }
+                    else
+                    {
+                        vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
+                    }
                     vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
                     //UpdateHMDPositions();
                 }
@@ -722,8 +737,14 @@ namespace HPVR
             {
                 if (inGameMain || inMainMenu)
                 {
-                    SetHMDStartPos();
-                    vrPlayer.transform.position = vrCamPosition;
+                    if (inGameMain && playerChar is not null)
+                    {
+                        vrPlayer.transform.position = new(vrCamPosition.x, playerChar.position.y, vrCamPosition.z);
+                    }
+                    else
+                    {
+                        vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
+                    }
                     vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
                     //UpdateHMDPositions();
                 }
@@ -732,6 +753,20 @@ namespace HPVR
             SetUpInput = true;
             MelonLogger.Msg("Activated SteamVR actions");
         }
+
+        //todo remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
+        //todo curve ui canvases slightly
+        //todo between stand and crouch move the root player transform towards the ground so its legs bend?
+        //maybe do IK with the player object -> finalik dokumentation
+        //todo
+        //player hand ik bind to gloves
+        //player collissions check?
+        //hand collider left hand
+        //ui interaction?
+        //player neck size 0
+        //player scale differently?
+        //headset movement wiht collider in trigger mdoe at head for fade checks
+        //player collides with me
 
         public override void OnUpdate()
         {
@@ -747,7 +782,7 @@ namespace HPVR
                 Transform cameraTransform = SteamVR_Camera.instance.transform;
                 playerChar.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
 
-                hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z) + lastControllerMove + ((playerChar.rotation * Vector3.back) * 0.1f);
+                hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z) + lastControllerMove/* + ((playerChar.rotation * Vector3.back) * 0.1f)*/;
 
                 colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
             }
@@ -773,25 +808,26 @@ namespace HPVR
                 if (inFade)
                 {
                     inFade = false;
-                    SteamVR_Fade.View(Color.clear, 0.2f);
+                    //SteamVR_Fade.View(Color.clear, 0.2f);
                 }
                 if (inGameMain)
                 {
-                    if (!PlayerCharacter.Player.IsImmobile)
+                    if (!PlayerCharacter.Player.IsImmobile && playerChar is not null)
                     {
-                        vrPlayer.transform.position += lastControllerMove;
+                        vrPlayer.transform.position += new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
+                        vrPlayer.transform.position = new(vrPlayer.transform.position.x, playerChar.position.y, vrPlayer.transform.position.z);
                     }
                 }
                 else
                 {
-                    vrPlayer.transform.position += lastControllerMove;
+                    vrPlayer.transform.position += new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
                 }
             }
 
             if (colliding && !inFade)
             {
                 inFade = true;
-                SteamVR_Fade.View(Color.black, 0.2f);
+                //SteamVR_Fade.View(Color.black, 0.2f);
             }
 
             lastControllerMove = Vector3.zero;
@@ -877,13 +913,7 @@ namespace HPVR
             //this is fine
             vrCamRotation = vrPlayer.transform.rotation * (poses[0].mDeviceToAbsoluteTracking.GetRotation());
             //this rotates by vrPlayer.transform.rotation around the vrcampositionstart. we want to rotate it around hmd absolute position, so the other way around
-            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * (hmdAbsolutePosition - vrCamPositionStart));
-
-            vrCamPosition.y = hmdAbsolutePosition.y;
-            if (inGameMain && playerChar != null)
-            {
-                vrCamPosition.y += playerChar.position.y;
-            }
+            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * (hmdAbsolutePosition));
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
