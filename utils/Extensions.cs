@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Valve.VR;
 
-namespace HPVR
+namespace HPVR.utils
 {
     public static class Extensions
     {

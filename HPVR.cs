@@ -1,23 +1,17 @@
-﻿using Harmony;
+﻿using HPVR.utils;
 using Il2Cpp;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
-using Il2CppEekEvents.Content;
 using Il2CppEekEvents.Helper;
-using Il2CppEekUI;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
-using Il2CppSystem.Runtime.CompilerServices;
 using MelonLoader;
 using SteamXR_Melon;
 using System.Reflection;
-using System.Runtime.Loader;
 using UnityEngine;
-using UnityEngine.Networking;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
-using YamlDotNet.Serialization;
 using Object = UnityEngine.Object;
 
 namespace HPVR
@@ -34,15 +28,17 @@ namespace HPVR
         private GameObject? playerEye = null;
         private GameObject? leftController = null;
         private GameObject? rightController = null;
+        private Hand leftHand;
+        private Hand rightHand;
         private Quaternion vrCamRotation = Quaternion.identity;
-        private Quaternion vrControllerRotation = Quaternion.identity;
         private TrackedDevicePose_t[]? poses;
         private Vector3 hmdAbsolutePosition = new();
         private Vector3 hmdVsPlayer = new();
         private Vector3 lastControllerMove = new();
         private Vector3 vrCamPosition = new(0, 1.75f, 0);
         private Vector3 vrCamPositionStart = new();
-        private Vector3 vrControllerPosition = new();
+        private GameObject vrPlayer = null!;
+        private GameObject SteamVRobject = null!;
         private readonly List<BoxCollider> colliders = new(5);
         private readonly List<Transform> canvasses = new();
         public float Deadzone = 0.0f;
@@ -50,89 +46,23 @@ namespace HPVR
         private string fallback_fist = string.Empty;
         private string fallback_point = string.Empty;
         private string fallback_relaxed = string.Empty;
-        public Transform? player;
+        public Transform? playerChar;
         private AssetBundle? bundle;
         private readonly bool debug = true;
+        private bool InitializedSteamRVObjects = false;
         private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground");
 
         #region dirtyStuff
 
         static HPVR()
         {
-            //MelonLogger.Msg("Static init");
-            SetOurResolveHandlerAtFront();
+            AssemblyResolverYoinker.
+                        //MelonLogger.Msg("Static init");
+                        SetOurResolveHandlerAtFront();
             //foreach (var item in Assembly.GetExecutingAssembly().GetManifestResourceNames())
             //{
             //    MelonLogger.Msg(item);
             //}
-        }
-
-        private static Assembly AssemblyResolveEventListener(object sender, ResolveEventArgs args)
-        {
-            if (args is null)
-            {
-                return null!;
-            }
-            string cleanName = args.Name[..args.Name.IndexOf(',')];
-            string name = "HPVR.Resources." + cleanName + ".dll";
-            //MelonLogger.Msg(cleanName + " -> " + name);
-            using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
-            if (str is not null)
-            {
-                var context = new AssemblyLoadContext(name, false);
-                string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", cleanName + ".dll");
-                FileStream fstr = new(path, FileMode.Create);
-                str.CopyTo(fstr);
-                fstr.Close();
-                str.Position = 0;
-
-                return context.LoadFromStream(str);
-            }
-            return null!;
-        }
-
-        private static void SetOurResolveHandlerAtFront()
-        {
-            BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
-            FieldInfo? field = null;
-
-            Type domainType = typeof(AssemblyLoadContext);
-
-            while (field is null)
-            {
-                if (domainType is not null)
-                {
-                    field = domainType.GetField("AssemblyResolve", flags);
-                }
-                else
-                {
-                    MelonLogger.Error("domainType got set to null for the AssemblyResolve event was null");
-                    return;
-                }
-                if (field is null)
-                {
-                    domainType = domainType.BaseType!;
-                }
-            }
-
-            MulticastDelegate resolveDelegate = (MulticastDelegate)field.GetValue(null)!;
-            Delegate[] subscribers = resolveDelegate.GetInvocationList();
-
-            Delegate currentDelegate = resolveDelegate;
-            for (int i = 0; i < subscribers.Length; i++)
-            {
-                currentDelegate = Delegate.RemoveAll(currentDelegate, subscribers[i])!;
-            }
-
-            Delegate[] newSubscriptions = new Delegate[subscribers.Length + 1];
-            newSubscriptions[0] = (ResolveEventHandler)AssemblyResolveEventListener!;
-            Array.Copy(subscribers, 0, newSubscriptions, 1, subscribers.Length);
-
-            currentDelegate = Delegate.Combine(newSubscriptions)!;
-
-            field.SetValue(null, currentDelegate);
-
-            //MelonLogger.Msg("Set our resolve handler at the front");
         }
         #endregion
 
@@ -143,9 +73,9 @@ namespace HPVR
         public override void OnInitializeMelon()
         {
             poses = new TrackedDevicePose_t[4];
-            CreateAndSavePlugin("openvr_api");
-            CreateAndSavePlugin("XRSDKOpenVR");
-            CreateAndSavePlugin("ucrtbased");
+            Il2CppHelper.CreateAndSavePlugin("openvr_api");
+            Il2CppHelper.CreateAndSavePlugin("XRSDKOpenVR");
+            Il2CppHelper.CreateAndSavePlugin("ucrtbased");
 
             string HousePartyMainLocation = Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName;
 
@@ -158,27 +88,27 @@ namespace HPVR
                     var name = fullNames.Split('.')[^2];
                     if (name.StartsWith("bindings_") || name.StartsWith("binding_") || name == "actions")
                     {
-                        CreateAndSaveToPath(folderPath, "actions." + name, ".json", name);
+                        Il2CppHelper.CreateAndSaveToPath(folderPath, "actions." + name, ".json", name);
                     }
                 }
             }
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets");
-            CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", "", "vrshaders");
-            CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", "", "vrshaders");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "UnitySubsystems", "XRSDKOpenVR");
-            CreateAndSaveToPath(folderPath, "UnitySubsystemsManifest", ".json");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "UnitySubsystemsManifest", ".json");
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "SteamVR");
-            CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "OpenVRSettings", ".asset");
 
             folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets", "HPVR");
-            CreateAndSaveToPath(folderPath, "assets.hpvr_assets", ".manifest", "hpvr_assets");
-            fallback_fist = CreateAndSaveToPath(folderPath, "assets.fallback_fist", ".asset", "fallback_fist");
-            fallback_point = CreateAndSaveToPath(folderPath, "assets.fallback_point", ".asset", "fallback_point");
-            fallback_relaxed = CreateAndSaveToPath(folderPath, "assets.fallback_relaxed", ".asset", "fallback_relaxed");
-            var assets = CreateAndSaveToPath(folderPath, "assets.hpvr_assets", "", "hpvr_assets");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "assets.hpvr_assets", ".manifest", "hpvr_assets");
+            fallback_fist = Il2CppHelper.CreateAndSaveToPath(folderPath, "assets.fallback_fist", ".asset", "fallback_fist");
+            fallback_point = Il2CppHelper.CreateAndSaveToPath(folderPath, "assets.fallback_point", ".asset", "fallback_point");
+            fallback_relaxed = Il2CppHelper.CreateAndSaveToPath(folderPath, "assets.fallback_relaxed", ".asset", "fallback_relaxed");
+            var assets = Il2CppHelper.CreateAndSaveToPath(folderPath, "assets.hpvr_assets", "", "hpvr_assets");
             bundle = AssetBundle.LoadFromFile(assets);
 
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
@@ -197,6 +127,7 @@ namespace HPVR
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
+            MelonLogger.Msg("[HPVR] preparing scene");
             playerEye = null;
             inGameMain = sceneName == "GameMain";
             inMainMenu = sceneName == "MainMenu";
@@ -204,33 +135,92 @@ namespace HPVR
             inDisclaimer = sceneName == "Disclaimer";
             SetUpSteamActionsIfNeeded();
 
-            if (inGameMain)
+            if (!InitializedSteamRVObjects)
             {
-                player = PlayerCharacter.Player.transform;
+                InitializedSteamRVObjects = true;
+                vrPlayer = new GameObject("VR Player");
+                Object.DontDestroyOnLoad(vrPlayer);
 
-                vrControllerRotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
-                vrControllerPosition = new(0.7f, 0, 3.55f);
+                //set up steamvr objects, camera and stuff
+                SetUpSteamVR();
+                //set up controller objects
+                SetUpControllers();
+                //add the hands to the player and start it
+                FinalizeSteamVRSetup();
             }
             else
             {
-                vrControllerRotation = Quaternion.Euler(0, 0, 0);
-                vrControllerPosition = new(0.55f, 0.6635f, -10);
+                Player.instance.headCollider = SetUpCamera();
             }
-            if (inMainMenu)
+
+            if (inGameMain)
             {
+                playerChar = PlayerCharacter.Player.transform;
+
+                vrPlayer.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
+                vrPlayer.transform.position = new(0.7f, 0, 3.55f);
+
+                if (inGameMain && PlayerCharacter.Player is not null)
+                {
+                    RemovePlayerHead();
+                }
+            }
+            else if (inMainMenu)
+            {
+                vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
+                vrPlayer.transform.position = new(0.55f, 0.6635f, -10);
+
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
 
                 CreateMainMenuBoundary();
+            }
+            else
+            {
+                vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
+                vrPlayer.transform.position = new(1, 1, 1);
             }
 
             MoveUIToWorldSpace();
 
             SetHMDStartPos();
 
-            MelonLogger.Msg("[HPVR] HPVR loading");
-            MelonLogger.Msg("[HPVR] adding steamvr");
+            MelonLogger.Msg("[HPVR] scene preparation done");
+        }
+
+        private void FinalizeSteamVRSetup()
+        {
+            var player = vrPlayer.GetComponent<Player>();
+            player.hands = new Hand[] { leftHand, rightHand };
+            player.Init();
+            MelonCoroutines.Start(player.Start());
+        }
+
+        private void SetUpSteamVR()
+        {
+            //we need a steamvr player as well for the hands :(
+            SteamVRobject = new GameObject("SteamVR");
+            SteamVRobject.transform.parent = vrPlayer.transform;
+
+            var player = vrPlayer.AddComponent<Player>();
+            player.trackingOriginTransform = player.transform;
+            player.hmdTransforms = new Transform[] { Camera.main.transform };
+            player.headCollider = SetUpCamera();
+            player.rigSteamVR = SteamVRobject;
+            player.audioListener = Camera.main.transform;
+            player.headsetOnHead = SteamVR_Actions.default_HeadsetOnHead;
+            player.allowToggleTo2D = false;
+
+            Object.DontDestroyOnLoad(SteamVRobject);
+        }
+
+        private static SphereCollider SetUpCamera()
+        {
             Camera.main.gameObject.AddComponent<SteamVR_Camera>();
+            var headCollider = Camera.main.gameObject.AddComponent<SphereCollider>();
+            headCollider.radius = 0.12f;
+            headCollider.isTrigger = false;
+            headCollider.providesContacts = false;
 
             var eekCam = Object.FindObjectOfType<EekCamera>();
             if (eekCam is not null)
@@ -238,21 +228,7 @@ namespace HPVR
                 Object.DestroyImmediate(eekCam);
             }
 
-            if (inGameMain && PlayerCharacter.Player is not null)
-            {
-                RemovePlayerHead();
-            }
-
-            if (inGameMain || inMainMenu)
-            {
-                //set up controller objects
-                //todo fix
-                SetUpControllers();
-            }
-
-            MelonLogger.Msg("[HPVR] HPVR loaded");
-            var res = SteamVR_Camera.GetSceneResolution();
-            MelonLogger.Msg($"[HPVR] Resolution: {res.width}:{res.height}");
+            return headCollider;
         }
 
         private void SetUpControllers()
@@ -263,21 +239,17 @@ namespace HPVR
                 return;
             }
 
-            //todo use the prefabs but we have to rebuild all behaviours manually :(
-            //so load the prefab it wants
-            //instantiate
-            //add all components onto it and populate them
-            //send it to the steamvr components that wanted teh prefab, and mod them so they dont instantiate but just use what you give them
             leftController = new GameObject("Controller (left)");
             leftController.transform.position = new(0.25f, 1, 0);
+            leftController.transform.parent = SteamVRobject.transform;
             leftController.layer = LayerMask.NameToLayer("Character");
-            var hoverSphere = new GameObject("HoverPoint");
-            var objectAttachement = new GameObject("ObjectAttachement");
-            hoverSphere.transform.position = new(0.052f, -0.016f, -0.1163f);
-            hoverSphere.transform.parent = leftController.transform;
-            objectAttachement.transform.rotation = Quaternion.Euler(135, -170, -90);
-            objectAttachement.transform.position = new(0.052f, -0.0157f, -0.1163f);
-            objectAttachement.transform.parent = leftController.transform;
+            var leftHoverSphere = new GameObject("HoverPoint");
+            var leftObjectAttachement = new GameObject("ObjectAttachement");
+            leftHoverSphere.transform.position = new(0.052f, -0.016f, -0.1163f);
+            leftHoverSphere.transform.parent = leftController.transform;
+            leftObjectAttachement.transform.rotation = Quaternion.Euler(135, -170, -90);
+            leftObjectAttachement.transform.position = new(0.052f, -0.0157f, -0.1163f);
+            leftObjectAttachement.transform.parent = leftController.transform;
 
             //create the "prefabs"
             var controllerPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/prefabs/controller.prefab").Cast<GameObject>());
@@ -293,14 +265,14 @@ namespace HPVR
             var vrGloveLeftModelSlimPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/prefabs/vr_glove_left_model_slim.prefab").Cast<GameObject>());
             var vrGloveLeftFallback = vrGloveLeftModelSlimPrefab.transform.GetChild(1).gameObject;
             var vrLeftFallback = vrGloveLeftFallback.AddComponent<SteamVR_Skeleton_Poser>();
-
-            MakeBehaviour(fallback_relaxed, out SteamVR_Skeleton_Pose? fallback_relaxed_asset);
-            MakeBehaviour(fallback_fist, out SteamVR_Skeleton_Pose? fallback_fist_asset);
-            MakeBehaviour(fallback_point, out SteamVR_Skeleton_Pose? fallback_point_asset);
+            Il2CppHelper.MakeBehaviour(fallback_relaxed, out SteamVR_Skeleton_Pose? fallback_relaxed_asset);
+            Il2CppHelper.MakeBehaviour(fallback_fist, out SteamVR_Skeleton_Pose? fallback_fist_asset);
+            Il2CppHelper.MakeBehaviour(fallback_point, out SteamVR_Skeleton_Pose? fallback_point_asset);
             vrLeftFallback.skeletonMainPose = fallback_relaxed_asset;
             vrLeftFallback.skeletonAdditionalPoses.Add(fallback_fist_asset);
             vrLeftFallback.skeletonAdditionalPoses.Add(fallback_point_asset);
             vrLeftFallback.Initialize();
+            Object.DontDestroyOnLoad(vrGloveLeftModelSlimPrefab);
             MelonLogger.Warning("built the vrleftfallbackposer");
 
             var vrLeftGloveSkeleton = vrGloveLeftModelSlimPrefab.AddComponent<SteamVR_Behaviour_Skeleton>();
@@ -319,17 +291,20 @@ namespace HPVR
             MelonLogger.Warning("built the vrgloveleftmodelslimprefab");
 
             var LeftRenderModelSlimPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/leftrendermodel slim.prefab").Cast<GameObject>());
-            var renderModel = LeftRenderModelSlimPrefab.AddComponent<RenderModel>();
-            renderModel.controllerPrefab = controllerPrefab;
-            renderModel.displayControllerByDefault = false;
-            renderModel.displayHandByDefault = true;
-            renderModel.handPrefab = vrGloveLeftModelSlimPrefab;
-            renderModel.Awake();
+            var leftRenderModel = LeftRenderModelSlimPrefab.AddComponent<RenderModel>();
+            leftRenderModel.controllerPrefab = controllerPrefab;
+            leftRenderModel.displayControllerByDefault = false;
+            leftRenderModel.displayHandByDefault = true;
+            leftRenderModel.handPrefab = vrGloveLeftModelSlimPrefab;
+            leftRenderModel.Initialize();
+            leftRenderModel.InitAction();
+            Object.DontDestroyOnLoad(LeftRenderModelSlimPrefab);
             MelonLogger.Warning("built the leftrendermodelslimprefab");
 
             var handColliderLeftPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/handcolliderleft.prefab").Cast<GameObject>());
             var handColliderLeft = handColliderLeftPrefab.AddComponent<HandCollider>();
             handColliderLeft.collisionMask = defaultHandMask;
+            handColliderLeft.fingerColliders = new();
             handColliderLeft.fingerColliders.thumbColliders[0] = handColliderLeftPrefab.transform.GetChild(1).GetChild(0);
             handColliderLeft.fingerColliders.indexColliders[0] = handColliderLeftPrefab.transform.GetChild(1).GetChild(1);
             handColliderLeft.fingerColliders.indexColliders[1] = handColliderLeftPrefab.transform.GetChild(1).GetChild(2);
@@ -342,9 +317,19 @@ namespace HPVR
             handColliderLeft.fingerColliders.pinkyColliders[0] = handColliderLeftPrefab.transform.GetChild(1).GetChild(9);
             handColliderLeft.fingerColliders.pinkyColliders[1] = handColliderLeftPrefab.transform.GetChild(1).GetChild(10);
             handColliderLeft.collidersInRadius = false;
+            Object.DontDestroyOnLoad(handColliderLeft);
             MelonLogger.Warning("built the handcolliderprefab");
 
-            var leftHand = leftController.AddComponent<Hand>();
+            var leftPose = leftController.AddComponent<SteamVR_Behaviour_Pose>();
+            leftPose.transform = leftController.transform;
+            leftPose.poseAction = SteamVR_Actions.default_Pose;
+            leftPose.inputSource = SteamVR_Input_Sources.LeftHand;
+            leftPose.broadcastDeviceChanges = true;
+            leftPose.Init();
+            leftPose.FinishInit();
+            MelonLogger.Warning("built the left hand behaviour pose");
+
+            leftHand = leftController.AddComponent<Hand>();
             leftHand.otherHand = null;
             leftHand.handType = SteamVR_Input_Sources.LeftHand;
             leftHand.trackedObject = null;
@@ -353,7 +338,7 @@ namespace HPVR
             leftHand.hapticAction = SteamVR_Actions.default_Haptic;
             leftHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             leftHand.useHoverSphere = true;
-            leftHand.hoverSphereTransform = hoverSphere.transform;
+            leftHand.hoverSphereTransform = leftHoverSphere.transform;
             leftHand.hoverSphereRadius = 0.075f;
             leftHand.hoverLayerMask = defaultHandMask;
             leftHand.hoverUpdateInterval = 0.5f;
@@ -363,66 +348,140 @@ namespace HPVR
             leftHand.useFingerJointHover = true;
             leftHand.fingerJointHover = SteamVR_Skeleton_JointIndexEnum.indexTip;
             leftHand.fingerJointHoverRadius = 0.05f;
-            leftHand.objectAttachmentPoint = objectAttachement.transform;
+            leftHand.objectAttachmentPoint = leftObjectAttachement.transform;
             leftHand.noSteamVRFallbackCamera = null;
             leftHand.noSteamVRFallbackMaxDistanceNoItem = 10;
             leftHand.noSteamVRFallbackMaxDistanceWithItem = 0.5f;
             leftHand.renderModelPrefab = LeftRenderModelSlimPrefab;
             leftHand.spewDebugText = debug;
-            leftHand.Awake();
+            leftHand.trackedObject = leftPose;
+            leftHand.Initialize();
+            leftHand.FinishInit();
             MelonCoroutines.Start(leftHand.Start());
             MelonLogger.Warning("built the left hand hand");
 
-            var leftPose = leftController.AddComponent<SteamVR_Behaviour_Pose>();
-            leftPose.poseAction = SteamVR_Actions.default_Pose;
-            leftPose.inputSource = SteamVR_Input_Sources.LeftHand;
-            leftPose.broadcastDeviceChanges = true;
-            MelonLogger.Warning("built the left hand behaviour pose");
-
             var leftPhysics = leftController.AddComponent<HandPhysics>();
+            leftPhysics.pose = leftPose;
+            leftPhysics.hand = leftHand;
             leftPhysics.Initialize(handColliderLeftPrefab);
             MelonLogger.Warning("built the left hand physics");
-        }
 
-        private static bool MakeBehaviour<T>(string filePath, out T? asset) where T : MonoBehaviour
-        {
-            asset = null;
+            Object.DontDestroyOnLoad(leftController);
 
-            if (!File.Exists(filePath))
-            {
-                MelonLogger.Error(filePath + " does not exist");
-                return false;
-            }
-            try
-            {
-                var GO = new GameObject(Path.GetFileNameWithoutExtension(filePath));
-                asset = GO.AddComponent<T>();
-                //var deserializer = new DeserializerBuilder().WithNodeTypeResolver(new UnityNodeTypeResolver<T>()).Build();
-                var deserializer = new Deserializer();
-                var assetData = deserializer.Deserialize<T>(File.ReadAllText(filePath));
+            rightController = new GameObject("Controller (right)");
+            rightController.transform.position = new(0.25f, 1, 0);
+            rightController.transform.parent = SteamVRobject.transform;
+            rightController.layer = LayerMask.NameToLayer("Character");
+            var rightHoverSphere = new GameObject("HoverPoint");
+            var rightObjectAttachement = new GameObject("ObjectAttachement");
+            rightHoverSphere.transform.position = new(0.052f, -0.016f, -0.1163f);
+            rightHoverSphere.transform.parent = rightController.transform;
+            rightObjectAttachement.transform.rotation = Quaternion.Euler(135, -170, -90);
+            rightObjectAttachement.transform.position = new(0.052f, -0.0157f, -0.1163f);
+            rightObjectAttachement.transform.parent = rightController.transform;
 
-                foreach (var property in typeof(T).GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance))
-                {
-                    if (property.GetMethod is null || property.SetMethod is null)
-                    {
-                        continue;
-                    }
-                    property.SetMethod.Invoke(asset, new object?[] { property.GetMethod.Invoke(assetData, Array.Empty<object?>()) });
-                }
-                foreach (var field in typeof(T).GetFields(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance))
-                {
-                    field.SetValue(asset, field.GetValue(assetData));
-                }
-            }
-            catch (Exception e)
-            {
-                MelonLogger.Error("", e);
-                if (e.InnerException is not null)
-                {
-                    MelonLogger.Error("", e.InnerException);
-                }
-            }
-            return asset is not null;
+            var vrGloverightModelSlimPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/prefabs/vr_glove_right_model_slim.prefab").Cast<GameObject>());
+            var vrGloverightFallback = vrGloverightModelSlimPrefab.transform.GetChild(1).gameObject;
+            var vrrightFallback = vrGloverightFallback.AddComponent<SteamVR_Skeleton_Poser>();
+            vrrightFallback.skeletonMainPose = fallback_relaxed_asset;
+            vrrightFallback.skeletonAdditionalPoses.Add(fallback_fist_asset);
+            vrrightFallback.skeletonAdditionalPoses.Add(fallback_point_asset);
+            vrrightFallback.Initialize();
+            Object.DontDestroyOnLoad(vrGloverightModelSlimPrefab);
+            MelonLogger.Warning("built the vrrightfallbackposer");
+
+            var vrrightGloveSkeleton = vrGloverightModelSlimPrefab.AddComponent<SteamVR_Behaviour_Skeleton>();
+            vrrightGloveSkeleton.skeletonAction = SteamVR_Actions.default_SkeletonRightHand;
+            vrrightGloveSkeleton.inputSource = SteamVR_Input_Sources.RightHand;
+            vrrightGloveSkeleton.rangeOfMotion = EVRSkeletalMotionRange.WithoutController;
+            vrrightGloveSkeleton.skeletonRoot = vrGloverightModelSlimPrefab.transform.GetChild(0).GetChild(0);
+            vrrightGloveSkeleton.origin = null!;
+            vrrightGloveSkeleton.updatePose = true;
+            vrrightGloveSkeleton.onlySetRotations = false;
+            vrrightGloveSkeleton.skeletonBlend = 1;
+            vrrightGloveSkeleton.mirroring = SteamVR_Behaviour_Skeleton.MirrorType.None;
+            vrrightGloveSkeleton.fallbackPoser = vrrightFallback;
+            vrrightGloveSkeleton.fallbackCurlAction = SteamVR_Actions.default_Squeeze;
+            vrrightGloveSkeleton.Initialize();
+            MelonLogger.Warning("built the vrgloverightmodelslimprefab");
+
+            var rightRenderModelSlimPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/rightrendermodel slim.prefab").Cast<GameObject>());
+            var rightRenderModel = rightRenderModelSlimPrefab.AddComponent<RenderModel>();
+            rightRenderModel.controllerPrefab = controllerPrefab;
+            rightRenderModel.displayControllerByDefault = false;
+            rightRenderModel.displayHandByDefault = true;
+            rightRenderModel.handPrefab = vrGloverightModelSlimPrefab;
+            rightRenderModel.Initialize();
+            rightRenderModel.InitAction();
+            Object.DontDestroyOnLoad(rightRenderModelSlimPrefab);
+            MelonLogger.Warning("built the rightrendermodelslimprefab");
+
+            var handColliderrightPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/handcolliderright.prefab").Cast<GameObject>());
+            var handColliderright = handColliderrightPrefab.AddComponent<HandCollider>();
+            handColliderright.collisionMask = defaultHandMask;
+            handColliderright.fingerColliders = new();
+            handColliderright.fingerColliders.thumbColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(0);
+            handColliderright.fingerColliders.indexColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(1);
+            handColliderright.fingerColliders.indexColliders[1] = handColliderrightPrefab.transform.GetChild(1).GetChild(2);
+            handColliderright.fingerColliders.indexColliders[2] = handColliderrightPrefab.transform.GetChild(1).GetChild(3);
+            handColliderright.fingerColliders.middleColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(4);
+            handColliderright.fingerColliders.middleColliders[1] = handColliderrightPrefab.transform.GetChild(1).GetChild(5);
+            handColliderright.fingerColliders.middleColliders[2] = handColliderrightPrefab.transform.GetChild(1).GetChild(6);
+            handColliderright.fingerColliders.ringColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(7);
+            handColliderright.fingerColliders.ringColliders[1] = handColliderrightPrefab.transform.GetChild(1).GetChild(8);
+            handColliderright.fingerColliders.pinkyColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(9);
+            handColliderright.fingerColliders.pinkyColliders[1] = handColliderrightPrefab.transform.GetChild(1).GetChild(10);
+            handColliderright.collidersInRadius = false;
+            Object.DontDestroyOnLoad(handColliderright);
+            MelonLogger.Warning("built the handcolliderprefab");
+
+            var rightPose = rightController.AddComponent<SteamVR_Behaviour_Pose>();
+            rightPose.transform = rightController.transform;
+            rightPose.poseAction = SteamVR_Actions.default_Pose;
+            rightPose.inputSource = SteamVR_Input_Sources.RightHand;
+            rightPose.broadcastDeviceChanges = true;
+            rightPose.Init();
+            rightPose.FinishInit();
+            MelonLogger.Warning("built the right hand behaviour pose");
+
+            rightHand = rightController.AddComponent<Hand>();
+            rightHand.otherHand = null;
+            rightHand.handType = SteamVR_Input_Sources.RightHand;
+            rightHand.trackedObject = null;
+            rightHand.grabPinchAction = SteamVR_Actions.default_GrabPinch;
+            rightHand.grabGripAction = SteamVR_Actions.default_GrabGrip;
+            rightHand.hapticAction = SteamVR_Actions.default_Haptic;
+            rightHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
+            rightHand.useHoverSphere = true;
+            rightHand.hoverSphereTransform = rightHoverSphere.transform;
+            rightHand.hoverSphereRadius = 0.075f;
+            rightHand.hoverLayerMask = defaultHandMask;
+            rightHand.hoverUpdateInterval = 0.5f;
+            rightHand.useControllerHoverComponent = true;
+            rightHand.controllerHoverComponent = "tip";
+            rightHand.controllerHoverRadius = 0.15f;
+            rightHand.useFingerJointHover = true;
+            rightHand.fingerJointHover = SteamVR_Skeleton_JointIndexEnum.indexTip;
+            rightHand.fingerJointHoverRadius = 0.05f;
+            rightHand.objectAttachmentPoint = rightObjectAttachement.transform;
+            rightHand.noSteamVRFallbackCamera = null;
+            rightHand.noSteamVRFallbackMaxDistanceNoItem = 10;
+            rightHand.noSteamVRFallbackMaxDistanceWithItem = 0.5f;
+            rightHand.renderModelPrefab = rightRenderModelSlimPrefab;
+            rightHand.spewDebugText = debug;
+            rightHand.trackedObject = rightPose;
+            rightHand.Initialize();
+            rightHand.FinishInit();
+            MelonCoroutines.Start(rightHand.Start());
+            MelonLogger.Warning("built the right hand hand");
+
+            var rightPhysics = rightController.AddComponent<HandPhysics>();
+            rightPhysics.pose = rightPose;
+            rightPhysics.hand = rightHand;
+            rightPhysics.Initialize(handColliderrightPrefab);
+            MelonLogger.Warning("built the right hand physics");
+
+            Object.DontDestroyOnLoad(rightController);
         }
 
         /*
@@ -654,8 +713,8 @@ namespace HPVR
                 if (inGameMain || inMainMenu)
                 {
                     SetHMDStartPos();
-                    vrControllerPosition = vrCamPosition;
-                    vrControllerRotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                    vrPlayer.transform.position = vrCamPosition;
+                    vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
                     //UpdateHMDPositions();
                 }
             };
@@ -664,8 +723,8 @@ namespace HPVR
                 if (inGameMain || inMainMenu)
                 {
                     SetHMDStartPos();
-                    vrControllerPosition = vrCamPosition;
-                    vrControllerRotation *= Quaternion.AngleAxis(45, Vector3.up);
+                    vrPlayer.transform.position = vrCamPosition;
+                    vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
                     //UpdateHMDPositions();
                 }
             };
@@ -683,12 +742,12 @@ namespace HPVR
 
             UpdateHMDPositions();
 
-            if (inGameMain && player is not null)
+            if (inGameMain && playerChar is not null)
             {
                 Transform cameraTransform = SteamVR_Camera.instance.transform;
-                player.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
+                playerChar.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
 
-                hmdVsPlayer = new Vector3(cameraTransform.position.x - player.position.x, 0, cameraTransform.position.z - player.position.z) + lastControllerMove + ((player.rotation * Vector3.back) * 0.1f);
+                hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z) + lastControllerMove + ((playerChar.rotation * Vector3.back) * 0.1f);
 
                 colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
             }
@@ -720,12 +779,12 @@ namespace HPVR
                 {
                     if (!PlayerCharacter.Player.IsImmobile)
                     {
-                        vrControllerPosition += lastControllerMove;
+                        vrPlayer.transform.position += lastControllerMove;
                     }
                 }
                 else
                 {
-                    vrControllerPosition += lastControllerMove;
+                    vrPlayer.transform.position += lastControllerMove;
                 }
             }
 
@@ -802,9 +861,9 @@ namespace HPVR
             {
                 GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
             }
-            playerEye = player.FindDeepChild("lEye")?.gameObject;
-            player.FindDeepChild("rEye")?.gameObject.SetActive(false);
-            player.FindDeepChild("head")?.gameObject.SetActive(false);
+            playerEye = playerChar.FindDeepChild("lEye")?.gameObject;
+            playerChar.FindDeepChild("rEye")?.gameObject.SetActive(false);
+            playerChar.FindDeepChild("head")?.gameObject.SetActive(false);
             playerEye?.SetActive(false);
         }
 
@@ -816,82 +875,18 @@ namespace HPVR
             hmdAbsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
             //this is fine
-            vrCamRotation = vrControllerRotation * (poses[0].mDeviceToAbsoluteTracking.GetRotation());
-            //this rotates by vrcontrollerrotation around the vrcampositionstart. we want to rotate it around hmd absolute position, so the other way around
-            vrCamPosition = vrControllerPosition + (vrControllerRotation * (hmdAbsolutePosition - vrCamPositionStart));
+            vrCamRotation = vrPlayer.transform.rotation * (poses[0].mDeviceToAbsoluteTracking.GetRotation());
+            //this rotates by vrPlayer.transform.rotation around the vrcampositionstart. we want to rotate it around hmd absolute position, so the other way around
+            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * (hmdAbsolutePosition - vrCamPositionStart));
 
             vrCamPosition.y = hmdAbsolutePosition.y;
-            if (inGameMain && player != null)
+            if (inGameMain && playerChar != null)
             {
-                vrCamPosition.y += player.position.y;
+                vrCamPosition.y += playerChar.position.y;
             }
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
-        }
-
-        static void CreateAndSavePlugin(string name)
-        {
-            string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");
-            string path = Path.Combine(folderPath, name + ".dll");
-            if (!File.Exists(path))
-            {
-                Directory.CreateDirectory(folderPath);
-                using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources." + name + ".dll");
-                if (str is not null)
-                {
-                    FileStream fstr = new(path, FileMode.Create);
-                    str.CopyTo(fstr);
-                    fstr.Close();
-                }
-            }
-            folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "HouseParty_Data", "Plugins", "x86_64");
-            path = Path.Combine(folderPath, name + ".dll");
-            if (!File.Exists(path))
-            {
-                Directory.CreateDirectory(folderPath);
-                using (Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream("HPVR.Resources." + name + ".dll"))
-                {
-                    if (str is not null)
-                    {
-                        FileStream fstr = new(path, FileMode.Create);
-                        str.CopyTo(fstr);
-                        fstr.Close();
-                    }
-                }
-                MelonLogger.Warning($"Loaded {name} from our embedded resources, saving for next time");
-                return;
-            }
-        }
-
-        static string CreateAndSaveToPath(string folderPath, string name, string ending, string filename = "")
-        {
-            if (string.IsNullOrEmpty(filename))
-            {
-                filename = name;
-            }
-
-            string path = Path.Combine(folderPath, filename + ending);
-            if (!File.Exists(path))
-            {
-                Directory.CreateDirectory(folderPath);
-                var fullName = "HPVR.Resources." + name + ending;
-                MelonLogger.Msg("Loading " + fullName);
-                using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream(fullName);
-                if (str is not null)
-                {
-                    FileStream fstr = new(path, FileMode.Create);
-                    str.CopyTo(fstr);
-                    fstr.Close();
-                    MelonLogger.Msg("saved " + fullName + " to " + path);
-                    return path;
-                }
-                return string.Empty;
-            }
-            else
-            {
-                return path;
-            }
         }
 
         private static float PredictSecondsFromNow()
