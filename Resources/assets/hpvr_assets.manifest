@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 1699362282
+CRC: 607170185
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 4b89dd95147db5d4c3aca62c595fd16d
+    Hash: b7686257369815024e60e21a8d52c995
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 8e1de220f5def18ee191582dface1583
+    Hash: 5fc3f71c30783aff349bfa953016ee0d
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 4b89dd95147db5d4c3aca62c595fd16d
+    Hash: b7686257369815024e60e21a8d52c995
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -261,36 +261,51 @@ SerializeReferenceClassIdentifiers:
   ClassName: UnityEngine.UI.MaskableGraphic/CullStateChangedEvent
 Assets:
 - Assets/SteamVR/InteractionSystem/Samples/Prefabs/ThrowableBall.prefab
-- Assets/SteamVR/Models/Materials/vr_glove_normal.png
 - Assets/SteamVR/Prefabs/vr_glove_right_model_slim.prefab
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/HandColliderLeft.prefab
-- Assets/SteamVR/Prefabs/controller.prefab
+- Assets/SteamVR/InteractionSystem/Poses/HappyBallPose.asset
 - Assets/SteamVR/InteractionSystem/Samples/Squishy/Squishy.prefab
+- Assets/SteamVR/InteractionSystem/Poses/HappyBallPoseSqueezed.asset
 - Assets/SteamVR/InteractionSystem/Core/Prefabs/Player.prefab
+- Assets/SteamVR/InteractionSystem/Poses/CubePose small.asset
+- Assets/SteamVR/InteractionSystem/Poses/GrenadePose.asset
+- Assets/SteamVR/InteractionSystem/Poses/GrenadePose_pinch.asset
 - Assets/SteamVR/InteractionSystem/Core/Prefabs/LeftRenderModel.prefab
-- Assets/SteamVR/Prefabs/[SteamVR].prefab
-- Assets/SteamVR/Models/vr_glove_left_model_slim.fbx
 - Assets/SteamVR/Models/Materials/vr_glove_color_red.mat
-- Assets/SteamVR/Models/Materials/vr_glove_color.mat
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModel Alien.prefab
-- Assets/SteamVR/Models/Materials/vr_glove_color_red.jpg
-- Assets/SteamVR/Prefabs/vr_glove_right.prefab
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModelFloppy.prefab
-- Assets/SteamVR/Resources/SteamVR_ExternalCamera.prefab
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/HandColliderRight.prefab
 - Assets/SteamVR/Models/vr_hand_grabposes.fbx
+- Assets/SteamVR/Resources/SteamVR_ExternalCamera.prefab
 - Assets/SteamVR/Prefabs/vr_glove_left_model_slim.prefab
-- Assets/SteamVR/Models/vr_glove_graspPoses.controller
-- Assets/SteamVR/Models/Materials/vr_glove_color.jpg
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/LeftRenderModel Alien.prefab
+- Assets/SteamVR/InteractionSystem/Poses/fallback_fist.asset
 - Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModel.prefab
 - Assets/SteamVR/InteractionSystem/Core/Prefabs/LeftRenderModelFloppy.prefab
 - Assets/SteamVR/InteractionSystem/Samples/Prefabs/ThrowableCube.prefab
-- Assets/SteamVR/Models/vr_glove_model.fbx
-- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModel Slim.prefab
-- Assets/SteamVR/Prefabs/vr_glove_left.prefab
 - Assets/SteamVR/InteractionSystem/Core/Prefabs/LeftRenderModel Slim.prefab
 - Assets/SteamVR/Models/handFingers.mask
+- Assets/SteamVR/InteractionSystem/Poses/longbowArrowPose.asset
+- Assets/SteamVR/Models/Materials/vr_glove_normal.png
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/HandColliderLeft.prefab
+- Assets/SteamVR/InteractionSystem/Poses/CubePose.asset
+- Assets/SteamVR/InteractionSystem/Poses/fallback_relaxed.asset
+- Assets/SteamVR/Prefabs/controller.prefab
+- Assets/SteamVR/Prefabs/[SteamVR].prefab
+- Assets/SteamVR/InteractionSystem/Poses/fallback_point.asset
+- Assets/SteamVR/Models/vr_glove_left_model_slim.fbx
+- Assets/SteamVR/Models/Materials/vr_glove_color.mat
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModel Alien.prefab
+- Assets/SteamVR/InteractionSystem/Poses/spherePose.asset
+- Assets/SteamVR/Prefabs/vr_glove_right.prefab
+- Assets/SteamVR/Models/Materials/vr_glove_color_red.jpg
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModelFloppy.prefab
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/HandColliderRight.prefab
+- Assets/SteamVR/InteractionSystem/Poses/SquishyBase.asset
+- Assets/SteamVR/Models/vr_glove_graspPoses.controller
+- Assets/SteamVR/Models/Materials/vr_glove_color.jpg
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/LeftRenderModel Alien.prefab
+- Assets/SteamVR/InteractionSystem/Core/Prefabs/RightRenderModel Slim.prefab
+- Assets/SteamVR/InteractionSystem/Poses/longbowPose.asset
+- Assets/SteamVR/Models/vr_glove_model.fbx
+- Assets/SteamVR/InteractionSystem/Poses/sphereSmallPose.asset
+- Assets/SteamVR/Prefabs/vr_glove_left.prefab
 - Assets/SteamVR/Models/vr_glove_right_model_slim.fbx
+- Assets/SteamVR/InteractionSystem/Poses/SquishySqueeze.asset
 - Assets/SteamVR/Prefabs/[CameraRig].prefab
 Dependencies: []
