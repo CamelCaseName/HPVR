@@ -1,15 +1,17 @@
-﻿using HPVR.utils;
+﻿using HPVR.Components;
+using HPVR.utils;
 using Il2Cpp;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
-using Il2CppEekEvents.Helper;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamXR_Melon;
+using System.Collections;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
@@ -23,7 +25,6 @@ namespace HPVR
         private bool inMainMenu = false;
         private bool inLoadingScreen;
         private bool inDisclaimer;
-        private bool inFade = false;
         private bool SetUpInput = false;
         private bool removedPlayerHead = false;
         private GameObject? leftController = null;
@@ -41,7 +42,8 @@ namespace HPVR
         private GameObject vrPlayer = null!;
         private GameObject SteamVRobject = null!;
         private readonly List<BoxCollider> colliders = new(5);
-        private readonly List<Transform> canvasses = new();
+        private readonly HashSet<Transform> canvasses = new();
+        private readonly HashSet<Button> buttons = new();
         public float Deadzone = 0.0f;
         public float speed = 0.5f;
         private string fallback_fist = string.Empty;
@@ -52,20 +54,19 @@ namespace HPVR
         private readonly bool debug = true;
         private bool InitializedSteamRVObjects = false;
         private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
+        private bool boundPlayerHands;
 
-        #region dirtyStuff
+        private readonly List<InteractiveItem> Items = new();
 
         static HPVR()
         {
-            AssemblyResolverYoinker.
-                        //MelonLogger.Msg("Static init");
-                        SetOurResolveHandlerAtFront();
+            //MelonLogger.Msg("Static init");
+            AssemblyResolverYoinker.SetOurResolveHandlerAtFront();
             //foreach (var item in Assembly.GetExecutingAssembly().GetManifestResourceNames())
             //{
             //    MelonLogger.Msg(item);
             //}
         }
-        #endregion
 
         public HPVR()
         {
@@ -216,11 +217,12 @@ namespace HPVR
         {
             Camera.main.gameObject.AddComponent<SteamVR_Camera>();
             var headCollider = Camera.main.gameObject.AddComponent<SphereCollider>();
-            headCollider.radius = 0.12f;
-            headCollider.isTrigger = true;
+            headCollider.radius = 0.05f;
+            headCollider.isTrigger = false;
             headCollider.providesContacts = false;
-
-            //todo make a component that listens for the trigger messages and then fade depending on that
+            headCollider.excludeLayers = LayerMask.GetMask("Character", "Ragdolls", "InteractiveItemsHighlighted", "InteractiveItems");
+            Camera.main.gameObject.AddComponent<CameraFader>();
+            Camera.main.gameObject.AddComponent<SteamVR_Fade>();
 
             var eekCam = Object.FindObjectOfType<EekCamera>();
             if (eekCam is not null)
@@ -361,7 +363,7 @@ namespace HPVR
             leftHand.hoverSphereRadius = 0.075f;
             leftHand.hoverLayerMask = defaultHandMask;
             leftHand.hoverUpdateInterval = 0.5f;
-            leftHand.useControllerHoverComponent = true;
+            leftHand.useControllerHoverComponent = false;
             leftHand.controllerHoverComponent = "tip";
             leftHand.controllerHoverRadius = 0.15f;
             leftHand.useFingerJointHover = true;
@@ -476,7 +478,7 @@ namespace HPVR
             rightHand.hoverSphereRadius = 0.075f;
             rightHand.hoverLayerMask = defaultHandMask;
             rightHand.hoverUpdateInterval = 0.5f;
-            rightHand.useControllerHoverComponent = true;
+            rightHand.useControllerHoverComponent = false;
             rightHand.controllerHoverComponent = "tip";
             rightHand.controllerHoverRadius = 0.15f;
             rightHand.useFingerJointHover = true;
@@ -489,6 +491,7 @@ namespace HPVR
             rightHand.renderModelPrefab = rightRenderModelSlimPrefab;
             rightHand.spewDebugText = debug;
             rightHand.trackedObject = rightPose;
+            rightHand.OnParentHandHoverBegin += new((Interactable i) => { MelonLogger.Msg(i.name); });
             rightHand.Initialize();
             rightHand.FinishInit();
             MelonCoroutines.Start(rightHand.Start());
@@ -502,6 +505,10 @@ namespace HPVR
             rightPhysics.hand = rightHand;
             rightPhysics.Initialize(handColliderrightPrefab);
             MelonLogger.Warning("built the right hand physics");
+
+            //todo remove at some point
+            leftHand.showDebugInteractables = true;
+            rightHand.showDebugInteractables = true;
 
             Object.DontDestroyOnLoad(rightController);
         }
@@ -545,6 +552,7 @@ namespace HPVR
         private void PrepareUIforVR()
         {
             canvasses.Clear();
+            buttons.Clear();
             //only move ui which is notr already world space
             //set scale to 0.001 for all axis
             //set about 1.7 units in front of the vr cam
@@ -556,6 +564,11 @@ namespace HPVR
                     //MelonLogger.Msg(gameObject.name + " " + ((int)gameObject.hideFlags));
                     continue;
                 }
+                if (canvasses.Contains(canvas.transform))
+                {
+                    continue;
+                }
+
                 MelonLogger.Msg(canvas.name + " original Position and scale" + canvas.transform.position.ToString() + " - " + canvas.transform.localScale.ToString());
 
                 if (canvas.transform.localScale == Vector3.zero)
@@ -578,26 +591,69 @@ namespace HPVR
                 //todo tune
                 //canvas.scaleFactor *= 1.1f;
                 canvas.renderMode = RenderMode.WorldSpace;
-                canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                if (inGameMain)
+                {
+                    //todo only do for some types ui, namely the ones that always show and interaciton target
+                    canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                }
                 canvasses.Add(canvas.transform);
             }
-
-            //foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Button>()))
-            //{
-            //    var button = obj.TryCast<Button>();
-            //    if (button is null)
-            //    {
-            //        continue;
-            //    }
-
-            //    var alreadyHasComponent = button.gameObject.GetComponent<UIElement>() != null;
-            //    if (!alreadyHasComponent)
-            //    {
-            //        button.gameObject.AddComponent<UIElement>();
-            //    }
-            //}
-
             UpdateUIPositions();
+
+            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Button>()))
+            {
+                var button = obj.TryCast<Button>();
+                if (button is null)
+                {
+                    continue;
+                }
+                if (button.gameObject.hideFlags != HideFlags.None)
+                {
+                    continue;
+                }
+
+                if (!buttons.Contains(button))
+                {
+                    buttons.Add(button);
+                    var ui = button.gameObject.AddComponent<UIElement>();
+                    ui.onHandClick.Listen((Hand hand) =>
+                    {
+                        if (hand is null)
+                        {
+                            return;
+                        }
+                        MelonLogger.Msg(hand.name + " " + hand.transform.position);
+                    });
+                    if (!(button.onClick?.m_PersistentCalls?.m_Calls?.Count > 0))
+                    {
+                        continue;
+                    }
+
+                    foreach (var call in button.onClick.m_PersistentCalls.m_Calls)
+                    {
+                        if (call is null)
+                        { continue; }
+
+                        if (call.target is null)
+                        { continue; }
+
+                        if (string.IsNullOrEmpty(call.methodName))
+                        { continue; }
+
+                        MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
+                        ui.onHandClick.Listen((Hand hand) =>
+                        {
+                            if (hand is null)
+                            {
+                                return;
+                            }
+                            var method = call.target?.GetIl2CppType()?.GetMethod(call.methodName, Il2CppSystem.Reflection.BindingFlags.Instance | Il2CppSystem.Reflection.BindingFlags.Public | Il2CppSystem.Reflection.BindingFlags.NonPublic | Il2CppSystem.Reflection.BindingFlags.Static);
+                            MelonLogger.Msg(method?.Name ?? "not found");
+                            method?.Invoke(call.target, new(Array.Empty<Object>()));
+                        });
+                    }
+                }
+            }
         }
 
         private void UpdateUIPositions()
@@ -613,25 +669,27 @@ namespace HPVR
             {
                 foreach (var canvas in canvasses)
                 {
-                    if (canvas.gameObject.active)
+                    if (!canvas.gameObject.active)
                     {
-                        if (inGameMain && canvas.gameObject.name == "InteractionCanvas")
+                        continue;
+                    }
+
+                    if (inGameMain && canvas.gameObject.name == "InteractionCanvas")
+                    {
+                        if (InteractionManager.Singleton._hit.point.sqrMagnitude != 0)
                         {
-                            if (InteractionManager.Singleton._hit.point.sqrMagnitude != 0)
-                            {
-                                canvas.position = InteractionManager.Singleton._hit.point + (vrCamRotation * Vector3.forward * -0.05f);
-                            }
-                            else
-                            {
-                                canvas.position = vrCamPosition + (vrCamRotation * Vector3.forward * 1.45f);
-                            }
+                            canvas.position = InteractionManager.Singleton._hit.point + (vrCamRotation * Vector3.forward * -0.05f);
                         }
                         else
                         {
                             canvas.position = vrCamPosition + (vrCamRotation * Vector3.forward * 1.45f);
                         }
-                        canvas.rotation = vrCamRotation;
                     }
+                    else
+                    {
+                        canvas.position = vrCamPosition + (vrCamRotation * Vector3.forward * 1.45f);
+                    }
+                    canvas.rotation = vrCamRotation;
                 }
             }
         }
@@ -769,18 +827,16 @@ namespace HPVR
             MelonLogger.Msg("Activated SteamVR actions");
         }
 
-        //todo remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
-        //todo curve ui canvases slightly
-        //todo between stand and crouch move the root player transform towards the ground so its legs bend?
-        //maybe do IK with the player object -> finalik dokumentation
-        //todo
-        //player hand ik bind to gloves
+        //todos:
+        //remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
         //player collissions check ignore hands somehow plss?
         //ui interaction?
-        //player scale differently?
-        //headset movement wiht collider in trigger mdoe at head for fade checks
         //bind controllers
         //put interactable script on everything with interactive item
+        //player hands have a monobehaviour handposer on them. might need to remove for vr
+        //player hand ik bind to gloves
+        //maybe do IK with the player object -> finalik dokumentation
+        //curve ui canvases slightly
 
         public override void OnUpdate()
         {
@@ -789,6 +845,110 @@ namespace HPVR
                 return;
             }
 
+            HandleControllerMovement();
+
+            if (inGameMain)
+            {
+                if (!removedPlayerHead)
+                {
+                    RemovePlayerHead();
+                }
+                if (!boundPlayerHands)
+                {
+                    BindPlayerHandsToVRHands();
+                }
+
+                UpdateInteractiveItems();
+
+                ScalePlayerToHMDHeight();
+            }
+
+            if (!inMainMenu)
+            {
+                //dont update position in menu as we have to do some very fine controls and not just answer stuff
+                UpdateUIPositions();
+            }
+
+            if (inGameMain || inMainMenu)
+            {
+                UpdateUIInteraction();
+            }
+            else if (inLoadingScreen || inDisclaimer)
+            {
+                //for the loading screen and disclaimer we have to do something different
+                //we can probably simulate the input or just continue manually
+            }
+
+            UpdateHMDPositions();
+        }
+
+        private void UpdateInteractiveItems()
+        {
+            if (ItemManager.Singleton is null)
+            {
+                return;
+            }
+
+            foreach (var item in ItemManager.Singleton.Items)
+            {
+                if (item is null || item.gameObject is null)
+                {
+                    continue;
+                }
+                if (!Items.Contains(item))
+                {
+                    Items.Add(item);
+                    if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
+                    {
+                        item.gameObject.AddComponent<VelocityEstimator>();
+                        var inter = item.gameObject.AddComponent<Interactable>();
+                        inter.highlightOnHover = false;
+                        inter.handFollowTransform = true;
+                        inter.snapAttachEaseInTime = 0.15f;
+                        inter.useHandObjectAttachmentPoint = true;
+                        if (item.gameObject.GetComponent<Rigidbody>() is not null)
+                        {
+                            var thrower = item.gameObject.AddComponent<Throwable>();
+                            thrower.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.TurnOffGravity | Hand.AttachmentFlags.VelocityMovement;
+                            thrower.catchingSpeedThreshold = -1;
+                            thrower.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
+                            thrower.releaseVelocityTimeOffset = -0.011f;
+                            thrower.scaleReleaseVelocity = 1.1f;
+                            thrower.scaleReleaseVelocityThreshold = -1;
+                            thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
+                            thrower.restoreOriginalParent = false;
+                        }
+                        else
+                        {
+                            item.gameObject.AddComponent<AutoInteractable>();
+                        }
+                        //todo add handposer depending on the type of collider we find/what object it really is
+                    }
+                    else
+                    {
+                        var inter = item.gameObject.AddComponent<Interactable>();
+                        inter.highlightOnHover = false;
+                        inter.useHandObjectAttachmentPoint = false;
+                    }
+                }
+            }
+        }
+
+        private void BindPlayerHandsToVRHands()
+        {
+            if (PlayerCharacter.Player is null || leftController is null || rightController is null)
+            {
+                return;
+            }
+
+            PlayerCharacter.Player.FinalIK.BodyIK.solver.leftHandEffector.target = leftController.transform;
+            PlayerCharacter.Player.FinalIK.BodyIK.solver.rightHandEffector.target = rightController.transform;
+
+            boundPlayerHands = true;
+        }
+
+        private void HandleControllerMovement()
+        {
             if (inGameMain && playerChar is not null)
             {
                 Transform cameraTransform = SteamVR_Camera.instance.transform;
@@ -817,11 +977,6 @@ namespace HPVR
 
             if (!colliding)
             {
-                if (inFade)
-                {
-                    inFade = false;
-                    //SteamVR_Fade.View(Color.clear, 0.2f);
-                }
                 if (inGameMain)
                 {
                     if (!PlayerCharacter.Player.IsImmobile && playerChar is not null)
@@ -836,40 +991,7 @@ namespace HPVR
                 }
             }
 
-            if (colliding && !inFade)
-            {
-                inFade = true;
-                //SteamVR_Fade.View(Color.black, 0.2f);
-            }
-
             lastControllerMove = Vector3.zero;
-
-            if (inGameMain)
-            {
-                if (!removedPlayerHead)
-                {
-                    RemovePlayerHead();
-                }
-
-                ScalePlayerToHMDHeight();
-            }
-
-            if (!inMainMenu)
-            {
-                //dont update position in menu as we have to do some very fine controls and not just answer stuff
-                UpdateUIPositions();
-            }
-
-            if (inGameMain || inMainMenu)
-            {
-                UpdateUIInteraction();
-            }
-            else if (inLoadingScreen || inDisclaimer)
-            {
-                //for the loading screen and disclaimer we have to do something different
-            }
-
-            UpdateHMDPositions();
         }
 
         private void ScalePlayerToHMDHeight()
@@ -903,17 +1025,23 @@ namespace HPVR
 
         private void RemovePlayerHead()
         {
-            if (PlayerCharacter.Player.Gender == Genders.Female)
+            foreach (var cam in Object.FindObjectsOfType<Camera>())
             {
-                GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+                cam.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
             }
-            else
-            {
-                GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-            }
-            playerChar.FindDeepChild("lEye")?.localScale.Set(0, 0, 0);
-            playerChar.FindDeepChild("rEye")?.localScale.Set(0, 0, 0);
-            playerChar.FindDeepChild("head")?.localScale.Set(0, 0, 0);
+            //if (PlayerCharacter.Player.Gender == Genders.Female)
+            //{
+            //    GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+            //}
+            //else
+            //{
+            //    GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
+            //}
+            //GameObject.Find("Hair_Mirror")?.SetActive(false);
+            //var lEye = playerChar.FindDeepChild("lEye");
+            //lEye.localScale = Vector3.zero;
+            //var rEye = playerChar.FindDeepChild("rEye");
+            //rEye.localScale = Vector3.zero;
             removedPlayerHead = true;
         }
 

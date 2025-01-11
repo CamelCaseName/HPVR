@@ -27,11 +27,15 @@
     <None Remove="Resources\actions\binding_vive_cosmos.json" />
     <None Remove="Resources\actions\binding_vive_pro.json" />
     <None Remove="Resources\actions\binding_vive_tracker_camera.json" />
+    <None Remove="Resources\assets\CubePose small.asset" />
+    <None Remove="Resources\assets\CubePose.asset" />
     <None Remove="Resources\assets\fallback_fist.asset" />
     <None Remove="Resources\assets\fallback_point.asset" />
     <None Remove="Resources\assets\fallback_relaxed.asset" />
     <None Remove="Resources\assets\hpvr_assets" />
     <None Remove="Resources\assets\hpvr_assets.manifest" />
+    <None Remove="Resources\assets\spherePose.asset" />
+    <None Remove="Resources\assets\sphereSmallPose.asset" />
     <None Remove="Resources\HPUI.dll" />
     <None Remove="Resources\OpenVRSettings.asset" />
     <None Remove="Resources\openvr_api.dll" />
@@ -62,11 +66,15 @@
     <EmbeddedResource Include="Resources\actions\binding_vive_cosmos.json" />
     <EmbeddedResource Include="Resources\actions\binding_vive_pro.json" />
     <EmbeddedResource Include="Resources\actions\binding_vive_tracker_camera.json" />
+    <EmbeddedResource Include="Resources\assets\CubePose small.asset" />
+    <EmbeddedResource Include="Resources\assets\CubePose.asset" />
     <EmbeddedResource Include="Resources\assets\fallback_fist.asset" />
     <EmbeddedResource Include="Resources\assets\fallback_point.asset" />
     <EmbeddedResource Include="Resources\assets\fallback_relaxed.asset" />
     <EmbeddedResource Include="Resources\assets\hpvr_assets" />
     <EmbeddedResource Include="Resources\assets\hpvr_assets.manifest" />
+    <EmbeddedResource Include="Resources\assets\spherePose.asset" />
+    <EmbeddedResource Include="Resources\assets\sphereSmallPose.asset" />
     <EmbeddedResource Include="Resources\HPUI.dll" />
     <EmbeddedResource Include="Resources\OpenVRSettings.asset" />
     <EmbeddedResource Include="Resources\openvr_api.dll" />
@@ -95,6 +103,10 @@
       <HintPath>..\HPUI\bin\Release\net6.0\HPUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Il2CppDynamicBone">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppDynamicBone.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Il2CppEekCharacterEngine">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppEekCharacterEngine.dll</HintPath>
       <Private>False</Private>
@@ -117,6 +129,10 @@
     </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2CppRootMotion">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppRootMotion.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Il2CppSystem">
