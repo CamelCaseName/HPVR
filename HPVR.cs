@@ -8,9 +8,9 @@ using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamXR_Melon;
-using System.Collections;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
@@ -139,16 +139,13 @@ namespace HPVR
 
             if (!InitializedSteamRVObjects)
             {
-                InitializedSteamRVObjects = true;
-                vrPlayer = new GameObject("VR Player");
-                Object.DontDestroyOnLoad(vrPlayer);
-
                 //set up steamvr objects, camera and stuff
                 SetUpSteamVR();
                 //set up controller objects
                 SetUpControllers();
                 //add the hands to the player and start it
                 FinalizeSteamVRSetup();
+                InitializedSteamRVObjects = true;
             }
             else
             {
@@ -183,6 +180,7 @@ namespace HPVR
             }
 
             PrepareUIforVR();
+            Hand.UpdateScene();
 
             MelonLogger.Msg("[HPVR] scene preparation done");
         }
@@ -197,6 +195,9 @@ namespace HPVR
 
         private void SetUpSteamVR()
         {
+            vrPlayer = new GameObject("VR Player");
+            Object.DontDestroyOnLoad(vrPlayer);
+
             //we need a steamvr player as well for the hands :(
             SteamVRobject = new GameObject("SteamVR");
             SteamVRobject.transform.parent = vrPlayer.transform;
@@ -211,6 +212,23 @@ namespace HPVR
             player.allowToggleTo2D = false;
 
             Object.DontDestroyOnLoad(SteamVRobject);
+
+            var input = new GameObject("VRInputModule");
+            input.transform.parent = SteamVRobject.transform;
+            var eventSystem = input.AddComponent<EventSystem>();
+            eventSystem.m_FirstSelected = null;
+            eventSystem.sendNavigationEvents = false;
+            eventSystem.m_DragThreshold = 0;
+            var inputComponent = input.AddComponent<InputModule>();
+            inputComponent.sendPointerHoverToParent = true;
+            //var standalone = input.AddComponent<StandaloneInputModule>();
+            //standalone.sendPointerHoverToParent = true;
+            //standalone.horizontalAxis = "Horizontal";
+            //standalone.verticalAxis = "Vertial";
+            //standalone.submitButton = "Submit";
+            //standalone.cancelButton = "Cancel";
+            //standalone.inputActionsPerSecond = 10;
+            //standalone.repeatDelay = 0.5f;
         }
 
         private static SphereCollider SetUpCamera()
@@ -506,10 +524,6 @@ namespace HPVR
             rightPhysics.Initialize(handColliderrightPrefab);
             MelonLogger.Warning("built the right hand physics");
 
-            //todo remove at some point
-            leftHand.showDebugInteractables = true;
-            rightHand.showDebugInteractables = true;
-
             Object.DontDestroyOnLoad(rightController);
         }
 
@@ -615,6 +629,11 @@ namespace HPVR
                 if (!buttons.Contains(button))
                 {
                     buttons.Add(button);
+                    var inter = button.gameObject.AddComponent<Interactable>();
+                    inter.highlightOnHover = false;
+                    inter.handFollowTransform = true;
+                    inter.snapAttachEaseInTime = 0.15f;
+                    inter.useHandObjectAttachmentPoint = true;
                     var ui = button.gameObject.AddComponent<UIElement>();
                     ui.onHandClick.Listen((Hand hand) =>
                     {
@@ -640,7 +659,7 @@ namespace HPVR
                         if (string.IsNullOrEmpty(call.methodName))
                         { continue; }
 
-                        MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
+                        //MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
                         ui.onHandClick.Listen((Hand hand) =>
                         {
                             if (hand is null)
@@ -885,6 +904,11 @@ namespace HPVR
         private void UpdateInteractiveItems()
         {
             if (ItemManager.Singleton is null)
+            {
+                return;
+            }
+
+            if (ItemManager.Singleton.Items.Count == Items.Count)
             {
                 return;
             }

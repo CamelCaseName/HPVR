@@ -24,7 +24,7 @@ namespace HPVR.Components
         private Interactable? interactable = null;
 
         //-------------------------------------------------
-        void Awake()
+        protected virtual void Awake()
         {
             GeneralText = "No Hand Hovering";
             HoveringText = "Hovering: False";
@@ -35,7 +35,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when a Hand starts hovering over this object
         //-------------------------------------------------
-        private void OnHandHoverBegin(Hand hand)
+        protected virtual void OnHandHoverBegin(Hand hand)
         {
             GeneralText = "Hovering hand: " + hand.name;
         }
@@ -43,7 +43,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when a Hand stops hovering over this object
         //-------------------------------------------------
-        protected void OnHandHoverEnd(Hand hand)
+        protected virtual void OnHandHoverEnd(Hand hand)
         {
             GeneralText = "No Hand Hovering";
         }
@@ -51,7 +51,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called every Update() while a Hand is hovering over this object
         //-------------------------------------------------
-        protected void HandHoverUpdate(Hand hand)
+        protected virtual void HandHoverUpdate(Hand hand)
         {
             if (interactable is null)
             { return; }
@@ -88,7 +88,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when this GameObject becomes attached to the hand
         //-------------------------------------------------
-        protected void OnAttachedToHand(Hand hand)
+        protected virtual void OnAttachedToHand(Hand hand)
         {
             GeneralText = string.Format("Attached: {0}", hand.name);
             attachTime = Time.time;
@@ -97,7 +97,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when this GameObject is detached from the hand
         //-------------------------------------------------
-        protected void OnDetachedFromHand(Hand hand)
+        protected virtual void OnDetachedFromHand(Hand hand)
         {
             GeneralText = string.Format("Detached: {0}", hand.name);
         }
@@ -105,7 +105,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called every Update() while this GameObject is attached to the hand
         //-------------------------------------------------
-        protected void HandAttachedUpdate(Hand hand)
+        protected virtual void HandAttachedUpdate(Hand hand)
         {
             GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, (Time.time - attachTime));
         }
@@ -115,7 +115,7 @@ namespace HPVR.Components
         public string GeneralText { get => generalText; set { generalText = value; MelonLogger.Msg(value); } }
         public string HoveringText { get => hoveringText; set { hoveringText = value; MelonLogger.Msg(value); } }
 
-        private void Update()
+        protected virtual void Update()
         {
             if (interactable is null)
             { return; }
@@ -129,14 +129,14 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when this attached GameObject becomes the primary attached object
         //-------------------------------------------------
-        protected void OnHandFocusAcquired(Hand hand)
+        protected virtual void OnHandFocusAcquired(Hand hand)
         {
         }
 
         //-------------------------------------------------
         // Called when another attached GameObject becomes the primary attached object
         //-------------------------------------------------
-        protected void OnHandFocusLost(Hand hand)
+        protected virtual void OnHandFocusLost(Hand hand)
         {
         }
     }
