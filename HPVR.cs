@@ -11,6 +11,8 @@ using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
@@ -163,9 +165,23 @@ namespace HPVR
                 {
                     RemovePlayerHead();
                 }
+
+                leftHand.useHoverSphere = true;
+                leftHand.useControllerHoverComponent = false;
+                leftHand.useFingerJointHover = true;
+                rightHand.useHoverSphere = true;
+                rightHand.useControllerHoverComponent = false;
+                rightHand.useFingerJointHover = true;
             }
             else if (inMainMenu)
             {
+                leftHand.useHoverSphere = false;
+                leftHand.useControllerHoverComponent = false;
+                leftHand.useFingerJointHover = true;
+                rightHand.useHoverSphere = false;
+                rightHand.useControllerHoverComponent = false;
+                rightHand.useFingerJointHover = true;
+
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
                 vrPlayer.transform.position = new(0.55f, 0, -10);
 
@@ -176,6 +192,12 @@ namespace HPVR
             }
             else
             {
+                leftHand.useHoverSphere = false;
+                leftHand.useControllerHoverComponent = false;
+                leftHand.useFingerJointHover = true;
+                rightHand.useHoverSphere = false;
+                rightHand.useControllerHoverComponent = false;
+                rightHand.useFingerJointHover = true;
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
             }
 
@@ -221,14 +243,12 @@ namespace HPVR
             eventSystem.m_DragThreshold = 0;
             var inputComponent = input.AddComponent<InputModule>();
             inputComponent.sendPointerHoverToParent = true;
-            //var standalone = input.AddComponent<StandaloneInputModule>();
-            //standalone.sendPointerHoverToParent = true;
-            //standalone.horizontalAxis = "Horizontal";
-            //standalone.verticalAxis = "Vertial";
-            //standalone.submitButton = "Submit";
-            //standalone.cancelButton = "Cancel";
-            //standalone.inputActionsPerSecond = 10;
-            //standalone.repeatDelay = 0.5f;
+
+            //seems this one is too old?
+            //replaced standaloneinputmodule with inputsystemuiinputmodule
+            var standalone = input.AddComponent<InputSystemUIInputModule>();
+            standalone.sendPointerHoverToParent = true;
+            standalone.repeatDelay = 0.5f;
         }
 
         private static SphereCollider SetUpCamera()
@@ -608,6 +628,13 @@ namespace HPVR
                 if (inGameMain)
                 {
                     //todo only do for some types ui, namely the ones that always show and interaciton target
+                    //dialogue ui
+                    //stamina
+                    //bgc 
+                    //message bubbles
+                    //big disclaimer text
+                    //reticle
+                    //
                     canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                 }
                 canvasses.Add(canvas.transform);
@@ -626,14 +653,31 @@ namespace HPVR
                     continue;
                 }
 
+                //todo we still have to do something about sliders, dropdowns and the weird color selection things
+                //also in the customization environment things are offset
+
                 if (!buttons.Contains(button))
                 {
                     buttons.Add(button);
+
+                    var rect = button.GetComponent<RectTransform>();
+
+                    var BoxGO = new GameObject();
+                    BoxGO.name = button.name + "Collider";
+                    BoxGO.transform.parent = button.transform;
+                    BoxGO.transform.localPosition = new(0, 0, -0.05f);
+
+                    var collider = BoxGO.AddComponent<BoxCollider>();
+                    BoxGO.transform.localScale = new(rect.sizeDelta.x, rect.sizeDelta.y, 0.1f);
+
                     var inter = button.gameObject.AddComponent<Interactable>();
                     inter.highlightOnHover = false;
                     inter.handFollowTransform = true;
                     inter.snapAttachEaseInTime = 0.15f;
                     inter.useHandObjectAttachmentPoint = true;
+
+                    MelonLogger.Msg("added ui stuff to " + button.name);
+
                     var ui = button.gameObject.AddComponent<UIElement>();
                     ui.onHandClick.Listen((Hand hand) =>
                     {
@@ -643,6 +687,7 @@ namespace HPVR
                         }
                         MelonLogger.Msg(hand.name + " " + hand.transform.position);
                     });
+
                     if (!(button.onClick?.m_PersistentCalls?.m_Calls?.Count > 0))
                     {
                         continue;

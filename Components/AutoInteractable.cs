@@ -30,12 +30,18 @@ namespace HPVR.Components
             HoveringText = "Hovering: False";
 
             interactable = this.GetComponent<Interactable>();
+            interactable.HandHoverUpdate += HandHoverUpdate;
+            interactable.OnAttachedToHand += OnAttachedToHand;
+            interactable.OnDetachedFromHand += OnDetachedFromHand;
+            interactable.OnHandHoverBegin += OnHandHoverBegin;
+            interactable.OnHandHoverEnd += OnHandHoverEnd;
+            interactable.HandAttachedUpdate += HandAttachedUpdate;
         }
 
         //-------------------------------------------------
         // Called when a Hand starts hovering over this object
         //-------------------------------------------------
-        protected virtual void OnHandHoverBegin(Hand hand)
+        private void OnHandHoverBegin(Hand hand)
         {
             GeneralText = "Hovering hand: " + hand.name;
         }
@@ -43,7 +49,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when a Hand stops hovering over this object
         //-------------------------------------------------
-        protected virtual void OnHandHoverEnd(Hand hand)
+        private void OnHandHoverEnd(Hand hand)
         {
             GeneralText = "No Hand Hovering";
         }
@@ -51,7 +57,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called every Update() while a Hand is hovering over this object
         //-------------------------------------------------
-        protected virtual void HandHoverUpdate(Hand hand)
+        private void HandHoverUpdate(Hand hand)
         {
             if (interactable is null)
             { return; }
@@ -88,7 +94,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when this GameObject becomes attached to the hand
         //-------------------------------------------------
-        protected virtual void OnAttachedToHand(Hand hand)
+        private void OnAttachedToHand(Hand hand)
         {
             GeneralText = string.Format("Attached: {0}", hand.name);
             attachTime = Time.time;
@@ -97,7 +103,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when this GameObject is detached from the hand
         //-------------------------------------------------
-        protected virtual void OnDetachedFromHand(Hand hand)
+        private void OnDetachedFromHand(Hand hand)
         {
             GeneralText = string.Format("Detached: {0}", hand.name);
         }
@@ -105,7 +111,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called every Update() while this GameObject is attached to the hand
         //-------------------------------------------------
-        protected virtual void HandAttachedUpdate(Hand hand)
+        private void HandAttachedUpdate(Hand hand)
         {
             GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, (Time.time - attachTime));
         }
@@ -124,20 +130,6 @@ namespace HPVR.Components
                 HoveringText = string.Format("Hovering: {0}", interactable.isHovering);
                 lastHovering = interactable.isHovering;
             }
-        }
-
-        //-------------------------------------------------
-        // Called when this attached GameObject becomes the primary attached object
-        //-------------------------------------------------
-        protected virtual void OnHandFocusAcquired(Hand hand)
-        {
-        }
-
-        //-------------------------------------------------
-        // Called when another attached GameObject becomes the primary attached object
-        //-------------------------------------------------
-        protected virtual void OnHandFocusLost(Hand hand)
-        {
         }
     }
 }
