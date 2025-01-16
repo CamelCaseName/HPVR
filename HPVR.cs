@@ -45,7 +45,7 @@ namespace HPVR
         private GameObject SteamVRobject = null!;
         private readonly List<BoxCollider> colliders = new(5);
         private readonly HashSet<Transform> canvasses = new();
-        private readonly HashSet<Button> buttons = new();
+        private readonly HashSet<Selectable> UIElements = new();
         public float Deadzone = 0.0f;
         public float speed = 0.5f;
         private string fallback_fist = string.Empty;
@@ -414,6 +414,7 @@ namespace HPVR
             leftHand.renderModelPrefab = LeftRenderModelSlimPrefab;
             leftHand.spewDebugText = debug;
             leftHand.trackedObject = leftPose;
+            leftHand.OnHandInitialized += (int i) => { leftHand.gameObject.AddComponent<Laser>(); };
             leftHand.Initialize();
             leftHand.FinishInit();
             MelonCoroutines.Start(leftHand.Start());
@@ -529,7 +530,7 @@ namespace HPVR
             rightHand.renderModelPrefab = rightRenderModelSlimPrefab;
             rightHand.spewDebugText = debug;
             rightHand.trackedObject = rightPose;
-            rightHand.OnParentHandHoverBegin += new((Interactable i) => { MelonLogger.Msg(i.name); });
+            rightHand.OnHandInitialized += (int i) => { rightHand.gameObject.AddComponent<Laser>(); };
             rightHand.Initialize();
             rightHand.FinishInit();
             MelonCoroutines.Start(rightHand.Start());
@@ -586,7 +587,7 @@ namespace HPVR
         private void PrepareUIforVR()
         {
             canvasses.Clear();
-            buttons.Clear();
+            UIElements.Clear();
             //only move ui which is notr already world space
             //set scale to 0.001 for all axis
             //set about 1.7 units in front of the vr cam
@@ -641,82 +642,61 @@ namespace HPVR
             }
             UpdateUIPositions();
 
-            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Button>()))
+            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Selectable>()))
             {
-                var button = obj.TryCast<Button>();
-                if (button is null)
-                {
-                    continue;
-                }
-                if (button.gameObject.hideFlags != HideFlags.None)
-                {
-                    continue;
-                }
+                var selectable = obj.TryCast<Selectable>();
+                if (selectable?.gameObject?.hideFlags != HideFlags.None)
+                { continue; }
 
                 //todo we still have to do something about sliders, dropdowns and the weird color selection things
                 //also in the customization environment things are offset
 
-                if (!buttons.Contains(button))
-                {
-                    buttons.Add(button);
+                if (UIElements.Contains(selectable))
+                { continue; }
 
-                    var rect = button.GetComponent<RectTransform>();
+                UIElements.Add(selectable);
 
-                    var BoxGO = new GameObject();
-                    BoxGO.name = button.name + "Collider";
-                    BoxGO.transform.parent = button.transform;
-                    BoxGO.transform.localPosition = new(0, 0, -0.05f);
+                var inter = selectable.gameObject.AddComponent<Interactable>();
+                inter.highlightOnHover = false;
+                inter.handFollowTransform = true;
+                inter.snapAttachEaseInTime = 0.15f;
+                inter.useHandObjectAttachmentPoint = true;
 
-                    var collider = BoxGO.AddComponent<BoxCollider>();
-                    BoxGO.transform.localScale = new(rect.sizeDelta.x, rect.sizeDelta.y, 0.1f);
+                //var ui = selectable.gameObject.AddComponent<UIElement>();
+                //ui.onHandClick.Listen((Hand hand) =>
+                //{
+                //    if (hand is null)
+                //    { return; }
 
-                    var inter = button.gameObject.AddComponent<Interactable>();
-                    inter.highlightOnHover = false;
-                    inter.handFollowTransform = true;
-                    inter.snapAttachEaseInTime = 0.15f;
-                    inter.useHandObjectAttachmentPoint = true;
+                //    MelonLogger.Msg(hand.name + " " + hand.transform.position);
+                //});
 
-                    MelonLogger.Msg("added ui stuff to " + button.name);
+                //var button = obj.TryCast<Button>();
+                //if (button is not null && button.onClick?.m_PersistentCalls?.m_Calls?.Count > 0)
+                //{
+                //    foreach (var call in button.onClick.m_PersistentCalls.m_Calls)
+                //    {
+                //        if (call is null)
+                //        { continue; }
 
-                    var ui = button.gameObject.AddComponent<UIElement>();
-                    ui.onHandClick.Listen((Hand hand) =>
-                    {
-                        if (hand is null)
-                        {
-                            return;
-                        }
-                        MelonLogger.Msg(hand.name + " " + hand.transform.position);
-                    });
+                //        if (call.target is null)
+                //        { continue; }
 
-                    if (!(button.onClick?.m_PersistentCalls?.m_Calls?.Count > 0))
-                    {
-                        continue;
-                    }
+                //        if (string.IsNullOrEmpty(call.methodName))
+                //        { continue; }
 
-                    foreach (var call in button.onClick.m_PersistentCalls.m_Calls)
-                    {
-                        if (call is null)
-                        { continue; }
+                //        //MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
+                //        ui.onHandClick.Listen((Hand hand) =>
+                //        {
+                //            if (hand is null)
+                //            { return; }
 
-                        if (call.target is null)
-                        { continue; }
-
-                        if (string.IsNullOrEmpty(call.methodName))
-                        { continue; }
-
-                        //MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
-                        ui.onHandClick.Listen((Hand hand) =>
-                        {
-                            if (hand is null)
-                            {
-                                return;
-                            }
-                            var method = call.target?.GetIl2CppType()?.GetMethod(call.methodName, Il2CppSystem.Reflection.BindingFlags.Instance | Il2CppSystem.Reflection.BindingFlags.Public | Il2CppSystem.Reflection.BindingFlags.NonPublic | Il2CppSystem.Reflection.BindingFlags.Static);
-                            MelonLogger.Msg(method?.Name ?? "not found");
-                            method?.Invoke(call.target, new(Array.Empty<Object>()));
-                        });
-                    }
-                }
+                //            var method = call.target?.GetIl2CppType()?.GetMethod(call.methodName, Il2CppSystem.Reflection.BindingFlags.Instance | Il2CppSystem.Reflection.BindingFlags.Public | Il2CppSystem.Reflection.BindingFlags.NonPublic | Il2CppSystem.Reflection.BindingFlags.Static);
+                //            MelonLogger.Msg(method?.Name ?? "not found");
+                //            method?.Invoke(call.target, new(Array.Empty<Object>()));
+                //        });
+                //    }
+                //}
             }
         }
 

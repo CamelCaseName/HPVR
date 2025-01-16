@@ -38,6 +38,8 @@ namespace HPVR.Components
             interactable.HandAttachedUpdate += HandAttachedUpdate;
         }
 
+        //todo debug this behaviour
+
         //-------------------------------------------------
         // Called when a Hand starts hovering over this object
         //-------------------------------------------------
