@@ -662,41 +662,7 @@ namespace HPVR
                 inter.snapAttachEaseInTime = 0.15f;
                 inter.useHandObjectAttachmentPoint = true;
 
-                //var ui = selectable.gameObject.AddComponent<UIElement>();
-                //ui.onHandClick.Listen((Hand hand) =>
-                //{
-                //    if (hand is null)
-                //    { return; }
-
-                //    MelonLogger.Msg(hand.name + " " + hand.transform.position);
-                //});
-
-                //var button = obj.TryCast<Button>();
-                //if (button is not null && button.onClick?.m_PersistentCalls?.m_Calls?.Count > 0)
-                //{
-                //    foreach (var call in button.onClick.m_PersistentCalls.m_Calls)
-                //    {
-                //        if (call is null)
-                //        { continue; }
-
-                //        if (call.target is null)
-                //        { continue; }
-
-                //        if (string.IsNullOrEmpty(call.methodName))
-                //        { continue; }
-
-                //        //MelonLogger.Msg(call.targetAssemblyTypeName + " " + call.target?.GetIl2CppType()?.FullName + "." + call.methodName);
-                //        ui.onHandClick.Listen((Hand hand) =>
-                //        {
-                //            if (hand is null)
-                //            { return; }
-
-                //            var method = call.target?.GetIl2CppType()?.GetMethod(call.methodName, Il2CppSystem.Reflection.BindingFlags.Instance | Il2CppSystem.Reflection.BindingFlags.Public | Il2CppSystem.Reflection.BindingFlags.NonPublic | Il2CppSystem.Reflection.BindingFlags.Static);
-                //            MelonLogger.Msg(method?.Name ?? "not found");
-                //            method?.Invoke(call.target, new(Array.Empty<Object>()));
-                //        });
-                //    }
-                //}
+                var ui = selectable.gameObject.AddComponent<UIElement>();
             }
         }
 
