@@ -87,6 +87,14 @@ namespace HPVR.Components
                 LaserBeam.localPosition = new(sign * (hit.distance / 2), 0, 0);
                 LaserBeam.gameObject.SetActive(true);
                 hitPoint.gameObject.SetActive(true);
+
+                var ui = lastInteract.GetComponent<UIElement>();
+                if (ui is not null)
+                {
+                    var screenHit = worldToUISpace(ui.canvas, hit.point);
+
+                    hand.hoveringInteractable.HandHoverUpdate_Internal(hand, screenHit, true);
+                }
             }
             else
             {
@@ -98,7 +106,12 @@ namespace HPVR.Components
                     hitPoint.gameObject.SetActive(false);
                 }
             }
+        }
 
+        public Vector3 worldToUISpace(Canvas parentCanvas, Vector3 worldPos)
+        {
+            //Convert the local point to world point
+            return parentCanvas.transform.InverseTransformPoint(worldPos);
         }
     }
 }

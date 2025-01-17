@@ -194,7 +194,7 @@ namespace HPVR
             {
                 leftHand.useHoverSphere = false;
                 leftHand.useControllerHoverComponent = false;
-                leftHand.useFingerJointHover = true;
+                leftHand.useFingerJointHover = false;
                 rightHand.useHoverSphere = false;
                 rightHand.useControllerHoverComponent = false;
                 rightHand.useFingerJointHover = true;
@@ -649,6 +649,11 @@ namespace HPVR
                 { continue; }
 
                 //todo we still have to do something about sliders, dropdowns and the weird color selection things
+                //todo sliders are found but the events dont trigger anything, have to investigate their original unity classes
+                //the color choice things are fucked
+                //todo the dropdowns dont work
+                //todo the scrollviews block the rest with their colliders, only enable those which would be visible
+                //see simplecolorpicker 
                 //also in the customization environment things are offset
 
                 if (UIElements.Contains(selectable))

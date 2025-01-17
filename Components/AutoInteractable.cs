@@ -59,7 +59,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called every Update() while a Hand is hovering over this object
         //-------------------------------------------------
-        private void HandHoverUpdate(Hand hand)
+        private void HandHoverUpdate(Hand hand, Vector2 pos, bool posIsValid)
         {
             if (interactable is null)
             { return; }
