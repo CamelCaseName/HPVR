@@ -13,6 +13,7 @@ namespace HPVR.Components
 
         public Laser() : base(ClassInjector.DerivedConstructorPointer<Laser>()) => ClassInjector.DerivedConstructorBody(this);
 
+#nullable disable
         Hand hand;
         Material laserMaterial;
         Transform LaserBeam;
@@ -20,6 +21,8 @@ namespace HPVR.Components
         Transform indexTip;
         int sign;
         Transform hitPoint;
+        bool justEntered = false;
+#nullable restore
 
         protected void Awake()
         {
@@ -60,7 +63,7 @@ namespace HPVR.Components
 
         protected void Update()
         {
-            if (Physics.Raycast(indexTip.position, sign * indexTip.right, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls")))
+            if (Physics.Raycast(indexTip.position, sign * indexTip.right, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
             {
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
@@ -78,6 +81,7 @@ namespace HPVR.Components
                 }
                 if (hand.hoveringInteractable != interact)
                 {
+                    justEntered = true;
                     hand.HoverLock(interact);
                 }
                 lastInteract = interact;
@@ -91,8 +95,13 @@ namespace HPVR.Components
                 var ui = lastInteract.GetComponent<UIElement>();
                 if (ui is not null)
                 {
-                    var screenHit = worldToUISpace(ui.canvas, hit.point);
+                    var screenHit = WorldToUISpace(ui.canvas, hit.point);
 
+                    if (justEntered)
+                    {
+                        justEntered = false;
+                        hand.hoveringInteractable.OnHandHoverBegin_Internal(hand, screenHit, true);
+                    }
                     hand.hoveringInteractable.HandHoverUpdate_Internal(hand, screenHit, true);
                 }
             }
@@ -101,6 +110,7 @@ namespace HPVR.Components
                 if (hand.hoveringInteractable == lastInteract && lastInteract is not null)
                 {
                     hand.HoverUnlock(lastInteract);
+                    justEntered = false;
                     lastInteract = null!;
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
@@ -108,10 +118,6 @@ namespace HPVR.Components
             }
         }
 
-        public Vector3 worldToUISpace(Canvas parentCanvas, Vector3 worldPos)
-        {
-            //Convert the local point to world point
-            return parentCanvas.transform.InverseTransformPoint(worldPos);
-        }
+        public static Vector3 WorldToUISpace(Canvas parentCanvas, Vector3 worldPos) => parentCanvas?.transform?.InverseTransformPoint(worldPos) ?? Vector3.zero;
     }
 }

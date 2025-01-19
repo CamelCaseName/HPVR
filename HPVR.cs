@@ -6,12 +6,13 @@ using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
+using Il2CppSimpleColorPicker.Scripts;
+using Il2CppTMPro;
 using MelonLoader;
 using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Valve.VR;
@@ -45,7 +46,7 @@ namespace HPVR
         private GameObject SteamVRobject = null!;
         private readonly List<BoxCollider> colliders = new(5);
         private readonly HashSet<Transform> canvasses = new();
-        private readonly HashSet<Selectable> UIElements = new();
+        private readonly HashSet<MonoBehaviour> UIElements = new();
         public float Deadzone = 0.0f;
         public float speed = 0.5f;
         private string fallback_fist = string.Empty;
@@ -642,32 +643,38 @@ namespace HPVR
             }
             UpdateUIPositions();
 
-            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Selectable>()))
+            //todo sliders are found and they trigger to 0 on click, have to investigate their original unity classes
+            //todo the dropdowns dont work
+            //todo the scrollviews block the rest with their colliders, only enable those which would be visible
+            //see simplecolorpicker 
+            //also in the customization environment things are offset
+
+            SetUpObjectsOfType<Selectable>();
+            SetUpObjectsOfType<Dropdown.DropdownItem>();
+            SetUpObjectsOfType<TMP_Dropdown.DropdownItem>();
+            SetUpObjectsOfType<PaletteGradient>();
+        }
+
+        private void SetUpObjectsOfType<T>() where T : MonoBehaviour
+        {
+            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<T>()))
             {
-                var selectable = obj.TryCast<Selectable>();
-                if (selectable?.gameObject?.hideFlags != HideFlags.None)
+                var dropdownitem = obj.TryCast<T>();
+                if (dropdownitem?.gameObject?.hideFlags != HideFlags.None)
                 { continue; }
 
-                //todo we still have to do something about sliders, dropdowns and the weird color selection things
-                //todo sliders are found but the events dont trigger anything, have to investigate their original unity classes
-                //the color choice things are fucked
-                //todo the dropdowns dont work
-                //todo the scrollviews block the rest with their colliders, only enable those which would be visible
-                //see simplecolorpicker 
-                //also in the customization environment things are offset
-
-                if (UIElements.Contains(selectable))
+                if (UIElements.Contains(dropdownitem))
                 { continue; }
 
-                UIElements.Add(selectable);
+                UIElements.Add(dropdownitem);
 
-                var inter = selectable.gameObject.AddComponent<Interactable>();
+                var inter = dropdownitem.gameObject.AddComponent<Interactable>();
                 inter.highlightOnHover = false;
                 inter.handFollowTransform = true;
                 inter.snapAttachEaseInTime = 0.15f;
                 inter.useHandObjectAttachmentPoint = true;
 
-                var ui = selectable.gameObject.AddComponent<UIElement>();
+                dropdownitem.gameObject.AddComponent<UIElement>();
             }
         }
 

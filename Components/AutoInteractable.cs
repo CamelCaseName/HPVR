@@ -43,7 +43,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         // Called when a Hand starts hovering over this object
         //-------------------------------------------------
-        private void OnHandHoverBegin(Hand hand)
+        private void OnHandHoverBegin(Hand hand, Vector2 pos, bool posIsValid)
         {
             GeneralText = "Hovering hand: " + hand.name;
         }

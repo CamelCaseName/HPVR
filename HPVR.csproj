@@ -103,6 +103,10 @@
       <HintPath>..\HPUI\bin\Release\net6.0\HPUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Il2CppColorPicker">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppColorPicker.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Il2CppDynamicBone">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppDynamicBone.dll</HintPath>
       <Private>False</Private>
