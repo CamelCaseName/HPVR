@@ -1,6 +1,7 @@
 ﻿using HPVR.Components;
 using HPVR.utils;
 using Il2Cpp;
+using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
@@ -18,7 +19,6 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
-using static Il2CppMono.Net.Security.MobileAuthenticatedStream;
 using Object = UnityEngine.Object;
 
 namespace HPVR
@@ -61,7 +61,12 @@ namespace HPVR
         private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
         private bool boundPlayerHands;
 
-        private bool HandInputActive => leftHand.grabGripAction.active && leftHand.grabPinchAction.active && rightHand.grabGripAction.active && rightHand.grabPinchAction.active;
+        private bool HandInputActive => leftHand.grabGripAction.stateDown
+            || leftHand.grabPinchAction.stateDown
+            || leftHand.uiInteractAction.stateDown
+            || rightHand.grabGripAction.stateDown
+            || rightHand.grabPinchAction.stateDown
+            || rightHand.uiInteractAction.stateDown;
 
         private readonly List<InteractiveItem> Items = new();
 
@@ -204,6 +209,12 @@ namespace HPVR
                 rightHand.useControllerHoverComponent = false;
                 rightHand.useFingerJointHover = true;
                 vrPlayer.transform.rotation = Quaternion.Euler(0, 0, 0);
+            }
+
+            if (inLoadingScreen)
+            {
+                var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
+                cinemachineBrain.gameObject.SetActive(false);
             }
 
             PrepareUIforVR();
@@ -679,6 +690,295 @@ namespace HPVR
             SetUpObjectsOfType<PaletteGradient>();
         }
 
+        //void SimpleColorPicker.Scripts.PaletteGradient$$OnPointerDown
+        //                (SimpleColorPicker_Scripts_PaletteGradient_o* __this,
+        //                UnityEngine_EventSystems_PointerEventData_o* eventData, MethodInfo* method)
+        //{
+        //    code* pcVar1;
+        //    UnityEngine_Vector2_Fields screenPoint;
+        //    bool isInRectangle;
+        //    int32_t canvasrenderMode;
+        //    UnityEngine_RectTransform_o* rect;
+        //    UnityEngine_Camera_o* cam;
+        //    UnityEngine_Vector2_Fields position;
+        //    UnityEngine_Canvas_o* canvas;
+        //    SimpleColorPicker_Scripts_ColorJoystick_o* colorJoystick;
+
+        //    position.x = 0.0;
+        //    position.y = 0.0;
+        //    rect = UnityEngine.Component.GetComponent<RectTransform>());
+        //    if (eventData is not null)
+        //    {
+        //        canvas = (__this->fields).Canvas;
+        //        screenPoint = (eventData->fields)._position_k__BackingField.fields;
+        //        if (canvas is not null)
+        //        {
+        //            canvasrenderMode = UnityEngine.Canvas$$get_renderMode(canvas, (MethodInfo*)0x0);
+        //            if (canvasrenderMode == 1)
+        //            {
+        //                cam = UnityEngine.Camera$$get_main((MethodInfo*)0x0);
+        //            }
+        //            else
+        //            {
+        //                cam = (UnityEngine_Camera_o*)0x0;
+        //            }
+        //            
+        //            isInRectangle =
+        //                    UnityEngine.RectTransformUtility$$ScreenPointToLocalPointInRectangle
+        //                            (rect, (UnityEngine_Vector2_o)screenPoint, cam, (UnityEngine_Vector2_o*)&position
+        //                            , (MethodInfo*)0x0);
+        //            if (isInRectangle)
+        //            {
+        //                colorJoystick = (__this->fields).ColorJoystick;
+        //                if (colorJoystick is null)
+        //                    goto LAB_1806cc252;
+        //                SimpleColorPicker.Scripts.ColorJoystick$$OnDrag(colorJoystick, eventData, (MethodInfo*)0x0);
+        //            }
+        //            return;
+        //        }
+        //    }
+        //LAB_1806cc252:
+        //    FUN_180396d50();
+        //    pcVar1 = (code*)swi(3);
+        //    (*pcVar1)();
+        //    return;
+        //}
+
+        //void SimpleColorPicker.Scripts.PaletteGradient$$OnDrag
+        //                (SimpleColorPicker_Scripts_PaletteGradient_o* __this,
+        //                UnityEngine_EventSystems_PointerEventData_o* eventData, MethodInfo* method)
+        //{
+        //    code* pcVar1;
+        //    SimpleColorPicker_Scripts_ColorJoystick_o* colorJoystick;
+
+        //    colorJoystick = (__this->fields).ColorJoystick;
+        //    if (colorJoystick is not null)
+        //    {
+        //        SimpleColorPicker.Scripts.ColorJoystick$$OnDrag(colorJoystick, eventData, (MethodInfo*)0x0);
+        //        return;
+        //    }
+        //    FUN_180396d50();
+        //    pcVar1 = (code*)swi(3);
+        //    (*pcVar1)();
+        //    return;
+        //}
+
+
+        //void SimpleColorPicker.Scripts.ColorJoystick$$OnDrag
+
+        //                (SimpleColorPicker_Scripts_ColorJoystick_o* __this,
+        //                UnityEngine_EventSystems_PointerEventData_o* eventData, MethodInfo* method)
+
+        //{
+        //    code* pcVar1;
+        //    UnityEngine_Vector2_Fields screenPoint;
+        //    undefined8 uVar2;
+        //    undefined8 uVar3;
+        //    bool inRectPlane;
+        //    int32_t canvasRenderMode;
+        //    int iVar4;
+        //    int iVar5;
+        //    int iVar6;
+        //    int iVar7;
+        //    UnityEngine_Camera_o* cam;
+        //    UnityEngine_Rect_o* Rect;
+        //    UnityEngine_Transform_o* transform;
+        //    UnityEngine_Color_o* color;
+        //    float H;
+        //    float SumMin;
+        //    UnityEngine_Vector2_o eventPosition;
+        //    UnityEngine_Rect_o Newrect[6];
+        //    UnityEngine_Canvas_o* Canvas;
+        //    SimpleColorPicker_Scripts_ColorPicker_o* ColorPickerScript;
+        //    SimpleColorPicker_Scripts_ColorSlider_o* ColorSliderScript;
+        //    UnityEngine_UI_Slider_o* ColorSliderSlider;
+        //    UnityEngine_Texture2D_o* Tex2D;
+        //    float eventX;
+        //    float floatVal;
+        //    UnityEngine_RectTransform_o* rectTransform;
+        //    float rectheight;
+
+        //    if (DAT_183a97ecd == '\0')
+        //    {
+        //        thunk_FUN_1803888b0(&UnityEngine.RectTransformUtility_TypeInfo);
+        //        DAT_183a97ecd = '\x01';
+        //    }
+        //    rectTransform = (__this->fields).RectTransform;
+        //    eventPosition.fields.x = 0.0;
+        //    eventPosition.fields.y = 0.0;
+        //    if (eventData != (UnityEngine_EventSystems_PointerEventData_o*)0x0)
+        //    {
+        //        Canvas = (__this->fields).Canvas;
+        //        screenPoint = (eventData->fields)._position_k__BackingField.fields;
+        //        if (Canvas != (UnityEngine_Canvas_o*)0x0)
+        //        {
+        //            canvasRenderMode = UnityEngine.Canvas$$get_renderMode(Canvas, (MethodInfo*)0x0);
+        //            if (canvasRenderMode == 1)
+        //            {
+        //                cam = UnityEngine.Camera$$get_main((MethodInfo*)0x0);
+        //            }
+        //            else
+        //            {
+        //                cam = (UnityEngine_Camera_o*)0x0;
+        //            }
+        //            if ((UnityEngine.RectTransformUtility_TypeInfo->_2).cctor_finished == 0)
+        //            {
+        //                il2cpp_runtime_class_init();
+        //            }
+        //            inRectPlane = UnityEngine.RectTransformUtility$$ScreenPointToLocalPointInRectangle
+        //                                    (rectTransform, (UnityEngine_Vector2_o)screenPoint, cam, &eventPosition,
+        //                                        (MethodInfo*)0x0);
+        //            floatVal = eventPosition.fields.x;
+        //            if (!inRectPlane)
+        //            {
+        //                return;
+        //            }
+        //            rectTransform = (__this->fields).RectTransform;
+        //            if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //            {
+        //                Rect = UnityEngine.RectTransform$$get_rect(Newrect, rectTransform, (MethodInfo*)0x0);
+        //                SumMin = eventPosition.fields.y;
+        //                eventX = (Rect->fields).m_XMin;
+        //                eventPosition.fields.x = floatVal;
+        //                if (floatVal <= eventX)
+        //                {
+        //                    eventPosition.fields.x = eventX;
+        //                }
+        //                rectTransform = (__this->fields).RectTransform;
+        //                if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //                {
+        //                    Rect = UnityEngine.RectTransform$$get_rect(Newrect, rectTransform, (MethodInfo*)0x0);
+        //                    eventX = eventPosition.fields.x;
+        //                    floatVal = (Rect->fields).m_YMin;
+        //                    eventPosition.fields.y = SumMin;
+        //                    if (SumMin <= floatVal)
+        //                    {
+        //                        eventPosition.fields.y = floatVal;
+        //                    }
+        //                    rectTransform = (__this->fields).RectTransform;
+        //                    if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //                    {
+        //                        Rect = UnityEngine.RectTransform$$get_rect(Newrect, rectTransform, (MethodInfo*)0x0);
+        //                        floatVal = eventPosition.fields.y;
+        //                        SumMin = (Rect->fields).m_Width + (Rect->fields).m_XMin;
+        //                        eventPosition.fields.x = eventX;
+        //                        if (SumMin <= eventX)
+        //                        {
+        //                            eventPosition.fields.x = SumMin;
+        //                        }
+        //                        rectTransform = (__this->fields).RectTransform;
+        //                        if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //                        {
+        //                            Rect = UnityEngine.RectTransform$$get_rect(Newrect, rectTransform, (MethodInfo*)0x0);
+        //                            eventX = (Rect->fields).m_Height + (Rect->fields).m_YMin;
+        //                            eventPosition.fields.y = floatVal;
+        //                            if (eventX <= floatVal)
+        //                            {
+        //                                eventPosition.fields.y = eventX;
+        //                            }
+        //                            transform = UnityEngine.Component$$get_transform
+        //                                                    ((UnityEngine_Component_o*)__this, (MethodInfo*)0x0);
+        //                            if (transform != (UnityEngine_Transform_o*)0x0)
+        //                            {
+        //                                Newrect[0].fields.m_YMin = eventPosition.fields.y;
+        //                                Newrect[0].fields.m_XMin = eventPosition.fields.x;
+        //                                Newrect[0].fields.m_Width = 0.0;
+        //                                UnityEngine.Transform$$set_localPosition
+        //                                            (transform, (UnityEngine_Vector3_o*)Newrect, (MethodInfo*)0x0);
+        //                                floatVal = eventPosition.fields.x;
+        //                                ColorPickerScript = (__this->fields).ColorPicker;
+        //                                if (ColorPickerScript != (SimpleColorPicker_Scripts_ColorPicker_o*)0x0)
+        //                                {
+        //                                    rectTransform = (__this->fields).RectTransform;
+        //                                    Tex2D = (ColorPickerScript->fields).Texture;
+        //                                    if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //                                    {
+        //                                        Rect = UnityEngine.RectTransform$$get_rect
+        //                                                            (Newrect, rectTransform, (MethodInfo*)0x0);
+        //                                        eventX = (Rect->fields).m_Width;
+        //                                        if (Tex2D != (UnityEngine_Texture2D_o*)0x0)
+        //                                        {
+        //                                            iVar4 = (*(Tex2D->klass->vtable)._5_get_width.methodPtr)
+        //                                                                (Tex2D, (Tex2D->klass->vtable)._5_get_width.method);
+        //                                            SumMin = eventPosition.fields.y;
+        //                                            rectTransform = (__this->fields).RectTransform;
+        //                                            if (rectTransform != (UnityEngine_RectTransform_o*)0x0)
+        //                                            {
+        //                                                Rect = UnityEngine.RectTransform$$get_rect
+        //                                                                    (Newrect, rectTransform, (MethodInfo*)0x0);
+        //                                                rectheight = (Rect->fields).m_Height;
+        //                                                iVar5 = (*(Tex2D->klass->vtable)._7_get_height.methodPtr)
+        //                                                                    (Tex2D, (Tex2D->klass->vtable)._7_get_height.method);
+        //                                                ColorPickerScript = (__this->fields).ColorPicker;
+        //                                                if (((ColorPickerScript != (SimpleColorPicker_Scripts_ColorPicker_o*)0x0)
+        //                                                    && (ColorSliderScript = (ColorPickerScript->fields).H,
+        //                                                        ColorSliderScript != (SimpleColorPicker_Scripts_ColorSlider_o*)0x0))
+        //                                                    && (ColorSliderSlider = (ColorSliderScript->fields).Slider,
+        //                                                        ColorSliderSlider != (UnityEngine_UI_Slider_o*)0x0))
+        //                                                {
+        //                                                    H = (float)(*(ColorSliderSlider->klass->vtable)._46_get_value.methodPtr)
+        //                                                                            (ColorSliderSlider,
+        //                                                                            (ColorSliderSlider->klass->vtable)._46_get_value.
+        //                                                                            method);
+        //                                                    iVar6 = (*(Tex2D->klass->vtable)._5_get_width.methodPtr)
+        //                                                                        (Tex2D, (Tex2D->klass->vtable)._5_get_width.method);
+        //                                                    iVar7 = (*(Tex2D->klass->vtable)._7_get_height.methodPtr)
+        //                                                                        (Tex2D, (Tex2D->klass->vtable)._7_get_height.method);
+        //                                                    color = UnityEngine.Color$$HSVToRGB
+        //                                                                        ((UnityEngine_Color_o*)Newrect, H,
+        //                                                                        ((floatVal / eventX) * (float)iVar4) / (float)iVar6,
+        //                                                                        ((SumMin / rectheight) * (float)iVar5) / (float)iVar7,
+        //                                                                        true, (MethodInfo*)0x0);
+        //                                                    uVar3._0_4_ = (color->fields).r;
+        //                                                    uVar3._4_4_ = (color->fields).g;
+        //                                                    uVar2._0_4_ = (color->fields).r;
+        //                                                    uVar2._4_4_ = (color->fields).g;
+        //                                                    floatVal = (color->fields).b;
+        //                                                    ColorPickerScript = (__this->fields).ColorPicker;
+        //                                                    if (((ColorPickerScript != (SimpleColorPicker_Scripts_ColorPicker_o*)0x0)
+        //                                                        && (ColorSliderScript = (ColorPickerScript->fields).A,
+        //                                                            ColorSliderScript != (SimpleColorPicker_Scripts_ColorSlider_o*)0x0
+        //                                                            )) && (ColorSliderSlider = (ColorSliderScript->fields).Slider,
+        //                                                                    ColorSliderSlider != (UnityEngine_UI_Slider_o*)0x0))
+        //                                                    {
+        //                                                        Newrect[0].fields.m_Height =
+        //                                                                (float)(*(ColorSliderSlider->klass->vtable)._46_get_value.methodPtr
+        //                                                                    )(ColorSliderSlider,
+        //                                                                        (ColorSliderSlider->klass->vtable)._46_get_value.method);
+        //                                                        ColorPickerScript = (__this->fields).ColorPicker;
+        //                                                        Newrect[0].fields._0_8_ = uVar2;
+        //                                                        Newrect[0].fields.m_Width = floatVal;
+        //                                                        if (ColorPickerScript != (SimpleColorPicker_Scripts_ColorPicker_o*)0x0)
+        //                                                        {
+        //                                                            Newrect[0].fields._0_8_ = uVar3;
+        //                                                            SimpleColorPicker.Scripts.ColorPicker$$SetColor
+        //                                                                        (ColorPickerScript, (UnityEngine_Color_o*)Newrect, false, true
+        //                                                                        , true, true, (MethodInfo*)0x0);
+        //                                                            return;
+        //                                                        }
+        //                                                    }
+        //                                                }
+        //                                            }
+        //                                        }
+        //                                    }
+        //                                }
+        //                            }
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //    FUN_180396d50();
+        //    pcVar1 = (code*)swi(3);
+        //    (*pcVar1)();
+        //    return;
+        //}
+
+        //todo for the color picker it seems we just want to call the colorjoysticks ondrag ourselfs
+        //if the position is right it should be fine, seems we send the wrong coordinates
+        //we already have to translate the hit coords into the local points for the object beforehand
+
         private void SetUpObjectsOfType<T>() where T : MonoBehaviour
         {
             foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<T>()))
@@ -920,19 +1220,12 @@ namespace HPVR
             {
                 UpdateUIInteraction();
             }
-            else if (inLoadingScreen || inDisclaimer)
-            {
-                //for the loading screen and disclaimer we have to do something different
-                //we can probably simulate the input or just continue manually
-            }
 
             if (inLoadingScreen)
             {
                 var loading = Object.FindObjectOfType<LoadingScreenManager>();
-                MelonLogger.Msg("loading " + loading._gameLoader.progress);
-                if (loading._loaded && loading._gameLoader.progress >= 0.9f && HandInputActive)
+                if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f && HandInputActive)
                 {
-                    MelonLogger.Msg("completed " + loading._gameLoader.progress);
                     loading._gameLoader.allowSceneActivation = true;
                 }
             }
@@ -940,8 +1233,7 @@ namespace HPVR
             if (inDisclaimer)
             {
                 var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
-                MelonLogger.Msg("disclaimer " + disclaimer);
-                if (!disclaimer._loadedNextScene && HandInputActive)
+                if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && HandInputActive)
                 {
                     disclaimer._shouldProcessSceneTransition = true;
                 }

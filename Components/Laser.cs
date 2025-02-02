@@ -96,7 +96,8 @@ namespace HPVR.Components
                 if (ui is not null)
                 {
                     var screenHit = WorldToUISpace(ui.canvas, hit.point);
-
+                    var coll = hit.transform.GetComponent<Collider>();
+                    MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
                     if (justEntered)
                     {
                         justEntered = false;
