@@ -4,6 +4,7 @@ using Il2Cpp;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
+using Il2CppEekEvents.Helper;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using Il2CppSimpleColorPicker.Scripts;
@@ -17,6 +18,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
+using static Il2CppMono.Net.Security.MobileAuthenticatedStream;
 using Object = UnityEngine.Object;
 
 namespace HPVR
@@ -58,6 +60,8 @@ namespace HPVR
         private bool InitializedSteamRVObjects = false;
         private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
         private bool boundPlayerHands;
+
+        private bool HandInputActive => leftHand.grabGripAction.active && leftHand.grabPinchAction.active && rightHand.grabGripAction.active && rightHand.grabPinchAction.active;
 
         private readonly List<InteractiveItem> Items = new();
 
@@ -637,7 +641,27 @@ namespace HPVR
                     //big disclaimer text
                     //reticle
                     //
-                    canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                    switch (canvas.gameObject.name)
+                    {
+                        case "DialogueCanvas":
+                        case "InteractionCanvas":
+                        case "BGCUICanvas":
+                        case "UseSelectCanvas":
+                        case "OrgasmCanvas":
+                        case "NarratorCanvas":
+                        case "Canvas": // should be something messages canvas
+                        case " Canvas": // should be something quest canvas
+                        case "Canvas ": // should be something quest canvas
+                        case "RadialMenuCanvas":
+                        case "DebugCanvas":
+                        case "ConsoleCanvas":
+                        case "Relationship Notificatiops Canvas":
+                        case "UIRadialMenuCanvas":
+                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 canvasses.Add(canvas.transform);
             }
@@ -859,6 +883,7 @@ namespace HPVR
         //player hand ik bind to gloves
         //maybe do IK with the player object -> finalik dokumentation
         //curve ui canvases slightly
+        //build a keyboard? using maybe Ikeyboardevent
 
         public override void OnUpdate()
         {
@@ -899,6 +924,27 @@ namespace HPVR
             {
                 //for the loading screen and disclaimer we have to do something different
                 //we can probably simulate the input or just continue manually
+            }
+
+            if (inLoadingScreen)
+            {
+                var loading = Object.FindObjectOfType<LoadingScreenManager>();
+                MelonLogger.Msg("loading " + loading._gameLoader.progress);
+                if (loading._loaded && loading._gameLoader.progress >= 0.9f && HandInputActive)
+                {
+                    MelonLogger.Msg("completed " + loading._gameLoader.progress);
+                    loading._gameLoader.allowSceneActivation = true;
+                }
+            }
+
+            if (inDisclaimer)
+            {
+                var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
+                MelonLogger.Msg("disclaimer " + disclaimer);
+                if (!disclaimer._loadedNextScene && HandInputActive)
+                {
+                    disclaimer._shouldProcessSceneTransition = true;
+                }
             }
 
             UpdateHMDPositions();
@@ -950,6 +996,7 @@ namespace HPVR
                             item.gameObject.AddComponent<AutoInteractable>();
                         }
                         //todo add handposer depending on the type of collider we find/what object it really is
+                        //todo not only mount an interactive item to the hand but keep it relative to where the hand was when grabbing
                     }
                     else
                     {
@@ -1056,19 +1103,21 @@ namespace HPVR
             {
                 cam.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
             }
-            //if (PlayerCharacter.Player.Gender == Genders.Female)
-            //{
-            //    GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
-            //}
-            //else
-            //{
-            //    GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-            //}
-            //GameObject.Find("Hair_Mirror")?.SetActive(false);
-            //var lEye = playerChar.FindDeepChild("lEye");
-            //lEye.localScale = Vector3.zero;
-            //var rEye = playerChar.FindDeepChild("rEye");
-            //rEye.localScale = Vector3.zero;
+
+            //todo somehow the cullmask is still wrong
+            if (PlayerCharacter.Player.Gender == Genders.Female)
+            {
+                GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+            }
+            else
+            {
+                GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
+            }
+            GameObject.Find("Hair_Mirror")?.SetActive(false);
+            var lEye = playerChar.FindDeepChild("lEye");
+            lEye.localScale = Vector3.zero;
+            var rEye = playerChar.FindDeepChild("rEye");
+            rEye.localScale = Vector3.zero;
             removedPlayerHead = true;
         }
 
