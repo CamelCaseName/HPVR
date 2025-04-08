@@ -1,4 +1,5 @@
-﻿using Il2CppInterop.Runtime.Injection;
+﻿using Il2CppEekCharacterEngine.Interaction;
+using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
@@ -6,11 +7,11 @@ using Valve.VR.InteractionSystem;
 namespace HPVR.Components
 {
     [RegisterTypeInIl2Cpp]
-    internal class AutoInteractable : MonoBehaviour
+    internal class ImmovableInteractable : MonoBehaviour
     {
-        public AutoInteractable(IntPtr value) : base(value) { }
+        public ImmovableInteractable(IntPtr value) : base(value) { }
 
-        public AutoInteractable() : base(ClassInjector.DerivedConstructorPointer<AutoInteractable>()) => ClassInjector.DerivedConstructorBody(this);
+        public ImmovableInteractable() : base(ClassInjector.DerivedConstructorPointer<ImmovableInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private string generalText = string.Empty;
         private string hoveringText = string.Empty;
@@ -22,6 +23,7 @@ namespace HPVR.Components
         private readonly Hand.AttachmentFlags attachmentFlags = Hand.defaultAttachmentFlags & (~Hand.AttachmentFlags.SnapOnAttach) & (~Hand.AttachmentFlags.DetachOthers) & (~Hand.AttachmentFlags.VelocityMovement);
 
         private Interactable? interactable = null;
+        private InteractiveItem? interactiveItem = null;
 
         //-------------------------------------------------
         protected virtual void Awake()
@@ -30,6 +32,7 @@ namespace HPVR.Components
             HoveringText = "Hovering: False";
 
             interactable = this.GetComponent<Interactable>();
+            interactiveItem = this.GetComponent<InteractiveItem>();
             interactable.HandHoverUpdate += HandHoverUpdate;
             interactable.OnAttachedToHand += OnAttachedToHand;
             interactable.OnDetachedFromHand += OnDetachedFromHand;
@@ -46,6 +49,7 @@ namespace HPVR.Components
         private void OnHandHoverBegin(Hand hand, Vector2 pos, bool posIsValid)
         {
             GeneralText = "Hovering hand: " + hand.name;
+            InteractionManager.Singleton._focusedItemInteraction = interactiveItem;
         }
 
         //-------------------------------------------------

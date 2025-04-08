@@ -22,6 +22,7 @@ namespace HPVR.Components
         int sign;
         Transform hitPoint;
         bool justEntered = false;
+        public static Vector3 LastHit;
 #nullable restore
 
         protected void Awake()
@@ -51,6 +52,7 @@ namespace HPVR.Components
             hitRenderer.material.shader = Shader.Find("HDRP/Lit");
             hitRenderer.material.color = Color.white;
 
+            //todo get a cool laser material from zigga?
             //renderer.material = laserMaterial;
 
             GameObject.DestroyImmediate(laserBeamGO.GetComponent<CapsuleCollider>());
@@ -87,6 +89,7 @@ namespace HPVR.Components
                 lastInteract = interact;
 
                 hitPoint.position = hit.point;
+                LastHit = hit.point;
                 LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
                 LaserBeam.localPosition = new(sign * (hit.distance / 2), 0, 0);
                 LaserBeam.gameObject.SetActive(true);
@@ -96,8 +99,8 @@ namespace HPVR.Components
                 if (ui is not null)
                 {
                     var screenHit = WorldToUISpace(ui.canvas, hit.point);
-                    var coll = hit.transform.GetComponent<Collider>();
-                    MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
+                    //var coll = hit.transform.GetComponent<Collider>();
+                    //MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
                     if (justEntered)
                     {
                         justEntered = false;
@@ -108,6 +111,10 @@ namespace HPVR.Components
             }
             else
             {
+                if(hand.otherHand.hoveringInteractable == null)
+                {
+                    LastHit = Vector3.zero;
+                }
                 if (hand.hoveringInteractable == lastInteract && lastInteract is not null)
                 {
                     hand.HoverUnlock(lastInteract);

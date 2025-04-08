@@ -84,6 +84,21 @@ namespace HPVR
         {
         }
 
+
+        //##################################################################
+        //##################################################################
+        //##
+        //##    Steps still left to do before release:
+        //##    - Main menu UI has to be fully workable
+        //##    - in game items have to work on ui click, not necessarily with physics
+        //##    - dialogue in game needs to work
+        //##    - bind controllers to all actions needed to play through the game, so 
+        //##        - Inventory, memories and Opportunity with the Q radial
+        //##        - Game Menu
+        //##        - E Radial
+
+
+
         public override void OnInitializeMelon()
         {
             poses = new TrackedDevicePose_t[4];
@@ -199,6 +214,8 @@ namespace HPVR
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
 
                 CreateMainMenuBoundary();
+
+                QualitySettings.SetQualityLevel(1);
             }
             else
             {
@@ -679,15 +696,15 @@ namespace HPVR
             UpdateUIPositions();
 
             //todo sliders are found and they trigger to 0 on click, have to investigate their original unity classes
-            //todo the dropdowns dont work
+            //todo the dropdowns drop down, but the colliders behind still trigger. also the dropdowns collider is not correctly adjusted to the new size
             //todo the scrollviews block the rest with their colliders, only enable those which would be visible
             //see simplecolorpicker 
             //also in the customization environment things are offset
 
-            SetUpObjectsOfType<Selectable>();
-            SetUpObjectsOfType<Dropdown.DropdownItem>();
-            SetUpObjectsOfType<TMP_Dropdown.DropdownItem>();
-            SetUpObjectsOfType<PaletteGradient>();
+            SetUpUIObjectsOfType<Selectable>();
+            SetUpUIObjectsOfType<Dropdown.DropdownItem>();
+            SetUpUIObjectsOfType<TMP_Dropdown.DropdownItem>();
+            SetUpUIObjectsOfType<PaletteGradient>();
         }
 
         //void SimpleColorPicker.Scripts.PaletteGradient$$OnPointerDown
@@ -762,7 +779,6 @@ namespace HPVR
         //    (*pcVar1)();
         //    return;
         //}
-
 
         //void SimpleColorPicker.Scripts.ColorJoystick$$OnDrag
 
@@ -979,26 +995,26 @@ namespace HPVR
         //if the position is right it should be fine, seems we send the wrong coordinates
         //we already have to translate the hit coords into the local points for the object beforehand
 
-        private void SetUpObjectsOfType<T>() where T : MonoBehaviour
+        private void SetUpUIObjectsOfType<T>() where T : MonoBehaviour
         {
             foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<T>()))
             {
-                var dropdownitem = obj.TryCast<T>();
-                if (dropdownitem?.gameObject?.hideFlags != HideFlags.None)
+                var uiComponent = obj.TryCast<T>();
+                if (uiComponent?.gameObject?.hideFlags != HideFlags.None)
                 { continue; }
 
-                if (UIElements.Contains(dropdownitem))
+                if (UIElements.Contains(uiComponent))
                 { continue; }
 
-                UIElements.Add(dropdownitem);
+                UIElements.Add(uiComponent);
 
-                var inter = dropdownitem.gameObject.AddComponent<Interactable>();
+                var inter = uiComponent.gameObject.AddComponent<Interactable>();
                 inter.highlightOnHover = false;
-                inter.handFollowTransform = true;
+                inter.handFollowTransform = false;
                 inter.snapAttachEaseInTime = 0.15f;
-                inter.useHandObjectAttachmentPoint = true;
+                inter.useHandObjectAttachmentPoint = false;
 
-                dropdownitem.gameObject.AddComponent<UIElement>();
+                uiComponent.gameObject.AddComponent<UIElement>();
             }
         }
 
@@ -1022,9 +1038,9 @@ namespace HPVR
 
                     if (inGameMain && canvas.gameObject.name == "InteractionCanvas")
                     {
-                        if (InteractionManager.Singleton._hit.point.sqrMagnitude != 0)
+                        if (Laser.LastHit != Vector3.zero)
                         {
-                            canvas.position = InteractionManager.Singleton._hit.point + (vrCamRotation * Vector3.forward * -0.05f);
+                            canvas.position = Laser.LastHit + (vrCamRotation * Vector3.forward * -0.05f);
                         }
                         else
                         {
@@ -1033,19 +1049,11 @@ namespace HPVR
                     }
                     else
                     {
-                        canvas.position = vrCamPosition + (vrCamRotation * Vector3.forward * 1.45f);
+                        canvas.position = vrCamPosition + (vrCamRotation * Vector3.forward * 1.5f);
                     }
                     canvas.rotation = vrCamRotation;
                 }
             }
-        }
-
-        private void UpdateUIInteraction()
-        {
-            //for hitreg, cast ray out of both hands, if it lands on an active ui show a beam
-            //or if the controller is in the bounds send a mouse event if the respective trigger is hit
-            //send mouse event to that canvas with the simulated coords, as if it were screen size
-            //https://github.com/sinai-dev/UnityExplorer/blob/1e1fb0e27bff9ab0212b4e61ef1ecb38a502b290/src/Inspectors/MouseInspectors/UiInspector.cs#L80
         }
 
         private void CreateMainMenuBoundary()
@@ -1209,6 +1217,14 @@ namespace HPVR
 
                 ScalePlayerToHMDHeight();
             }
+            else if (inLoadingScreen)
+            {
+                TryEndLoadingScreen();
+            }
+            else if (inDisclaimer)
+            {
+                TryEndDisclaimerScreen();
+            }
 
             if (!inMainMenu)
             {
@@ -1216,30 +1232,33 @@ namespace HPVR
                 UpdateUIPositions();
             }
 
-            if (inGameMain || inMainMenu)
-            {
-                UpdateUIInteraction();
-            }
-
-            if (inLoadingScreen)
-            {
-                var loading = Object.FindObjectOfType<LoadingScreenManager>();
-                if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f && HandInputActive)
-                {
-                    loading._gameLoader.allowSceneActivation = true;
-                }
-            }
-
-            if (inDisclaimer)
-            {
-                var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
-                if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && HandInputActive)
-                {
-                    disclaimer._shouldProcessSceneTransition = true;
-                }
-            }
-
             UpdateHMDPositions();
+        }
+
+        private void TryEndDisclaimerScreen()
+        {
+            var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
+            if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && HandInputActive)
+            {
+                disclaimer._shouldProcessSceneTransition = true;
+            }
+        }
+
+        private void TryEndLoadingScreen()
+        {
+            var loading = Object.FindObjectOfType<LoadingScreenManager>();
+            if (loading is null)
+            {
+                return;
+            }
+            if (loading._gameLoader is null)
+            {
+                return;
+            }
+            if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f && HandInputActive)
+            {
+                loading._gameLoader.allowSceneActivation = true;
+            }
         }
 
         private void UpdateInteractiveItems()
@@ -1283,10 +1302,7 @@ namespace HPVR
                             thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
                             thrower.restoreOriginalParent = false;
                         }
-                        else
-                        {
-                            item.gameObject.AddComponent<AutoInteractable>();
-                        }
+                        item.gameObject.AddComponent<ItemInteractable>();
                         //todo add handposer depending on the type of collider we find/what object it really is
                         //todo not only mount an interactive item to the hand but keep it relative to where the hand was when grabbing
                     }
@@ -1420,7 +1436,7 @@ namespace HPVR
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
             hmdAbsolutePosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
-            //this is fine
+            //todo something is still off here, rotating translates the player a little. feels like rotating around where the headset started
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
             vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * hmdAbsolutePosition);
 
