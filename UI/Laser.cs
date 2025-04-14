@@ -4,7 +4,7 @@ using UnityEngine;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Components
+namespace HPVR.UI
 {
     [RegisterTypeInIl2Cpp]
     internal class Laser : MonoBehaviour
@@ -55,8 +55,8 @@ namespace HPVR.Components
             //todo get a cool laser material from zigga?
             //renderer.material = laserMaterial;
 
-            GameObject.DestroyImmediate(laserBeamGO.GetComponent<CapsuleCollider>());
-            GameObject.DestroyImmediate(hitPoint.GetComponent<SphereCollider>());
+            DestroyImmediate(laserBeamGO.GetComponent<CapsuleCollider>());
+            DestroyImmediate(hitPoint.GetComponent<SphereCollider>());
 
             laserBeamGO.SetActive(false);
             hitPoint.gameObject.SetActive(false);
@@ -111,7 +111,7 @@ namespace HPVR.Components
             }
             else
             {
-                if(hand.otherHand.hoveringInteractable == null)
+                if (hand.otherHand.hoveringInteractable == null)
                 {
                     LastHit = Vector3.zero;
                 }

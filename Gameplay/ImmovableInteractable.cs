@@ -4,7 +4,7 @@ using MelonLoader;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Components
+namespace HPVR.Gameplay
 {
     [RegisterTypeInIl2Cpp]
     internal class ImmovableInteractable : MonoBehaviour
@@ -20,7 +20,7 @@ namespace HPVR.Components
 
         private float attachTime;
 
-        private readonly Hand.AttachmentFlags attachmentFlags = Hand.defaultAttachmentFlags & (~Hand.AttachmentFlags.SnapOnAttach) & (~Hand.AttachmentFlags.DetachOthers) & (~Hand.AttachmentFlags.VelocityMovement);
+        private readonly Hand.AttachmentFlags attachmentFlags = Hand.defaultAttachmentFlags & ~Hand.AttachmentFlags.SnapOnAttach & ~Hand.AttachmentFlags.DetachOthers & ~Hand.AttachmentFlags.VelocityMovement;
 
         private Interactable? interactable = null;
         private InteractiveItem? interactiveItem = null;
@@ -31,8 +31,8 @@ namespace HPVR.Components
             GeneralText = "No Hand Hovering";
             HoveringText = "Hovering: False";
 
-            interactable = this.GetComponent<Interactable>();
-            interactiveItem = this.GetComponent<InteractiveItem>();
+            interactable = GetComponent<Interactable>();
+            interactiveItem = GetComponent<InteractiveItem>();
             interactable.HandHoverUpdate += HandHoverUpdate;
             interactable.OnAttachedToHand += OnAttachedToHand;
             interactable.OnDetachedFromHand += OnDetachedFromHand;
@@ -68,7 +68,7 @@ namespace HPVR.Components
             if (interactable is null)
             { return; }
             GrabTypes startingGrabType = hand.GetGrabStarting();
-            bool isGrabEnding = hand.IsGrabEnding(this.gameObject);
+            bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None)
             {
@@ -119,7 +119,7 @@ namespace HPVR.Components
         //-------------------------------------------------
         private void HandAttachedUpdate(Hand hand)
         {
-            GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, (Time.time - attachTime));
+            GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, Time.time - attachTime);
         }
 
         private bool lastHovering = false;

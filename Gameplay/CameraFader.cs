@@ -3,13 +3,13 @@ using MelonLoader;
 using UnityEngine;
 using Valve.VR;
 
-namespace HPVR.Components
+namespace HPVR.Gameplay
 {
     [RegisterTypeInIl2Cpp()]
     public class CameraFader : MonoBehaviour
     {
-        private readonly List<UnityEngine.Collider> colliders = new();
-        private readonly List<UnityEngine.Collision> collisions = new();
+        private readonly List<Collider> colliders = new();
+        private readonly List<Collision> collisions = new();
         private bool inFade = false;
 
         public CameraFader(IntPtr value) : base(value) { }

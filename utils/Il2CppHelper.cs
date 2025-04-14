@@ -7,7 +7,6 @@ namespace HPVR.utils
 {
     internal static class Il2CppHelper
     {
-
         public static void CreateAndSavePlugin(string name)
         {
             string folderPath = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "Mods", "HPVR_data");

@@ -3,7 +3,7 @@ using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace HPVR
+namespace HPVR.UI
 {
     [RegisterTypeInIl2Cpp(true)]
     public class WorldSpaceOverlayUI : MonoBehaviour
