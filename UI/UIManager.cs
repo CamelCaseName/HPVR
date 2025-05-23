@@ -17,10 +17,15 @@ namespace HPVR.UI
         private static readonly HashSet<MonoBehaviour> UIElements = new();
         public static bool UpdateUIPos = true;
         public static List<Transform> CanvasToIgnore = new();
+        private static bool initialized = false;
         static public void Initialize()
         {
-            Player.instance.leftHand.OnHandInitialized += (int i) => { Player.instance.leftHand.gameObject.AddComponent<Laser>(); };
-            Player.instance.rightHand.OnHandInitialized += (int i) => { Player.instance.rightHand.gameObject.AddComponent<Laser>(); };
+            if (!initialized)
+            {
+                Player.instance.leftHand.OnHandInitialized += (int i) => { Player.instance.leftHand.gameObject.AddComponent<Laser>(); };
+                Player.instance.rightHand.OnHandInitialized += (int i) => { Player.instance.rightHand.gameObject.AddComponent<Laser>(); };
+                initialized = true;
+            }
         }
 
         public static void Update()

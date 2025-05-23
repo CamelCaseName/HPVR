@@ -101,11 +101,12 @@ namespace HPVR.VR
                 throw new NotSupportedException("VR Headset was not connected before starting the game");
             }
             MelonXR.Initialize();
+        }
 
-
+        public static void SetUpSteamVRUnity()
+        {
             if (!Initialized)
             {
-
                 SetUpSteamActionsIfNeeded();
                 //set up steamvr objects, camera and stuff
                 SetUpSteamVR();
@@ -146,15 +147,18 @@ namespace HPVR.VR
             //we need a steamvr player as well for the hands :(
             SteamVRobject = new GameObject("SteamVR");
             SteamVRobject.transform.parent = vrPlayer.transform;
+            MelonLogger.Msg("Created SteamVR Gameobject Container");
 
             var player = vrPlayer.AddComponent<Player>();
             player.trackingOriginTransform = vrPlayer.transform;
+            MelonLogger.Msg(Camera.main?.ToString() ?? "camera isnull");
             player.hmdTransforms = new Transform[] { Camera.main.transform };
             player.audioListener = Camera.main.transform;
             player.headCollider = SetUpCamera();
             player.rigSteamVR = SteamVRobject;
             player.headsetOnHead = SteamVR_Actions.default_HeadsetOnHead;
             player.allowToggleTo2D = false;
+            MelonLogger.Msg("Created SteamVR Player");
 
             Object.DontDestroyOnLoad(SteamVRobject);
 
@@ -166,12 +170,14 @@ namespace HPVR.VR
             eventSystem.m_DragThreshold = 0;
             var inputComponent = input.AddComponent<InputModule>();
             inputComponent.sendPointerHoverToParent = true;
+            MelonLogger.Msg("Created SteamVR Inputmodule");
 
             //seems this one is too old?
             //replaced standaloneinputmodule with inputsystemuiinputmodule
             var standalone = input.AddComponent<InputSystemUIInputModule>();
             standalone.sendPointerHoverToParent = true;
             standalone.repeatDelay = 0.5f;
+            MelonLogger.Msg("Created SteamVR Standalone Container");
         }
 
         private static SphereCollider SetUpCamera()
@@ -515,24 +521,34 @@ namespace HPVR.VR
 
         private static void UpdateHMDPositions()
         {
+            //float seconds = PredictSecondsFromNow();
+            //poses = new TrackedDevicePose_t[4];
+            //OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
+
+            //var hmdAbsolutePos = poses[0].mDeviceToAbsoluteTracking.GetPosition();
+
+            ////todo rotation works now, but hands are offset to the front left?
+
+            //hmdAbsolutePosDelta = hmdAbsolutePos - hmdAbsoluteLastPosition;
+            //hmdAbsolutePosDelta.y = 0;
+
+            //vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
+            //vrCamPosition = vrPlayer.transform.position + new Vector3(0, hmdAbsolutePos.y, 0);
+            //vrCamPosition += (vrPlayer.transform.rotation * hmdAbsolutePosDelta);
+
+            //SteamVR_Camera.instance.transform.rotation = vrCamRotation;
+            //SteamVR_Camera.instance.transform.position = vrCamPosition;
+            //hmdAbsoluteLastPosition = hmdAbsolutePos;
             float seconds = PredictSecondsFromNow();
             poses = new TrackedDevicePose_t[4];
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-
-            var hmdAbsolutePos = poses[0].mDeviceToAbsoluteTracking.GetPosition();
-
-            //todo rotation works now, but hands are offset to the front left?
-
-            hmdAbsolutePosDelta = hmdAbsolutePos - hmdAbsoluteLastPosition;
-            hmdAbsolutePosDelta.y = 0;
+            hmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-            vrCamPosition = vrPlayer.transform.position + new Vector3(0, hmdAbsolutePos.y, 0);
-            vrCamPosition += (vrPlayer.transform.rotation * hmdAbsolutePosDelta);
+            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * hmdAbsoluteLastPosition);
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
-            hmdAbsoluteLastPosition = hmdAbsolutePos;
 
         }
 

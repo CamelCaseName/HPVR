@@ -53,6 +53,7 @@ namespace HPVR.Gameplay
             }
             else
             {
+                //todo replace by lasers and hover hands
                 if (!Physics.Raycast(pos, Camera.main.transform.forward, out hit, maxDistance, InteractionManager.Singleton._primaryIMgrMask))
                 {
                     return false;

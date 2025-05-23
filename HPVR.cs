@@ -99,12 +99,14 @@ namespace HPVR
             string folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets");
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", "", "vrshaders");
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
-
-            UIManager.Initialize();
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
+            VRSystem.SetUpSteamVRUnity();
+
+            UIManager.Initialize();
+
             MelonLogger.Msg("[HPVR] preparing scene");
             removedPlayerHead = false;
             inGameMain = sceneName == "GameMain";
@@ -179,9 +181,11 @@ namespace HPVR
             MelonLogger.Msg("[HPVR] scene preparation done");
         }
 
-        private static void SetUpInGameCanvas()
+        private void SetUpInGameCanvas()
         {
-            UIManager.CanvasToIgnore.Add(GameObject.Find("InteractionCanvas").transform);
+            var interaction = GameObject.Find("InteractionCanvas");
+            UIManager.CanvasToIgnore.Add(interaction.transform);
+            interactionCanvas = interaction.GetComponent<Canvas>();
             //todo only do for some types ui, namely the ones that always show and interaciton target
             //dialogue ui
             //stamina
@@ -344,6 +348,7 @@ namespace HPVR
                     colliding = collider.bounds.Contains(SteamVR_Camera.instance.transform.position);
                     if (colliding)
                     {
+                        MelonLogger.Msg("colldigin");
                         break;
                     }
                 }

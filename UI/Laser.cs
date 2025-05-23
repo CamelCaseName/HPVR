@@ -15,7 +15,9 @@ namespace HPVR.UI
 
 #nullable disable
         Hand hand;
+#pragma warning disable IDE0051, IDE0044, CS0169 // we'll get a cool material from zigga :D
         Material laserMaterial;
+#pragma warning restore IDE0051, IDE0044, CS0169 // Remove unused private members
         Transform LaserBeam;
         Interactable lastInteract;
         Transform indexTip;
