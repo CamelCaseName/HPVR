@@ -527,7 +527,7 @@ namespace HPVR.VR
 
             //var hmdAbsolutePos = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
-            ////todo rotation works now, but hands are offset to the front left?
+            ////todo rotation works now, but if we move from the hmd origin and rotate with controller, it gets weird. we have to compensate for that!!
 
             //hmdAbsolutePosDelta = hmdAbsolutePos - hmdAbsoluteLastPosition;
             //hmdAbsolutePosDelta.y = 0;
@@ -595,6 +595,7 @@ namespace HPVR.VR
                 {
                     lastControllerMove = Vector3.zero;
                 }
+                MelonLogger.Msg($"{lastControllerMove.x}{lastControllerMove.z}");
             };
 
             SteamVR_Actions.default_SnapTurnLeft.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>

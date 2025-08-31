@@ -1,7 +1,9 @@
 ﻿using HarmonyLib;
+using HPVR.UI;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
+using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay
 {
@@ -43,7 +45,9 @@ namespace HPVR.Gameplay
             //MelonLogger.Msg("reset focus");
 
             Camera.main.transform.get_position_Injected(out Vector3 pos);
-            RaycastHit hit = new();
+
+            InteractiveItem? potentialitem = null;
+
             if (PlayerCharacter.Player.GetProperty(Il2CppEekEvents.InteractiveProperties.PlayerCombatMode))
             {
                 if (!InteractionManager.Singleton.GetInCombatRayCastHit(new(pos, Camera.main.transform.forward), out _))
@@ -54,14 +58,24 @@ namespace HPVR.Gameplay
             else
             {
                 //todo replace by lasers and hover hands
-                if (!Physics.Raycast(pos, Camera.main.transform.forward, out hit, maxDistance, InteractionManager.Singleton._primaryIMgrMask))
+                if (Player.instance.leftHand.hoveringInteractable is not null)
                 {
-                    return false;
+                    potentialitem = Player.instance.leftHand.hoveringInteractable.gameObject.GetComponent<InteractiveItem>();
                 }
+                else if (Player.instance.rightHand.hoveringInteractable is not null)
+                {
+                    potentialitem = Player.instance.rightHand.hoveringInteractable.gameObject.GetComponent<InteractiveItem>();
+                }
+
+            }
+            if (potentialitem is null)
+            {
+                return false;
             }
 
-            Collider? collider = hit.collider;
-            Transform? transform = hit.transform;
+
+            Collider? collider = potentialitem.collider;
+            Transform? transform = potentialitem.transform;
             if (collider is null
                 || !collider.enabled
                 || collider.gameObject is null
@@ -70,7 +84,6 @@ namespace HPVR.Gameplay
                 return false;
             }
 
-            InteractionManager.Singleton._hit = hit;
             //MelonLogger.Msg("set hit");
             InteractiveItem? interactive = null;
             //MelonLogger.Msg(InteractionManager.Singleton._hit.transform?.name ?? "none");
@@ -84,12 +97,12 @@ namespace HPVR.Gameplay
                 bool isNotParent = item is not null;
                 item ??= collider.gameObject.GetComponentInChildren<DistractableRigidItem>();
 
-                if (item is not null && hit.distance <= maxDistance - 1)
+                if (item is not null)
                 {
                     InteractionManager.Singleton.CurrentFocusedItem = item;
                     //MelonLogger.Msg("set item");
 
-                    interactive = item.TryCast<InteractiveItem>();
+                    interactive = potentialitem;
 
                     if (interactive is null)
                     {
@@ -101,8 +114,7 @@ namespace HPVR.Gameplay
                     }
 
                     if (!isNotParent && !interactive.AllowChildrenToTriggerInteraction
-                        || !interactive.ShouldInteract()
-                        || hit.distance > interactive.DistanceToInteraction + 3)
+                        || !interactive.ShouldInteract())
                     {
                         return false;
                     }
@@ -124,8 +136,7 @@ namespace HPVR.Gameplay
                     t = t.parent;
                 }
 
-                if (npc is null
-                    || hit.distance > npc.DistanceToInteraction + 3)
+                if (npc is null)
                 {
                     //MelonLogger.Msg($"{npc} {hit.distance} {npc?.DistanceToInteraction.ToString() ?? "npc is null"}");
                     return false;
@@ -146,7 +157,7 @@ namespace HPVR.Gameplay
                 }
             }
 
-            InteractionManager.Singleton._focusedItemInteractionPoint = hit.point;
+            InteractionManager.Singleton._focusedItemInteractionPoint = potentialitem.transform.position;
             InteractionManager.Singleton._focusedItemInteraction = interactive;
             //MelonLogger.Msg("set hit points");
 
