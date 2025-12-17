@@ -489,7 +489,6 @@ namespace HPVR.VR
             rightHand.renderModelPrefab = rightRenderModelSlimPrefab;
             rightHand.spewDebugText = debug;
             rightHand.trackedObject = rightPose;
-            rightHand.OnHandInitialized += (int i) => { rightHand.gameObject.AddComponent<Laser>(); };
             rightHand.Initialize();
             rightHand.FinishInit();
             MelonCoroutines.Start(rightHand.Start());

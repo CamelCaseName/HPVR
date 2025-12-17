@@ -32,23 +32,20 @@ namespace HPVR.UI
             hand = GetComponent<Hand>();
             sign = hand.handType == SteamVR_Input_Sources.LeftHand ? -1 : 1;
 
-            var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            DontDestroyOnLoad(laserBeamGO);
-            laserBeamGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.indexTip);
-            laserBeamGO.transform.localScale = new(0.005f, 2, 0.005f);
-            laserBeamGO.transform.localPosition = new(sign * 2, 0, 0);
-            laserBeamGO.transform.localEulerAngles = new(0, 0, 90);
-            laserBeamGO.name = name + "LaserPointer";
-            
-            //todo after were set up with the positions, anchor the laser to the hand instead of the finger so the laser doesnt move with the finger on trigger pull
-            var laserRootPos = laserBeamGO.transform.position;
+            //rootgo is attached to hand root, rootgo.forward is forward out of the fingers. more or less
             var laserRootGO = new GameObject("LaserRoot");
-            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root);
-            laserRootGO.transform.position = laserRootPos;
+            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root).parent;
+            laserRootGO.transform.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
+            laserRootGO.transform.localEulerAngles = new Vector3(30, sign * -5, 0);
             LaserRoot = laserRootGO.transform;
 
-            laserBeamGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root);
-            //laserBeamGO.transform.position = laserRootPos;
+            var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            DontDestroyOnLoad(laserBeamGO);
+            laserBeamGO.transform.parent = laserRootGO.transform;
+            laserBeamGO.transform.localScale = new(0.005f, 2, 0.005f);
+            laserBeamGO.transform.localPosition = new(0, 0, 2);
+            laserBeamGO.transform.localEulerAngles = new(90, 0, 0);
+            laserBeamGO.name = name + " LaserPointer";
 
             var hitGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DontDestroyOnLoad(hitGO);
@@ -76,11 +73,11 @@ namespace HPVR.UI
 
         protected void Update()
         {
-            if(LaserRoot is null)
+            if (LaserRoot is null)
             {
                 return;
             }
-            if (Physics.Raycast(LaserRoot.position, sign * LaserRoot.right, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
+            if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
             {
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
@@ -106,7 +103,7 @@ namespace HPVR.UI
                 hitPoint.position = hit.point;
                 LastHit = hit.point;
                 LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
-                LaserBeam.localPosition = new(sign * (hit.distance / 2), 0, 0);
+                LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
                 LaserBeam.gameObject.SetActive(true);
                 hitPoint.gameObject.SetActive(true);
 

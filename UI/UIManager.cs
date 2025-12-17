@@ -22,8 +22,8 @@ namespace HPVR.UI
         {
             if (!initialized)
             {
-                Player.instance.leftHand.OnHandInitialized += (int i) => { Player.instance.leftHand.gameObject.AddComponent<Laser>(); };
-                Player.instance.rightHand.OnHandInitialized += (int i) => { Player.instance.rightHand.gameObject.AddComponent<Laser>(); };
+                Player.instance.leftHand.OnHandInitialized += i => { Player.instance.leftHand.gameObject.AddComponent<Laser>(); };
+                Player.instance.rightHand.OnHandInitialized += i => { Player.instance.rightHand.gameObject.AddComponent<Laser>(); };
                 initialized = true;
             }
         }
