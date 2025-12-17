@@ -39,11 +39,12 @@ namespace HPVR.VR
         static private string fallback_relaxed = string.Empty;
         static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
         static private Vector3 hmdAbsoluteLastPosition = new();
-        static private Vector3 hmdAbsolutePosDelta = new();
+        static private Vector3 hmdRotationPositionOffset = new();
         static private Vector3 vrCamPosition = new(0, 1.75f, 0);
 
         public static float Deadzone = 0.0f;
         public static float speed = 0.5f;
+        private static bool rotated;
 
         public static bool Initialized { get; private set; }
 
@@ -525,33 +526,27 @@ namespace HPVR.VR
 
         private static void UpdateHMDPositions()
         {
-            //float seconds = PredictSecondsFromNow();
-            //poses = new TrackedDevicePose_t[4];
-            //OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-
-            //var hmdAbsolutePos = poses[0].mDeviceToAbsoluteTracking.GetPosition();
-
-            ////todo rotation works now, but if we move from the hmd origin and rotate with controller, it gets weird. we have to compensate for that!!
-
-            //hmdAbsolutePosDelta = hmdAbsolutePos - hmdAbsoluteLastPosition;
-            //hmdAbsolutePosDelta.y = 0;
-
-            //vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-            //vrCamPosition = vrPlayer.transform.position + new Vector3(0, hmdAbsolutePos.y, 0);
-            //vrCamPosition += (vrPlayer.transform.rotation * hmdAbsolutePosDelta);
-
-            //SteamVR_Camera.instance.transform.rotation = vrCamRotation;
-            //SteamVR_Camera.instance.transform.position = vrCamPosition;
-            //hmdAbsoluteLastPosition = hmdAbsolutePos;
             float seconds = PredictSecondsFromNow();
             poses = new TrackedDevicePose_t[4];
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-            hmdAbsoluteLastPosition = new Vector3(poses[0].vVelocity.v0, poses[0].vVelocity.v1, poses[0].vVelocity.v2) * seconds;
+            //velocity is always 0 :(
+            //MelonLogger.Msg($"headset velocity: {seconds} {velocity.x}|{velocity.y}|{velocity.z}");
+
+            if (rotated)
+            {
+                hmdRotationPositionOffset = hmdAbsoluteLastPosition;
+                //keep height, but move "center" to new spot under the headset, so we can offset the real world space offset the player had from there and then apply the virtual rotation onyl to the difference we have
+                vrPlayer.transform.position = new(vrCamPosition.x, vrPlayer.transform.position.y, vrCamPosition.z);
+                rotated = false;
+            }
+            hmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
             //todo how about we use the velocities here [m/s]? this would eliminate the weird offsets by just getting the changes and diffs, but decoupled hopefully in their axis
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
             //when using only velocities we have to add the height manually
-            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * hmdAbsoluteLastPosition) + new Vector3(0, poses[0].mDeviceToAbsoluteTracking.GetPosition().y, 0);
+            Vector3 locationDifference = (hmdAbsoluteLastPosition - hmdRotationPositionOffset);
+            locationDifference.y = 0;
+            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * locationDifference) + new Vector3(0, hmdAbsoluteLastPosition.y, 0);
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
@@ -615,6 +610,7 @@ namespace HPVR.VR
                 //    vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
                 //}
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                rotated = true;
                 //UpdateHMDPositions();
             };
 
@@ -630,6 +626,7 @@ namespace HPVR.VR
                 //    vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
                 //}
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
+                rotated = true;
                 //UpdateHMDPositions();
             };
 

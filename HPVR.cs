@@ -358,7 +358,7 @@ namespace HPVR
             {
                 colliding = false;
             }
-            VRSystem.MovementEnabled = colliding;
+            VRSystem.MovementEnabled = !colliding;
         }
 
         private void TryEndDisclaimerScreen()
