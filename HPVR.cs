@@ -103,16 +103,17 @@ namespace HPVR
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
+            inGameMain = sceneName == "GameMain";
+            inMainMenu = sceneName == "MainMenu";
+            inLoadingScreen = sceneName == "LoadingScreen";
+            inDisclaimer = sceneName == "Disclaimer";
+
             VRSystem.SetUpSteamVRUnity();
 
             UIManager.Initialize();
 
             MelonLogger.Msg("[HPVR] preparing scene");
             removedPlayerHead = false;
-            inGameMain = sceneName == "GameMain";
-            inMainMenu = sceneName == "MainMenu";
-            inLoadingScreen = sceneName == "LoadingScreen";
-            inDisclaimer = sceneName == "Disclaimer";
 
             UIManager.UpdateUIPos = true;
 
@@ -120,8 +121,8 @@ namespace HPVR
             {
                 playerChar = PlayerCharacter.Player.transform;
 
-                Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
-                Player.instance.transform.position = new(0.65f, 0, 3.55f);
+                Player.instance.playerBody.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
+                Player.instance.playerBody.position = new(0.65f, 0, 3.55f);
 
                 if (inGameMain && PlayerCharacter.Player is not null)
                 {
@@ -146,8 +147,8 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = true;
 
-                Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
-                Player.instance.transform.position = new(0.55f, 0, -10);
+                Player.instance.playerBody.rotation = Quaternion.Euler(0, 0, 0);
+                Player.instance.playerBody.position = new(0.55f, 0, -10);
 
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
@@ -226,7 +227,10 @@ namespace HPVR
         private void CreateMainMenuBoundary()
         {
             colliders.Clear();
-            Material m = new(GameObject.Find("Floor").GetComponent<MeshRenderer>().material);
+            GameObject floor = GameObject.Find("Floor");
+            Material m = new(floor.GetComponent<MeshRenderer>().material);
+
+            floor.layer = LayerMask.NameToLayer("Ground");
 
             //set up colliders around the menu area so we cannot fall off
             var border1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -361,7 +365,7 @@ namespace HPVR
             VRSystem.MovementEnabled = !colliding;
         }
 
-        private void TryEndDisclaimerScreen()
+        private static void TryEndDisclaimerScreen()
         {
             var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
             if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && VRSystem.HandInputActive)
@@ -370,7 +374,7 @@ namespace HPVR
             }
         }
 
-        private void TryEndLoadingScreen()
+        private static void TryEndLoadingScreen()
         {
             var loading = Object.FindObjectOfType<LoadingScreenManager>();
             if (loading is null)

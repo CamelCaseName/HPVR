@@ -26,6 +26,7 @@ namespace HPVR.VR
         static private GameObject? rightController = null;
         static private Vector3 lastControllerMove = new();
         static private GameObject vrPlayer = null!;
+        static private Rigidbody playerBody = null!;
         static private GameObject SteamVRobject = null!;
         static private readonly bool debug = true;
 #nullable disable
@@ -40,6 +41,8 @@ namespace HPVR.VR
         static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
         static private Vector3 hmdAbsoluteLastPosition = new();
         static private Vector3 hmdRotationPositionOffset = new();
+        static private Vector3 hmdRotationHandLeftOffset = new();
+        static private Vector3 hmdRotationHandRightOffset = new();
         static private Vector3 vrCamPosition = new(0, 1.75f, 0);
 
         public static float Deadzone = 0.0f;
@@ -154,15 +157,31 @@ namespace HPVR.VR
             MelonLogger.Msg("Created SteamVR Gameobject Container");
 
             var player = vrPlayer.AddComponent<Player>();
-            player.trackingOriginTransform = vrPlayer.transform;
+            var TrackingOrigin = new GameObject("trackingOrigin");
+            TrackingOrigin.transform.parent = vrPlayer.transform;
+            player.trackingOriginTransform = TrackingOrigin.transform;
             MelonLogger.Msg(Camera.main?.ToString() ?? "camera isnull");
-            player.hmdTransforms = new Transform[] { Camera.main.transform };
+            player.hmdTransforms = new Transform[] { Camera.main!.transform };
             player.audioListener = Camera.main.transform;
             player.headCollider = SetUpCamera();
             player.rigSteamVR = SteamVRobject;
             player.headsetOnHead = SteamVR_Actions.default_HeadsetOnHead;
             player.allowToggleTo2D = false;
             MelonLogger.Msg("Created SteamVR Player");
+
+            playerBody = vrPlayer.AddComponent<Rigidbody>();
+            playerBody.includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems");
+            playerBody.useGravity = HPVR.Instance?.inGameMain ?? false;
+            playerBody.isKinematic = true;
+
+            Player.instance.playerBody = playerBody;
+
+            var PlayerCapsule = vrPlayer.AddComponent<CapsuleCollider>();
+            PlayerCapsule.radius = 0.2f;
+            SetPlayerColliderHeight(1.8f);
+            PlayerCapsule.isTrigger = false;
+            PlayerCapsule.direction = 1;
+            PlayerCapsule.providesContacts = false;
 
             Object.DontDestroyOnLoad(SteamVRobject);
 
@@ -183,6 +202,13 @@ namespace HPVR.VR
             //standalone.sendPointerHoverToParent = true;
             standalone.repeatDelay = 0.5f;
             MelonLogger.Msg("Created SteamVR Standalone Container");
+        }
+
+        private static void SetPlayerColliderHeight(float height)
+        {
+            var PlayerCapsule = vrPlayer.GetComponent<CapsuleCollider>();
+            PlayerCapsule.height = height;
+            PlayerCapsule.center = vrPlayer.transform.position + new Vector3(0, height / 2, 0);
         }
 
         private static SphereCollider SetUpCamera()
@@ -519,7 +545,7 @@ namespace HPVR.VR
 
         private static void HandleControllerMovement()
         {
-            vrPlayer.transform.position += new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
+            playerBody.MovePosition(playerBody.position + new Vector3(lastControllerMove.x, 0, lastControllerMove.z));
 
             lastControllerMove = Vector3.zero;
         }
@@ -530,27 +556,37 @@ namespace HPVR.VR
             poses = new TrackedDevicePose_t[4];
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
             //velocity is always 0 :(
-            //MelonLogger.Msg($"headset velocity: {seconds} {velocity.x}|{velocity.y}|{velocity.z}");
 
             if (rotated)
             {
                 hmdRotationPositionOffset = hmdAbsoluteLastPosition;
+                hmdRotationPositionOffset = hmdAbsoluteLastPosition;
+                hmdRotationPositionOffset = hmdAbsoluteLastPosition;
                 //keep height, but move "center" to new spot under the headset, so we can offset the real world space offset the player had from there and then apply the virtual rotation onyl to the difference we have
-                vrPlayer.transform.position = new(vrCamPosition.x, vrPlayer.transform.position.y, vrCamPosition.z);
+                vrPlayer.transform.position = new Vector3(vrCamPosition.x, vrPlayer.transform.position.y, vrCamPosition.z);
+                SteamVRobject.transform.localPosition = -new Vector3(hmdRotationPositionOffset.x, 0, hmdRotationPositionOffset.z);
                 rotated = false;
             }
             hmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
-            //todo how about we use the velocities here [m/s]? this would eliminate the weird offsets by just getting the changes and diffs, but decoupled hopefully in their axis
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-            //when using only velocities we have to add the height manually
             Vector3 locationDifference = (hmdAbsoluteLastPosition - hmdRotationPositionOffset);
             locationDifference.y = 0;
+            //reAdd player height
             vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * locationDifference) + new Vector3(0, hmdAbsoluteLastPosition.y, 0);
+
+            //hmdRotationPositionOffset.y = 0;
+            //Vector3 vector3 = vrPlayer.transform.position - Player.instance.hands[0].transform.position;
+            //MelonLogger.Msg($"diff {vector3.x} | {vector3.z}");
+            //Player.instance.hands[0].transform.position -= (hmdRotationPositionOffset);
+            //Player.instance.hands[1].transform.position -= (hmdRotationPositionOffset);
+            Player.instance.hands[0].transform.position += (new Vector3(0, 0.025f, 0));
+            Player.instance.hands[1].transform.position += (new Vector3(0, 0.025f, 0));
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
 
+            SetPlayerColliderHeight(hmdAbsoluteLastPosition.y);
         }
 
         private static float PredictSecondsFromNow()
@@ -596,43 +632,22 @@ namespace HPVR.VR
                 {
                     lastControllerMove = Vector3.zero;
                 }
-                MelonLogger.Msg($"{lastControllerMove.x}{lastControllerMove.z}");
             };
 
             SteamVR_Actions.default_SnapTurnLeft.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
             {
-                //if (inGameMain && playerChar is not null)
-                //{
-                //    vrPlayer.transform.position = new(vrCamPosition.x, playerChar.position.y, vrCamPosition.z);
-                //}
-                //else
-                //{
-                //    vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
-                //}
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
                 rotated = true;
-                //UpdateHMDPositions();
             };
 
             SteamVR_Actions.default_SnapTurnRight.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
             {
-
-                //if (inGameMain && playerChar is not null)
-                //{
-                //    vrPlayer.transform.position = new(vrCamPosition.x, playerChar.position.y, vrCamPosition.z);
-                //}
-                //else
-                //{
-                //    vrPlayer.transform.position = new(vrCamPosition.x, 0, vrCamPosition.z);
-                //}
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
                 rotated = true;
-                //UpdateHMDPositions();
             };
 
             SetUpInput = true;
             MelonLogger.Msg("Activated SteamVR actions");
         }
-
     }
 }
