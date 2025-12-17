@@ -222,6 +222,7 @@ namespace HPVR
 
             }
         }
+        
         private void CreateMainMenuBoundary()
         {
             colliders.Clear();
@@ -334,12 +335,12 @@ namespace HPVR
         {
             if (inGameMain && playerChar is not null)
             {
-                Transform cameraTransform = SteamVR_Camera.instance.transform;
-                playerChar.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
+                //Transform cameraTransform = SteamVR_Camera.instance.transform;
+                //playerChar.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
 
-                hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z)/* + ((playerChar.rotation * Vector3.back) * 0.1f)*/;
+                //hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z)/* + ((playerChar.rotation * Vector3.back) * 0.1f)*/;
 
-                colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
+                //colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
             }
             else if (inMainMenu)
             {

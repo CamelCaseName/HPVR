@@ -4,6 +4,7 @@ using HPVR.utils;
 using Il2Cpp;
 using Il2CppInterop.Runtime;
 using MelonLoader;
+using SteamVR_Melon.Standalone;
 using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
@@ -100,6 +101,8 @@ namespace HPVR.VR
                 SteamVR.SafeDispose();
                 throw new NotSupportedException("VR Headset was not connected before starting the game");
             }
+            //update offset depending on unity version
+            PluginImporter.UpdateOffsetForUnityVersion();
             MelonXR.Initialize();
         }
 
@@ -175,7 +178,8 @@ namespace HPVR.VR
             //seems this one is too old?
             //replaced standaloneinputmodule with inputsystemuiinputmodule
             var standalone = input.AddComponent<InputSystemUIInputModule>();
-            standalone.sendPointerHoverToParent = true;
+            //read only :(
+            //standalone.sendPointerHoverToParent = true;
             standalone.repeatDelay = 0.5f;
             MelonLogger.Msg("Created SteamVR Standalone Container");
         }
@@ -542,10 +546,12 @@ namespace HPVR.VR
             float seconds = PredictSecondsFromNow();
             poses = new TrackedDevicePose_t[4];
             OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseStanding, seconds, poses);
-            hmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
+            hmdAbsoluteLastPosition = new Vector3(poses[0].vVelocity.v0, poses[0].vVelocity.v1, poses[0].vVelocity.v2) * seconds;
 
+            //todo how about we use the velocities here [m/s]? this would eliminate the weird offsets by just getting the changes and diffs, but decoupled hopefully in their axis
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * hmdAbsoluteLastPosition);
+            //when using only velocities we have to add the height manually
+            vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * hmdAbsoluteLastPosition) + new Vector3(0, poses[0].mDeviceToAbsoluteTracking.GetPosition().y, 0);
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;

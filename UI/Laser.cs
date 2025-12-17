@@ -20,9 +20,9 @@ namespace HPVR.UI
 #pragma warning restore IDE0051, IDE0044, CS0169 // Remove unused private members
         Transform LaserBeam;
         Interactable lastInteract;
-        Transform indexTip;
         int sign;
         Transform hitPoint;
+        Transform LaserRoot;
         bool justEntered = false;
         public static Vector3 LastHit;
 #nullable restore
@@ -34,12 +34,21 @@ namespace HPVR.UI
 
             var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             DontDestroyOnLoad(laserBeamGO);
-            indexTip = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.indexTip);
-            laserBeamGO.transform.parent = indexTip;
+            laserBeamGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.indexTip);
             laserBeamGO.transform.localScale = new(0.005f, 2, 0.005f);
             laserBeamGO.transform.localPosition = new(sign * 2, 0, 0);
             laserBeamGO.transform.localEulerAngles = new(0, 0, 90);
             laserBeamGO.name = name + "LaserPointer";
+            
+            //todo after were set up with the positions, anchor the laser to the hand instead of the finger so the laser doesnt move with the finger on trigger pull
+            var laserRootPos = laserBeamGO.transform.position;
+            var laserRootGO = new GameObject("LaserRoot");
+            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root);
+            laserRootGO.transform.position = laserRootPos;
+            LaserRoot = laserRootGO.transform;
+
+            laserBeamGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root);
+            //laserBeamGO.transform.position = laserRootPos;
 
             var hitGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DontDestroyOnLoad(hitGO);
@@ -67,7 +76,11 @@ namespace HPVR.UI
 
         protected void Update()
         {
-            if (Physics.Raycast(indexTip.position, sign * indexTip.right, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
+            if(LaserRoot is null)
+            {
+                return;
+            }
+            if (Physics.Raycast(LaserRoot.position, sign * LaserRoot.right, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
             {
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
