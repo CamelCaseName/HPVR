@@ -223,7 +223,7 @@ namespace HPVR
 
             }
         }
-        
+
         private void CreateMainMenuBoundary()
         {
             colliders.Clear();

@@ -1,5 +1,4 @@
 ﻿using HarmonyLib;
-using HPVR.UI;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
