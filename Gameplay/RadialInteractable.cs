@@ -1,4 +1,5 @@
 ﻿using Il2CppEekCharacterEngine.Interaction;
+using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
@@ -7,11 +8,11 @@ using Valve.VR.InteractionSystem;
 namespace HPVR.Gameplay
 {
     [RegisterTypeInIl2Cpp]
-    internal class ItemInteractable : MonoBehaviour
+    internal class RadialInteractable : MonoBehaviour
     {
-        public ItemInteractable(IntPtr value) : base(value) { }
+        public RadialInteractable(IntPtr value) : base(value) { }
 
-        public ItemInteractable() : base(ClassInjector.DerivedConstructorPointer<ItemInteractable>()) => ClassInjector.DerivedConstructorBody(this);
+        public RadialInteractable() : base(ClassInjector.DerivedConstructorPointer<RadialInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private string generalText = string.Empty;
         private string hoveringText = string.Empty;
@@ -50,6 +51,7 @@ namespace HPVR.Gameplay
         {
             GeneralText = gameObject.name + " Hovering hand: " + hand.name;
             InteractionManager.Singleton._focusedItemInteraction = interactiveItem;
+            InteractiveItem.ActiveItem = interactiveItem;
         }
 
         //-------------------------------------------------
@@ -58,6 +60,8 @@ namespace HPVR.Gameplay
         private void OnHandHoverEnd(Hand hand)
         {
             GeneralText = gameObject.name + " No Hand Hovering";
+            InteractionManager.Singleton._focusedItemInteraction = null;
+            InteractiveItem.ActiveItem = null;
         }
 
         //-------------------------------------------------
@@ -66,7 +70,10 @@ namespace HPVR.Gameplay
         private void HandHoverUpdate(Hand hand, Vector2 pos, bool posIsValid)
         {
             if (interactable is null)
-            { return; }
+            {
+                MelonLogger.Msg("interactable on " + name + " is null!!");
+                return;
+            }
             GrabTypes startingGrabType = hand.GetGrabStarting();
             bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
@@ -94,6 +101,17 @@ namespace HPVR.Gameplay
                 // Restore position/rotation
                 transform.position = oldPosition;
                 transform.rotation = oldRotation;
+            }
+
+            MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
+
+            //toggles correctly for items, but doesnt for characters. opens the last item then.
+            if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType))
+            {
+                //we get here correctly, but nothing happens. either unityexplorers fault or we need to just hook the internal bit where the action resides and call it ourselves...
+                //it is unityexplorers fault because of its own input system
+                MelonLogger.Msg("toggling radial for " + gameObject.name);
+                RadialMenu.Singleton.Toggle();
             }
         }
 

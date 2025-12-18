@@ -72,7 +72,6 @@ namespace HPVR.Gameplay
                 return false;
             }
 
-
             Collider? collider = potentialitem.collider;
             Transform? transform = potentialitem.transform;
             if (collider is null

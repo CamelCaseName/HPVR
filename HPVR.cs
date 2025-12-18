@@ -72,7 +72,6 @@ namespace HPVR
 
         //todos:
         //remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
-        //player collissions check ignore hands somehow plss?
         //ui interaction?
         //bind controllers
         //put interactable script on everything with interactive item
@@ -114,7 +113,7 @@ namespace HPVR
 
             UIManager.Initialize();
 
-            MelonLogger.Msg("[HPVR] preparing scene");
+            MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
             removedPlayerHead = false;
 
             UIManager.UpdateUIPos = true;
@@ -138,9 +137,7 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = true;
 
-                SetUpInGameCanvas();
-
-                CreateHouseBoundaryFixes();
+                PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
             }
             else if (inMainMenu)
             {
@@ -183,11 +180,21 @@ namespace HPVR
             UIManager.OnSceneChange();
             Hand.UpdateScene();
 
-            MelonLogger.Msg("[HPVR] scene preparation done");
+            MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
+        }
+
+        private void GameMainLateStart()
+        {
+            MelonLogger.Msg("late start");
+            SetUpInGameCanvas();
+
+            CreateHouseBoundaryFixes();
+            UpdateInteractiveItems();
         }
 
         private static void CreateHouseBoundaryFixes()
         {
+            //todo something null here
             var sliderDoorFloor = new GameObject("floorFix");
             sliderDoorFloor.transform.parent = GameObject.Find("Door_Slide").transform;
             sliderDoorFloor.layer = LayerMask.NameToLayer("Ground");
@@ -437,11 +444,15 @@ namespace HPVR
                 }
                 if (!Items.Contains(item))
                 {
+                    MelonLogger.Msg("iteminteractable checking: " + item.name + ":" + item.SpecialItemType.ToString());
                     Items.Add(item);
+                    var inter = item.gameObject.AddComponent<Interactable>();
+                    item.gameObject.AddComponent<RadialInteractable>();
+
+                    //add special handlers apart from radial
                     if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
                     {
                         item.gameObject.AddComponent<VelocityEstimator>();
-                        var inter = item.gameObject.AddComponent<Interactable>();
                         inter.highlightOnHover = false;
                         inter.handFollowTransform = true;
                         inter.snapAttachEaseInTime = 0.15f;
@@ -458,13 +469,12 @@ namespace HPVR
                             thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
                             thrower.restoreOriginalParent = false;
                         }
-                        item.gameObject.AddComponent<ItemInteractable>();
+                        MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
                         //todo add handposer depending on the type of collider we find/what object it really is
                         //todo not only mount an interactive item to the hand but keep it relative to where the hand was when grabbing
                     }
                     else
                     {
-                        var inter = item.gameObject.AddComponent<Interactable>();
                         inter.highlightOnHover = false;
                         inter.useHandObjectAttachmentPoint = false;
                     }
