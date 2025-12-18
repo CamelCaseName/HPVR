@@ -139,6 +139,8 @@ namespace HPVR
                 Player.instance.rightHand.useFingerJointHover = true;
 
                 SetUpInGameCanvas();
+
+                CreateHouseBoundaryFixes();
             }
             else if (inMainMenu)
             {
@@ -184,6 +186,15 @@ namespace HPVR
             MelonLogger.Msg("[HPVR] scene preparation done");
         }
 
+        private static void CreateHouseBoundaryFixes()
+        {
+            var sliderDoorFloor = new GameObject("floorFix");
+            sliderDoorFloor.transform.parent = GameObject.Find("Door_Slide").transform;
+            sliderDoorFloor.layer = LayerMask.NameToLayer("Ground");
+            sliderDoorFloor.AddComponent<BoxCollider>();
+            sliderDoorFloor.transform.localPosition = new Vector3(0.4f, -0.47f, 0);
+        }
+
         private void SetUpInGameCanvas()
         {
             var interaction = GameObject.Find("InteractionCanvas");
@@ -205,21 +216,38 @@ namespace HPVR
                 {
                     case "DialogueCanvas":
                     case "InteractionCanvas":
+                    case "InventoryCanvas":
                     case "BGCUICanvas":
                     case "UseSelectCanvas":
-                    case "OrgasmCanvas":
-                    case "NarratorCanvas":
-                    case "Canvas": // should be something messages canvas
-                    case " Canvas": // should be something quest canvas
-                    case "Canvas ": // should be something quest canvas
-                    case "RadialMenuCanvas":
-                    case "DebugCanvas":
+                    case "OrgasmManager":
+                    case "NarrartorCanvas":
+                    case "RadialMenuCanvas": //interaction radial, you, item, character
+                    case "DebugCanvas": //debug log
+                    case "SaveCanvas":
+                    case "LoadCanvas":
+                    case "GameOverCanvas":
+                    case "GameMenuCanvas":
+                    case "GraphicsMenuCanvas":
                     case "ConsoleCanvas":
+                    case "MiniGameCanvas":
+                    case "CombatManager":
                     case "Relationship Notificatiops Canvas":
-                    case "UIRadialMenuCanvas":
+                    case "ScreenFadeCanvas":
+                    case "AudioSettingsCanvas":
+                    case "GameplaySettingsCanvas":
+                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         break;
                     default:
+                        if (canvas.transform?.parent?.name is (
+                            "OpportunityWindow"
+                            or "QuestPopup"
+                            or "Messages"
+                            or "InputManager2"
+                            or "ThrowMeter"))
+                        {
+                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        }
                         break;
                 }
 

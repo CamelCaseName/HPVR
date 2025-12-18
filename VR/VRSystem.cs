@@ -616,28 +616,25 @@ namespace HPVR.VR
                 //MelonLogger.Msg($"8: {dist - adjRadius}");
             }
 
-            //if (stepDownHadHit)
-            //{
-            //    supposedMove += new Vector3(0, stepDownInfo.distance, 0);
-            //    MelonLogger.Msg($"9: {stepDownInfo.distance}");
-            //}
-
             //start ground sweep a little inside player, above ground
-            var lift = new Vector3(0, 0.5f, 0);
-            if (Physics.Raycast(vrPlayer.transform.position + lift, directionY, out RaycastHit groundInfo, (directionY.magnitude * 2) + lift.y, playerBody.includeLayers))
+            if (Gravity)
             {
-                //we just got on the ground or are below push up, 
-                if (!Grounded || (vrPlayer.transform.position.y - groundInfo.point.y) < 0)
+                var lift = new Vector3(0, 0.5f, 0);
+                if (Physics.Raycast(vrPlayer.transform.position + lift, directionY, out RaycastHit groundInfo, (directionY.magnitude * 2) + lift.y, playerBody.includeLayers))
                 {
-                    supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
-                    //MelonLogger.Msg($"9: {groundInfo.distance}");
+                    //we just got on the ground or are below push up, 
+                    if (!Grounded || (vrPlayer.transform.position.y - groundInfo.point.y) < 0)
+                    {
+                        supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
+                        //MelonLogger.Msg($"9: {groundInfo.distance}");
+                    }
+                    Grounded = true;
                 }
-                Grounded = true;
-            }
-            else
-            {
-                Grounded = false;
-                supposedMove += directionY;
+                else
+                {
+                    Grounded = false;
+                    supposedMove += directionY;
+                }
             }
 
             //MelonLogger.Msg($" controller {lastControllerMove.x}:{lastControllerMove.z} | supposed {supposedMove.x}:{supposedMove.y}:{supposedMove.z}");
