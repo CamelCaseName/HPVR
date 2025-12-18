@@ -108,6 +108,8 @@ namespace HPVR
             inLoadingScreen = sceneName == "LoadingScreen";
             inDisclaimer = sceneName == "Disclaimer";
 
+            VRSystem.Gravity = inMainMenu || inGameMain;
+
             VRSystem.SetUpSteamVRUnity();
 
             UIManager.Initialize();
@@ -121,8 +123,8 @@ namespace HPVR
             {
                 playerChar = PlayerCharacter.Player.transform;
 
-                Player.instance.playerBody.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
-                Player.instance.playerBody.position = new(0.65f, 0, 3.55f);
+                Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
+                Player.instance.transform.position = new(0.65f, 0, 3.55f);
 
                 if (inGameMain && PlayerCharacter.Player is not null)
                 {
@@ -147,8 +149,8 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = true;
 
-                Player.instance.playerBody.rotation = Quaternion.Euler(0, 0, 0);
-                Player.instance.playerBody.position = new(0.55f, 0, -10);
+                Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
+                Player.instance.transform.position = new(0.55f, 0, -10);
 
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
@@ -187,7 +189,7 @@ namespace HPVR
             var interaction = GameObject.Find("InteractionCanvas");
             UIManager.CanvasToIgnore.Add(interaction.transform);
             interactionCanvas = interaction.GetComponent<Canvas>();
-            //todo only do for some types ui, namely the ones that always show and interaciton target
+            //todo only do for some types ui, namely the ones that always show and interaction target
             //dialogue ui
             //stamina
             //bgc 
@@ -231,42 +233,38 @@ namespace HPVR
             Material m = new(floor.GetComponent<MeshRenderer>().material);
 
             floor.layer = LayerMask.NameToLayer("Ground");
+            floor.AddComponent<BoxCollider>().includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems");
 
             //set up colliders around the menu area so we cannot fall off
             var border1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             border1.layer = LayerMask.NameToLayer("Walls");
             border1.GetComponent<MeshRenderer>().material = m;
-            border1.GetComponent<BoxCollider>().size = new Vector3(0.5f, 12, 20);
-            border1.transform.localScale = new Vector3(0.5f, 12, 20);
             border1.transform.position = new Vector3(5, 5.5f, -8);
+            border1.transform.localScale = new Vector3(1, 12, 20);
             border1.name = "HPVR collider right";
             var border2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             border2.layer = LayerMask.NameToLayer("Walls");
             border2.GetComponent<MeshRenderer>().material = m;
-            border2.GetComponent<BoxCollider>().size = new Vector3(0.5f, 12, 20);
-            border2.transform.localScale = new Vector3(0.5f, 12, 20);
             border2.transform.position = new Vector3(-6, 5.5f, -8);
+            border2.transform.localScale = new Vector3(1, 12, 20);
             border2.name = "HPVR collider left";
             var border3 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             border3.layer = LayerMask.NameToLayer("Walls");
             border3.GetComponent<MeshRenderer>().material = m;
-            border3.GetComponent<BoxCollider>().size = new Vector3(12, 12, 0.5f);
-            border3.transform.localScale = new Vector3(12, 12, 0.5f);
             border3.transform.position = new Vector3(0, 5.5f, -14.5f);
+            border3.transform.localScale = new Vector3(12, 12, 1);
             border3.name = "HPVR collider back";
             var border4 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             border4.layer = LayerMask.NameToLayer("Walls");
             border4.GetComponent<MeshRenderer>().material = m;
-            border4.GetComponent<BoxCollider>().size = new Vector3(12, 12, 0.5f);
-            border4.transform.localScale = new Vector3(12, 12, 0.5f);
             border4.transform.position = new Vector3(0, 5.5f, -1);
+            border4.transform.localScale = new Vector3(12, 12, 1);
             border4.name = "HPVR collider front";
             var border5 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             border5.layer = LayerMask.NameToLayer("Walls");
             border5.GetComponent<MeshRenderer>().material = m;
-            border5.GetComponent<BoxCollider>().size = new Vector3(14, 0.5f, 20);
-            border5.transform.localScale = new Vector3(14, 0.5f, 20);
             border5.transform.position = new Vector3(-0.5f, 11, -8);
+            border5.transform.localScale = new Vector3(14, 1, 20);
             border5.name = "HPVR collider top";
             var Container = new GameObject("HPVR Collider container");
             border1.transform.parent = Container.transform;
@@ -278,6 +276,10 @@ namespace HPVR
             colliders.Add(border2.GetComponent<BoxCollider>());
             colliders.Add(border3.GetComponent<BoxCollider>());
             colliders.Add(border4.GetComponent<BoxCollider>());
+            foreach (var col in colliders)
+            {
+                col.includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems");
+            }
         }
 
         public override void OnUpdate()
@@ -337,32 +339,28 @@ namespace HPVR
 
         private void UpdatePlayerCollision()
         {
-            if (inGameMain && playerChar is not null)
-            {
-                //Transform cameraTransform = SteamVR_Camera.instance.transform;
-                //playerChar.rotation = Quaternion.Euler(0, cameraTransform.eulerAngles.y, 0);
-
-                //hmdVsPlayer = new Vector3(cameraTransform.position.x - playerChar.position.x, 0, cameraTransform.position.z - playerChar.position.z)/* + ((playerChar.rotation * Vector3.back) * 0.1f)*/;
-
-                //colliding = (((int)PlayerCharacter.Player.Controller.Move_Injected(ref hmdVsPlayer)) & 1) == 1;
-            }
-            else if (inMainMenu)
-            {
-                foreach (var collider in colliders)
-                {
-                    colliding = collider.bounds.Contains(SteamVR_Camera.instance.transform.position);
-                    if (colliding)
-                    {
-                        MelonLogger.Msg("colldigin");
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                colliding = false;
-            }
-            VRSystem.MovementEnabled = !colliding;
+            //if (inGameMain && playerChar is not null)
+            //{
+            //    //todo check wall and floor colliders??
+            //    //shouldnt this work on its own?
+            //}
+            //else if (inMainMenu)
+            //{
+            //    foreach (var collider in colliders)
+            //    {
+            //        colliding = collider.bounds.Contains(SteamVR_Camera.instance.transform.position);
+            //        if (colliding)
+            //        {
+            //            MelonLogger.Msg("colldigin");
+            //            break;
+            //        }
+            //    }
+            //}
+            //else
+            //{
+            //    colliding = false;
+            //}
+            //VRSystem.MovementEnabled = !colliding;
         }
 
         private static void TryEndDisclaimerScreen()

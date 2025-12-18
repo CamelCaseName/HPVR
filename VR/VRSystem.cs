@@ -18,14 +18,16 @@ namespace HPVR.VR
     //loads all vr plugins and handles headset and controller movement
     internal static class VRSystem
     {
+        public const float gravity = -4f;
+        public static bool Gravity = true;
         static private TrackedDevicePose_t[] poses = Array.Empty<TrackedDevicePose_t>();
         public static bool MovementEnabled = true;
         private static bool SetUpInput = false;
         static private GameObject? leftController = null;
         static private GameObject? rightController = null;
-        static private Vector3 lastControllerMove = new();
+        static public Vector3 lastControllerMove = new();
         static private GameObject vrPlayer = null!;
-        static private Rigidbody playerBody = null!;
+        static private CapsuleCollider playerBody = null!;
         static private GameObject SteamVRobject = null!;
         static private readonly bool debug = true;
 #nullable disable
@@ -40,12 +42,13 @@ namespace HPVR.VR
         static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
         static private Vector3 hmdAbsoluteLastPosition = new();
         static private Vector3 hmdRotationPositionOffset = new();
-        static private Vector3 hmdRotationHandLeftOffset = new();
-        static private Vector3 hmdRotationHandRightOffset = new();
         static private Vector3 vrCamPosition = new(0, 1.75f, 0);
 
         public static float Deadzone = 0.0f;
         public static float speed = 0.5f;
+        private static float FallTime = 0.01f;
+        private static float Stepheight = 0.3f;
+        private static bool Grounded = false;
         private static bool rotated;
 
         public static bool Initialized { get; private set; }
@@ -148,6 +151,7 @@ namespace HPVR.VR
         private static void SetUpSteamVR()
         {
             vrPlayer = new GameObject("VR Player");
+            vrPlayer.layer = LayerMask.NameToLayer("Ragdolls");
             Object.DontDestroyOnLoad(vrPlayer);
 
             //we need a steamvr player as well for the hands :(
@@ -168,19 +172,13 @@ namespace HPVR.VR
             player.allowToggleTo2D = false;
             MelonLogger.Msg("Created SteamVR Player");
 
-            playerBody = vrPlayer.AddComponent<Rigidbody>();
+            playerBody = vrPlayer.AddComponent<CapsuleCollider>();
+            playerBody.radius = 0.25f;
+            playerBody.isTrigger = false;
+            playerBody.direction = 1;
+            playerBody.providesContacts = false;
             playerBody.includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems");
-            playerBody.useGravity = HPVR.Instance?.inGameMain ?? false;
-            playerBody.isKinematic = true;
-
-            Player.instance.playerBody = playerBody;
-
-            var PlayerCapsule = vrPlayer.AddComponent<CapsuleCollider>();
-            PlayerCapsule.radius = 0.2f;
             SetPlayerColliderHeight(1.8f);
-            PlayerCapsule.isTrigger = false;
-            PlayerCapsule.direction = 1;
-            PlayerCapsule.providesContacts = false;
 
             Object.DontDestroyOnLoad(SteamVRobject);
 
@@ -205,9 +203,9 @@ namespace HPVR.VR
 
         private static void SetPlayerColliderHeight(float height)
         {
-            var PlayerCapsule = vrPlayer.GetComponent<CapsuleCollider>();
-            PlayerCapsule.height = height;
-            PlayerCapsule.center = vrPlayer.transform.position + new Vector3(0, height / 2, 0);
+            height -= 0.3f;
+            playerBody.height = height;
+            playerBody.center = vrPlayer.transform.position + new Vector3(0, height / 2, 0);
         }
 
         private static SphereCollider SetUpCamera()
@@ -543,7 +541,120 @@ namespace HPVR.VR
 
         private static void HandleControllerMovement()
         {
-            playerBody.MovePosition(playerBody.position + new Vector3(lastControllerMove.x, 0, lastControllerMove.z));
+            //todo add gravity with playerBody.isGrounded
+            var directionXZ = new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
+            Vector3 normalizedXZ = directionXZ.normalized;
+            var directionY = new Vector3(0, gravity * FallTime, 0);
+            Vector3 supposedMove = Vector3.zero;
+            bool feetHadHit = false;
+            bool headHadHit = false;
+            bool stepHadHit = false;
+
+            //start cast outside player hull
+            //feet
+            if (Physics.Raycast(vrPlayer.transform.position + new Vector3(0, Stepheight, 0), directionXZ, out RaycastHit feetInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
+            {
+                feetHadHit = true;
+            }
+
+            //head
+            if (Physics.Raycast(vrCamPosition, directionXZ, out RaycastHit headInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
+            {
+                headHadHit = true;
+            }
+
+            //higher check
+            if (Physics.Raycast(vrPlayer.transform.position + new Vector3(0, 2 * Stepheight, 0), directionXZ, out RaycastHit stepInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
+            {
+                stepHadHit = true;
+            }
+
+            var adjRadius = playerBody.radius + 0.03f;
+            //no hits at all, we can just move
+            if (!feetHadHit && !headHadHit && !stepHadHit)
+            {
+                supposedMove += directionXZ;
+            }
+            else if (feetHadHit && !headHadHit && !stepHadHit)
+            {
+                supposedMove += normalizedXZ * (feetInfo.distance - adjRadius);
+                //MelonLogger.Msg($"2: {feetInfo.distance - adjRadius}");
+            }
+            else if (!feetHadHit && headHadHit && !stepHadHit)
+            {
+                supposedMove += normalizedXZ * (headInfo.distance - adjRadius);
+                //MelonLogger.Msg($"3: {headInfo.distance - adjRadius}");
+            }
+            else if (feetHadHit && headHadHit && !stepHadHit)
+            {
+                //use smaller value so we dont bump into things on overhang or slope
+                var dist = Mathf.Min(feetInfo.distance, headInfo.distance);
+                supposedMove += normalizedXZ * (dist - adjRadius);
+                //MelonLogger.Msg($"4: {dist - adjRadius}");
+            }
+            else if (!feetHadHit && !headHadHit && stepHadHit)
+            {
+                supposedMove += normalizedXZ * (stepInfo.distance - adjRadius);
+                //MelonLogger.Msg($"5: {stepInfo.distance - adjRadius}");
+            }
+            else if (feetHadHit && !headHadHit && stepHadHit)
+            {
+                var dist = Mathf.Min(feetInfo.distance, stepInfo.distance);
+                supposedMove += normalizedXZ * (dist - adjRadius);
+                //MelonLogger.Msg($"6: {dist - adjRadius}");
+            }
+            else if (!feetHadHit && headHadHit && stepHadHit)
+            {
+                var dist = Mathf.Min(headInfo.distance, stepInfo.distance);
+                supposedMove += normalizedXZ * (dist - adjRadius);
+                //MelonLogger.Msg($"7: {dist - adjRadius}");
+            }
+            else if (feetHadHit && headHadHit && stepHadHit)
+            {
+                var dist = Mathf.Min(feetInfo.distance, headInfo.distance, stepInfo.distance);
+                supposedMove += normalizedXZ * (dist - adjRadius);
+                //MelonLogger.Msg($"8: {dist - adjRadius}");
+            }
+
+            //if (stepDownHadHit)
+            //{
+            //    supposedMove += new Vector3(0, stepDownInfo.distance, 0);
+            //    MelonLogger.Msg($"9: {stepDownInfo.distance}");
+            //}
+
+            //start ground sweep a little inside player, above ground
+            var lift = new Vector3(0, 0.5f, 0);
+            if (Physics.Raycast(vrPlayer.transform.position + lift, directionY, out RaycastHit groundInfo, (directionY.magnitude * 2) + lift.y, playerBody.includeLayers))
+            {
+                //we just got on the ground or are below push up, 
+                if (!Grounded || (vrPlayer.transform.position.y - groundInfo.point.y) < 0)
+                {
+                    supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
+                    //MelonLogger.Msg($"9: {groundInfo.distance}");
+                }
+                Grounded = true;
+            }
+            else
+            {
+                Grounded = false;
+                supposedMove += directionY;
+            }
+
+            //MelonLogger.Msg($" controller {lastControllerMove.x}:{lastControllerMove.z} | supposed {supposedMove.x}:{supposedMove.y}:{supposedMove.z}");
+
+            //finally execute all movement
+            vrPlayer.transform.position += supposedMove;
+            //MelonLogger.Msg($" player feet pos {vrPlayer.transform.position.x}:{vrPlayer.transform.position.y}:{vrPlayer.transform.position.z}");
+
+            //Only accelerate downwards if we are falling
+            if (!Grounded)
+            {
+                FallTime += Time.deltaTime;
+            }
+            else
+            {
+                FallTime = 0.01f;
+            }
 
             lastControllerMove = Vector3.zero;
         }
@@ -568,7 +679,7 @@ namespace HPVR.VR
             hmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
 
             vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
-            Vector3 locationDifference = (hmdAbsoluteLastPosition - hmdRotationPositionOffset);
+            Vector3 locationDifference = hmdAbsoluteLastPosition - hmdRotationPositionOffset;
             locationDifference.y = 0;
             //reAdd player height
             vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * locationDifference) + new Vector3(0, hmdAbsoluteLastPosition.y, 0);
@@ -578,8 +689,8 @@ namespace HPVR.VR
             //MelonLogger.Msg($"diff {vector3.x} | {vector3.z}");
             //Player.instance.hands[0].transform.position -= (hmdRotationPositionOffset);
             //Player.instance.hands[1].transform.position -= (hmdRotationPositionOffset);
-            Player.instance.hands[0].transform.position += (new Vector3(0, 0.025f, 0));
-            Player.instance.hands[1].transform.position += (new Vector3(0, 0.025f, 0));
+            Player.instance.hands[0].transform.position += new Vector3(0, 0.025f, 0);
+            Player.instance.hands[1].transform.position += new Vector3(0, 0.025f, 0);
 
             SteamVR_Camera.instance.transform.rotation = vrCamRotation;
             SteamVR_Camera.instance.transform.position = vrCamPosition;
