@@ -159,6 +159,18 @@
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.InputSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.RenderPipelines.Core.Runtime">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.RenderPipelines.Core.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.RenderPipelines.HighDefinition.Config.Runtime">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.RenderPipelines.HighDefinition.Config.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.RenderPipelines.HighDefinition.Runtime">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.RenderPipelines.HighDefinition.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>

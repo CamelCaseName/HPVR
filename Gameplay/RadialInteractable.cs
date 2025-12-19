@@ -1,8 +1,10 @@
-﻿using Il2CppEekCharacterEngine.Interaction;
+﻿using HPVR.UI;
+using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
+using Valve.VR;
 using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay
@@ -16,8 +18,11 @@ namespace HPVR.Gameplay
 
         private string generalText = string.Empty;
         private string hoveringText = string.Empty;
-        private Vector3 oldPosition;
-        private Quaternion oldRotation;
+        private Vector3 speed = Vector3.zero;
+        private Vector3 oldPos = Vector3.zero;
+        private Vector3 oldRot = Vector3.zero;
+        private Vector3 angularSpeed = Vector3.zero;
+        private static Canvas? radialCanvas;
 
         private float attachTime;
 
@@ -52,6 +57,7 @@ namespace HPVR.Gameplay
             GeneralText = gameObject.name + " Hovering hand: " + hand.name;
             InteractionManager.Singleton._focusedItemInteraction = interactiveItem;
             InteractiveItem.ActiveItem = interactiveItem;
+            RadialMenu.Singleton._lastInteractedItem = interactiveItem;
         }
 
         //-------------------------------------------------
@@ -62,6 +68,7 @@ namespace HPVR.Gameplay
             GeneralText = gameObject.name + " No Hand Hovering";
             InteractionManager.Singleton._focusedItemInteraction = null;
             InteractiveItem.ActiveItem = null;
+            RadialMenu.Singleton._lastInteractedItem = null;
         }
 
         //-------------------------------------------------
@@ -77,11 +84,13 @@ namespace HPVR.Gameplay
             GrabTypes startingGrabType = hand.GetGrabStarting();
             bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
+            //&& !interactable.CompareTag("Door")
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None)
             {
                 // Save our position/rotation so that we can restore it when we detach
-                oldPosition = transform.position;
-                oldRotation = transform.rotation;
+                // no we can just take them and not return 
+                //oldPosition = transform.position;
+                //oldRotation = transform.rotation;
 
                 // Call this to continue receiving HandHoverUpdate messages,
                 // and prevent the hand from hovering over anything else
@@ -99,8 +108,11 @@ namespace HPVR.Gameplay
                 hand.HoverUnlock(interactable);
 
                 // Restore position/rotation
-                transform.position = oldPosition;
-                transform.rotation = oldRotation;
+                // no
+                //transform.position = oldPosition;
+                //transform.rotation = oldRotation;
+                gameObject.GetComponent<Rigidbody>().velocity = speed;
+                gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed;
             }
 
             MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
@@ -112,6 +124,25 @@ namespace HPVR.Gameplay
                 //it is unityexplorers fault because of its own input system
                 MelonLogger.Msg("toggling radial for " + gameObject.name);
                 RadialMenu.Singleton.Toggle();
+                radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
+
+                if(radialCanvas is null)
+                {
+                    return;
+                }
+
+                Transform camera = SteamVR_Camera.instance.transform;
+                if (Laser.LastHit.point != Vector3.zero)
+                {
+                    //this seems fuzzy
+                    radialCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.2f);
+                }
+                else
+                {
+                    radialCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
+                }
+                //maybe this works, we'll see. or its 180 flipped
+                radialCanvas.transform.LookAt(camera.position);
             }
         }
 
@@ -138,6 +169,10 @@ namespace HPVR.Gameplay
         private void HandAttachedUpdate(Hand hand)
         {
             GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, Time.time - attachTime);
+            speed = gameObject.transform.position - oldPos;
+            angularSpeed = gameObject.transform.rotation.eulerAngles - oldRot;
+            oldPos = gameObject.transform.position;
+            oldRot = gameObject.transform.rotation.eulerAngles;
         }
 
         private bool lastHovering = false;

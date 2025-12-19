@@ -1,4 +1,5 @@
-﻿using Il2CppInterop.Runtime.Injection;
+﻿using Il2CppEekUI;
+using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 using Valve.VR;
@@ -24,7 +25,9 @@ namespace HPVR.UI
         Transform hitPoint;
         Transform LaserRoot;
         bool justEntered = false;
-        public static Vector3 LastHit;
+        public static RaycastHit LastHit;
+        public int LaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
+        public static readonly int DefaultLaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
 #nullable restore
 
         protected void Awake()
@@ -77,7 +80,9 @@ namespace HPVR.UI
             {
                 return;
             }
-            if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems")))
+            //todo update layermask so that alll interactive items are found, like the fridge for example
+            //use the same one as the InteractionManager.Singleton._primaryIMgrMask
+            if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
             {
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
@@ -86,8 +91,20 @@ namespace HPVR.UI
                 {
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
+
+                    if (HPVR.Instance?.inGameMain ?? false)
+                    {
+                        //disable radial if clicked
+                        if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType) && RadialMenu.Singleton.IsShowing)
+                        {
+                            MelonLogger.Msg("make radial go away");
+                            RadialMenu.Singleton.Toggle();
+                        }
+                    }
                     return;
                 }
+
+                MelonLogger.Msg("hit " + interact);
 
                 if (hand.hoveringInteractable == lastInteract && lastInteract != interact && lastInteract is not null)
                 {
@@ -101,11 +118,19 @@ namespace HPVR.UI
                 lastInteract = interact;
 
                 hitPoint.position = hit.point;
-                LastHit = hit.point;
-                LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
-                LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
-                LaserBeam.gameObject.SetActive(true);
-                hitPoint.gameObject.SetActive(true);
+                LastHit = hit;
+                if (hand.ObjectIsAttached(interact.gameObject))
+                {
+                    LaserBeam.gameObject.SetActive(false);
+                    hitPoint.gameObject.SetActive(false);
+                }
+                else
+                {
+                    LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
+                    LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
+                    LaserBeam.gameObject.SetActive(true);
+                    hitPoint.gameObject.SetActive(true);
+                }
 
                 var ui = lastInteract.GetComponent<UIElement>();
                 if (ui is not null)
@@ -125,7 +150,7 @@ namespace HPVR.UI
             {
                 if (hand.otherHand.hoveringInteractable == null)
                 {
-                    LastHit = Vector3.zero;
+                    LastHit = new();
                 }
                 if (hand.hoveringInteractable == lastInteract && lastInteract is not null)
                 {

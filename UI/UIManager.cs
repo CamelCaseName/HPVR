@@ -16,7 +16,7 @@ namespace HPVR.UI
         private static readonly HashSet<Transform> canvasses = new();
         private static readonly HashSet<MonoBehaviour> UIElements = new();
         public static bool UpdateUIPos = true;
-        public static List<Transform> CanvasToIgnore = new();
+        public static List<Transform?> CanvasToIgnore = new();
         private static bool initialized = false;
         static public void Initialize()
         {
@@ -122,7 +122,7 @@ namespace HPVR.UI
             //todo the scrollviews block the rest with their colliders, only enable those which would be visible
             //see simplecolorpicker 
             //also in the customization environment things are offset
-
+            
             SetUpUIObjectsOfType<Selectable>();
             SetUpUIObjectsOfType<Dropdown.DropdownItem>();
             SetUpUIObjectsOfType<TMP_Dropdown.DropdownItem>();

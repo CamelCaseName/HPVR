@@ -13,6 +13,8 @@ using Il2CppInterop.Runtime;
 using MelonLoader;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
@@ -22,17 +24,17 @@ namespace HPVR
     public class HPVR : MelonMod
     {
         public static HPVR? Instance { get; private set; }
-        private bool colliding = false;
         public bool inGameMain = false;
         public bool inMainMenu = false;
         public bool inLoadingScreen;
         public bool inDisclaimer;
         private bool removedPlayerHead = false;
         private readonly List<BoxCollider> colliders = new(5);
-        static private Vector3 hmdVsPlayer = new();
         public Transform? playerChar;
         private bool boundPlayerHands;
         private Canvas? interactionCanvas;
+        private Canvas? RadialCanvas;
+        private Canvas? ScreenFade;
 
         public static bool Enabled { get; internal set; } = true;
 
@@ -64,6 +66,7 @@ namespace HPVR
         //##    Steps still left to do before release:
         //##    - Main menu UI has to be fully workable
         //##    - in game items have to work on ui click, not necessarily with physics
+        //##    - add custom loading screen
         //##    - dialogue in game needs to work
         //##    - bind controllers to all actions needed to play through the game, so 
         //##        - Inventory, memories and Opportunity with the Q radial
@@ -160,7 +163,7 @@ namespace HPVR
 
                 QualitySettings.SetQualityLevel(1);
             }
-            else
+            else if (Player.instance is not null)
             {
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
@@ -180,33 +183,76 @@ namespace HPVR
             UIManager.OnSceneChange();
             Hand.UpdateScene();
 
+            if (!inGameMain)
+            {
+                Player.instance.leftHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                Player.instance.rightHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+            }
+
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
         }
 
         private void GameMainLateStart()
         {
             MelonLogger.Msg("late start");
-            SetUpInGameCanvas();
 
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
+
+            Player.instance.leftHand.GetComponent<Laser>().LaserMask = InteractionManager.Singleton._primaryIMgrMask | LayerMask.NameToLayer("UI");
+            Player.instance.rightHand.GetComponent<Laser>().LaserMask = InteractionManager.Singleton._primaryIMgrMask | LayerMask.NameToLayer("UI");
+
+            //turn off player model and collision for now
+            PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
+            GameObject.Find("CH_PlayerFemale")?.SetActive(false);
+            GameObject.Find("CH_PlayerMale")?.SetActive(false);
+            foreach (var coll in PlayerCharacter.Player.GetColliders)
+            {
+                coll.enabled = false;
+            }
+
+            MelonLogger.Msg("disabling Volumetric Fog");
+            var fogs = GameObject.FindObjectsOfType<Volume>(true);
+            foreach (var f in fogs)
+            {
+                if (f?.name == "Fallback Fog Global Volume")
+                {
+                    f.gameObject.SetActive(true);
+                    f.priority = 9999;
+                }
+            }
+
+            VRSystem.SyncPlayerAndHMD();
+
+            //this one might crash so we do it last
+            SetUpInGameCanvas();
         }
 
         private static void CreateHouseBoundaryFixes()
         {
-            //todo something null here
+            MelonLogger.Msg("Fixing sliding door floor");
             var sliderDoorFloor = new GameObject("floorFix");
-            sliderDoorFloor.transform.parent = GameObject.Find("Door_Slide").transform;
+            sliderDoorFloor.transform.parent = GameObject.Find("Door_slide").transform;
             sliderDoorFloor.layer = LayerMask.NameToLayer("Ground");
             sliderDoorFloor.AddComponent<BoxCollider>();
             sliderDoorFloor.transform.localPosition = new Vector3(0.4f, -0.47f, 0);
+
+            MelonLogger.Msg("fixed floor with " + sliderDoorFloor.name);
         }
 
         private void SetUpInGameCanvas()
         {
-            var interaction = GameObject.Find("InteractionCanvas");
-            UIManager.CanvasToIgnore.Add(interaction.transform);
-            interactionCanvas = interaction.GetComponent<Canvas>();
+            //todo add the screenfade canvas here, and keep it very close in front of the camera so it covers all view
+            // special handling for some canvas
+            var interaction = GameObject.Find("InteractionCanvas"); //crosshair and text
+            var radial = GameObject.Find("RadialMenuCanvas"); //interaction radial, you, item, character 
+            var fade = GameObject.Find("ScreenFadeCanvas"); //interaction radial, you, item, character 
+            UIManager.CanvasToIgnore.Add(interaction?.transform);
+            UIManager.CanvasToIgnore.Add(radial?.transform);
+            UIManager.CanvasToIgnore.Add(fade?.transform);
+            interactionCanvas = interaction?.GetComponent<Canvas>();
+            RadialCanvas = radial?.GetComponent<Canvas>();
+            ScreenFade = fade?.GetComponent<Canvas>();
             //todo only do for some types ui, namely the ones that always show and interaction target
             //dialogue ui
             //stamina
@@ -228,7 +274,6 @@ namespace HPVR
                     case "UseSelectCanvas":
                     case "OrgasmManager":
                     case "NarrartorCanvas":
-                    case "RadialMenuCanvas": //interaction radial, you, item, character
                     case "DebugCanvas": //debug log
                     case "SaveCanvas":
                     case "LoadCanvas":
@@ -239,7 +284,6 @@ namespace HPVR
                     case "MiniGameCanvas":
                     case "CombatManager":
                     case "Relationship Notificatiops Canvas":
-                    case "ScreenFadeCanvas":
                     case "AudioSettingsCanvas":
                     case "GameplaySettingsCanvas":
                     case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
@@ -324,10 +368,9 @@ namespace HPVR
                 return;
             }
 
-            UpdatePlayerCollision();
-
             if (inGameMain)
             {
+                UpdateHPPlayerPositiion();
                 if (!removedPlayerHead)
                 {
                     RemovePlayerHead();
@@ -344,7 +387,8 @@ namespace HPVR
                     UpdateInteractionCanvas();
                 }
 
-                ScalePlayerToHMDHeight();
+                //dont need it now
+                //ScalePlayerToHMDHeight();
             }
             else if (inLoadingScreen)
             {
@@ -361,41 +405,28 @@ namespace HPVR
 
         private void UpdateInteractionCanvas()
         {
-            Transform camera = SteamVR_Camera.instance.transform;
-            if (Laser.LastHit != Vector3.zero)
+            if (interactionCanvas is null)
             {
-                interactionCanvas!.transform.position = Laser.LastHit + camera.rotation * Vector3.forward * -0.05f;
+                return;
+            }
+
+            Transform camera = SteamVR_Camera.instance.transform;
+            if (Laser.LastHit.point != Vector3.zero)
+            {
+                interactionCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.05f);
             }
             else
             {
-                interactionCanvas!.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
+                interactionCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
             }
+            //maybe this works, we'll see. or its 180 flipped
+            interactionCanvas.transform.LookAt(camera.position);
         }
 
-        private void UpdatePlayerCollision()
+        private void UpdateHPPlayerPositiion()
         {
-            //if (inGameMain && playerChar is not null)
-            //{
-            //    //todo check wall and floor colliders??
-            //    //shouldnt this work on its own?
-            //}
-            //else if (inMainMenu)
-            //{
-            //    foreach (var collider in colliders)
-            //    {
-            //        colliding = collider.bounds.Contains(SteamVR_Camera.instance.transform.position);
-            //        if (colliding)
-            //        {
-            //            MelonLogger.Msg("colldigin");
-            //            break;
-            //        }
-            //    }
-            //}
-            //else
-            //{
-            //    colliding = false;
-            //}
-            //VRSystem.MovementEnabled = !colliding;
+            var diff = Player.instance.transform.position - PlayerCharacter.Player.transform.position;
+            PlayerCharacter.Player.Controller.Move(diff);
         }
 
         private static void TryEndDisclaimerScreen()
@@ -497,7 +528,6 @@ namespace HPVR
 
         private void ScalePlayerToHMDHeight()
         {
-
             //todo also move vrplayer to player height when moving the playercharacter in game
 
             //if (inGameMain)

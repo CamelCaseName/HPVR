@@ -112,6 +112,11 @@ namespace HPVR.VR
             MelonXR.Initialize();
         }
 
+        static public void SyncPlayerAndHMD()
+        {
+            rotated = true;
+        }
+
         public static void SetUpSteamVRUnity()
         {
             if (!Initialized)
