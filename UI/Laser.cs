@@ -104,7 +104,8 @@ namespace HPVR.UI
                     return;
                 }
 
-                MelonLogger.Msg("hit " + interact);
+                //we do hit the buttons at this point...
+                //MelonLogger.Msg("hit " + interact);
 
                 if (hand.hoveringInteractable == lastInteract && lastInteract != interact && lastInteract is not null)
                 {
@@ -155,10 +156,20 @@ namespace HPVR.UI
                 if (hand.hoveringInteractable == lastInteract && lastInteract is not null)
                 {
                     hand.HoverUnlock(lastInteract);
+                    hand.hoveringInteractable = null;
                     justEntered = false;
                     lastInteract = null!;
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
+                }
+                if (HPVR.Instance?.inGameMain ?? false)
+                {
+                    //disable radial if clicked
+                    if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType) && RadialMenu.Singleton.IsShowing)
+                    {
+                        MelonLogger.Msg("make radial go away");
+                        RadialMenu.Singleton.Toggle();
+                    }
                 }
             }
         }

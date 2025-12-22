@@ -21,6 +21,8 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] walk around in the house
 
+[x] trigger the radial menu
+
 [ ] interact with item via the radial
 
 [ ] interact with characters via the radial 

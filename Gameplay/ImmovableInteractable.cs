@@ -49,7 +49,7 @@ namespace HPVR.Gameplay
         private void OnHandHoverBegin(Hand hand, Vector2 pos, bool posIsValid)
         {
             GeneralText = "Hovering hand: " + hand.name;
-            InteractionManager.Singleton._focusedItemInteraction = interactiveItem;
+            InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
         }
 
         //-------------------------------------------------

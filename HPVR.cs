@@ -8,13 +8,14 @@ using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
 using Il2CppEekEvents.Helper;
+using Il2CppEekUI;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
@@ -157,6 +158,9 @@ namespace HPVR
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
 
+                GraphicsController.Singleton?.Quality?.Set(0, true);
+                GraphicsController.Singleton?.TextureQuality?.Set(3, true);
+
                 CreateMainMenuBoundary();
 
                 UIManager.UpdateUIPos = false;
@@ -165,12 +169,18 @@ namespace HPVR
             }
             else if (Player.instance is not null)
             {
-                Player.instance.leftHand.useHoverSphere = false;
-                Player.instance.leftHand.useControllerHoverComponent = false;
-                Player.instance.leftHand.useFingerJointHover = false;
-                Player.instance.rightHand.useHoverSphere = false;
-                Player.instance.rightHand.useControllerHoverComponent = false;
-                Player.instance.rightHand.useFingerJointHover = true;
+                if (Player.instance.leftHand is not null)
+                {
+                    Player.instance.leftHand.useHoverSphere = false;
+                    Player.instance.leftHand.useControllerHoverComponent = false;
+                    Player.instance.leftHand.useFingerJointHover = false;
+                }
+                if (Player.instance.rightHand is not null)
+                {
+                    Player.instance.rightHand.useHoverSphere = false;
+                    Player.instance.rightHand.useControllerHoverComponent = false;
+                    Player.instance.rightHand.useFingerJointHover = true;
+                }
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
             }
 
@@ -183,10 +193,16 @@ namespace HPVR
             UIManager.OnSceneChange();
             Hand.UpdateScene();
 
-            if (!inGameMain)
+            if (!inGameMain && Player.instance is not null)
             {
-                Player.instance.leftHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
-                Player.instance.rightHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                if (Player.instance.leftHand is not null)
+                {
+                    Player.instance.leftHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                }
+                if (Player.instance.rightHand is not null)
+                {
+                    Player.instance.rightHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                }
             }
 
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
@@ -199,8 +215,17 @@ namespace HPVR
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
 
-            Player.instance.leftHand.GetComponent<Laser>().LaserMask = InteractionManager.Singleton._primaryIMgrMask | LayerMask.NameToLayer("UI");
-            Player.instance.rightHand.GetComponent<Laser>().LaserMask = InteractionManager.Singleton._primaryIMgrMask | LayerMask.NameToLayer("UI");
+            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
+            Player.instance.leftHand.GetComponent<Laser>().LaserMask = mask;
+            Player.instance.rightHand.GetComponent<Laser>().LaserMask = mask;
+            //MelonLogger.Msg("interaction manager mask:");
+            //for (int i = 0; i < 32; i++)
+            //{
+            //    if (((InteractionManager.Singleton._primaryIMgrMask >> i) & 1) == 1)
+            //    {
+            //        MelonLogger.Msg(LayerMask.LayerToName(i));
+            //    }
+            //}
 
             //turn off player model and collision for now
             PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
@@ -217,12 +242,19 @@ namespace HPVR
             {
                 if (f?.name == "Fallback Fog Global Volume")
                 {
+                    MelonLogger.Msg("turned on fallback fog");
                     f.gameObject.SetActive(true);
                     f.priority = 9999;
+                    break;
                 }
             }
 
             VRSystem.SyncPlayerAndHMD();
+
+            //foreach (var ui in UIManager.UIElements)
+            //{
+            //    ui.GetComponent<UIElement>().SetDebugMesh("");
+            //}
 
             //this one might crash so we do it last
             SetUpInGameCanvas();
@@ -244,15 +276,57 @@ namespace HPVR
         {
             //todo add the screenfade canvas here, and keep it very close in front of the camera so it covers all view
             // special handling for some canvas
-            var interaction = GameObject.Find("InteractionCanvas"); //crosshair and text
-            var radial = GameObject.Find("RadialMenuCanvas"); //interaction radial, you, item, character 
-            var fade = GameObject.Find("ScreenFadeCanvas"); //interaction radial, you, item, character 
-            UIManager.CanvasToIgnore.Add(interaction?.transform);
-            UIManager.CanvasToIgnore.Add(radial?.transform);
-            UIManager.CanvasToIgnore.Add(fade?.transform);
-            interactionCanvas = interaction?.GetComponent<Canvas>();
-            RadialCanvas = radial?.GetComponent<Canvas>();
-            ScreenFade = fade?.GetComponent<Canvas>();
+            foreach (var can in GameObject.FindObjectsOfType<Canvas>(true))
+            {
+                if (can.name == "InteractionCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.transform);
+                    interactionCanvas = can;
+                }
+                if (can.name == "RadialMenuCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.transform);
+                    RadialCanvas = can;
+                    //hook all canvas buttons
+                    foreach (var button in can.GetComponentsInChildren<Button>())
+                    {
+                        //todo this shows twice somehow
+                        button.GetComponent<UIElement>().OnSubmit += () =>
+                        {
+                            MelonLogger.Msg($"{RadialMenu.Singleton.IsShowing} {InteractionManager.Singleton.CurrentFocusedItem?.name}");
+                            if (RadialMenu.Singleton.IsShowing && InteractionManager.Singleton.CurrentFocusedItem is not null)
+                            {
+                                var option = RadialMenu.Singleton.buttons.IndexOf(button);
+                                var text = RadialMenu.Singleton._currentOptions[option].Item1;
+                                if (RadialMenu.Singleton._currentOptions[option].Item2)
+                                {
+                                    MelonLogger.Msg("choosing " + option);
+                                    var inter = InteractionManager.Singleton.CurrentFocusedItem.Cast<InteractiveItem>();
+                                    if (inter is not null)
+                                    {
+                                        inter.OnChooseInteraction(text);
+                                        RadialMenu.Singleton.Toggle();
+                                    }
+                                    else
+                                    {
+                                        MelonLogger.Msg("distractablerigidbody was no interactiveItem");
+                                    }
+                                }
+                                else
+                                {
+                                    MelonLogger.Msg("option " + option + " is greyed out");
+                                }
+                            }
+                        };
+                    }
+                    can.transform.localScale *= 2;
+                }
+                if (can.name == "ScreenFadeCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.transform);
+                    ScreenFade = can;
+                }
+            }
             //todo only do for some types ui, namely the ones that always show and interaction target
             //dialogue ui
             //stamina
@@ -267,26 +341,14 @@ namespace HPVR
                 Canvas canvas = obj.Cast<Canvas>();
                 switch (canvas.gameObject.name)
                 {
-                    case "DialogueCanvas":
                     case "InteractionCanvas":
-                    case "InventoryCanvas":
                     case "BGCUICanvas":
-                    case "UseSelectCanvas":
                     case "OrgasmManager":
                     case "NarrartorCanvas":
-                    case "DebugCanvas": //debug log
-                    case "SaveCanvas":
-                    case "LoadCanvas":
                     case "GameOverCanvas":
-                    case "GameMenuCanvas":
-                    case "GraphicsMenuCanvas":
-                    case "ConsoleCanvas":
                     case "MiniGameCanvas":
                     case "CombatManager":
                     case "Relationship Notificatiops Canvas":
-                    case "AudioSettingsCanvas":
-                    case "GameplaySettingsCanvas":
-                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         break;
                     default:
@@ -300,8 +362,22 @@ namespace HPVR
                             canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         }
                         break;
-                }
 
+                    //dont add to these
+                    case "GameMenuCanvas":
+                    case "AudioSettingsCanvas":
+                    case "GameplaySettingsCanvas":
+                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
+                    case "GraphicsMenuCanvas":
+                    case "ConsoleCanvas":
+                    case "DebugCanvas": //debug log
+                    case "SaveCanvas":
+                    case "LoadCanvas":
+                    case "DialogueCanvas":
+                    case "InventoryCanvas":
+                    case "UseSelectCanvas":
+                        break;
+                }
             }
         }
 
@@ -386,6 +462,10 @@ namespace HPVR
                 {
                     UpdateInteractionCanvas();
                 }
+                if (ScreenFade is not null)
+                {
+                    UpdateScreenFadeCanvas();
+                }
 
                 //dont need it now
                 //ScalePlayerToHMDHeight();
@@ -401,6 +481,24 @@ namespace HPVR
 
             VRSystem.Update();
             UIManager.Update();
+        }
+
+        private void UpdateScreenFadeCanvas()
+        {
+            if (ScreenFade is null)
+            {
+                return;
+            }
+
+            if (!(Il2CppEekCharacterEngine.Interface.ScreenFade.Singleton?.IsFadeVisible ?? false))
+            {
+                return;
+            }
+
+            Transform camera = SteamVR_Camera.instance.transform;
+            ScreenFade.transform.position = camera.position + (camera.rotation * Vector3.forward * 0.4f);
+
+            ScreenFade.transform.LookAt(ScreenFade.transform.position - camera.position);
         }
 
         private void UpdateInteractionCanvas()
@@ -420,7 +518,7 @@ namespace HPVR
                 interactionCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
             }
             //maybe this works, we'll see. or its 180 flipped
-            interactionCanvas.transform.LookAt(camera.position);
+            interactionCanvas.transform.rotation = camera.rotation;
         }
 
         private void UpdateHPPlayerPositiion()
@@ -449,9 +547,13 @@ namespace HPVR
             {
                 return;
             }
-            if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f && VRSystem.HandInputActive)
+            if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f)
             {
-                loading._gameLoader.allowSceneActivation = true;
+                MelonLogger.Msg("loading screen done!");
+                if (VRSystem.HandInputActive)
+                {
+                    loading._gameLoader.allowSceneActivation = true;
+                }
             }
         }
 

@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using HPVR.UI;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
@@ -22,7 +23,7 @@ namespace HPVR.Gameplay
                 || PlayerCharacter.Player is null
                 || Camera.main is null
                 || Camera.main.transform is null
-                || HPVR.Enabled)
+                || !HPVR.Enabled)
             {
                 return true;
             }
@@ -43,7 +44,7 @@ namespace HPVR.Gameplay
             InteractionManager.Singleton.ResetAllFocusTargets();
             //MelonLogger.Msg("reset focus");
 
-            Camera.main.transform.get_position_Injected(out Vector3 pos);
+            var pos = Camera.main.transform.position;
 
             InteractiveItem? potentialitem = null;
 
@@ -65,7 +66,6 @@ namespace HPVR.Gameplay
                 {
                     potentialitem = Player.instance.rightHand.hoveringInteractable.gameObject.GetComponent<InteractiveItem>();
                 }
-
             }
             if (potentialitem is null)
             {
@@ -76,7 +76,7 @@ namespace HPVR.Gameplay
             Transform? transform = potentialitem.transform;
             if (collider is null
                 || !collider.enabled
-                || collider.gameObject is null
+                || collider?.gameObject is null
                 || transform is null)
             {
                 return false;
@@ -130,7 +130,10 @@ namespace HPVR.Gameplay
                 {
                     npc ??= t.parent.gameObject.GetComponentInChildren<CharacterInteraction>();
                     if (npc is not null)
+                    {
                         break;
+                    }
+
                     t = t.parent;
                 }
 
@@ -155,12 +158,13 @@ namespace HPVR.Gameplay
                 }
             }
 
-            InteractionManager.Singleton._focusedItemInteractionPoint = potentialitem.transform.position;
-            InteractionManager.Singleton._focusedItemInteraction = interactive;
+            //dont set it here, only use to set the text and crosshair
+            //InteractionManager.Singleton._focusedItemInteractionPoint = potentialitem.transform.position;
+            //InteractionManager.Singleton.CurrentFocusedItem = interactive;
             //MelonLogger.Msg("set hit points");
 
             if (interactive is null
-                || !interactive.HasInteractions(GameManager._activeStory))
+                || !(interactive?.HasInteractions(GameManager._activeStory) ?? false))
             {
                 return false;
             }

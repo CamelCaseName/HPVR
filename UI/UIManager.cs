@@ -14,7 +14,7 @@ namespace HPVR.UI
     {
 
         private static readonly HashSet<Transform> canvasses = new();
-        private static readonly HashSet<MonoBehaviour> UIElements = new();
+        internal static readonly HashSet<MonoBehaviour> UIElements = new();
         public static bool UpdateUIPos = true;
         public static List<Transform?> CanvasToIgnore = new();
         private static bool initialized = false;
@@ -63,7 +63,7 @@ namespace HPVR.UI
                         canvas.rotation = SteamVR_Camera.instance.transform.rotation;
                     }
                     //todo FIX
-                    catch 
+                    catch
                     {
                         continue;
                     }
@@ -122,7 +122,7 @@ namespace HPVR.UI
             //todo the scrollviews block the rest with their colliders, only enable those which would be visible
             //see simplecolorpicker 
             //also in the customization environment things are offset
-            
+
             SetUpUIObjectsOfType<Selectable>();
             SetUpUIObjectsOfType<Dropdown.DropdownItem>();
             SetUpUIObjectsOfType<TMP_Dropdown.DropdownItem>();
@@ -436,7 +436,16 @@ namespace HPVR.UI
                 inter.snapAttachEaseInTime = 0.15f;
                 inter.useHandObjectAttachmentPoint = false;
 
-                uiComponent.gameObject.AddComponent<UIElement>();
+                var ui = uiComponent.gameObject.AddComponent<UIElement>();
+                if (HPVR.Instance?.inMainMenu ?? false)
+                {
+                    //ui.SetDebugMesh("Floor");
+                }
+                else if (HPVR.Instance?.inGameMain ?? false)
+                {
+
+                    //ui.SetDebugMesh("");
+                }
             }
         }
 

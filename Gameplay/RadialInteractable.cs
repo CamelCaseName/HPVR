@@ -1,4 +1,5 @@
 ﻿using HPVR.UI;
+using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
@@ -55,9 +56,19 @@ namespace HPVR.Gameplay
         private void OnHandHoverBegin(Hand hand, Vector2 pos, bool posIsValid)
         {
             GeneralText = gameObject.name + " Hovering hand: " + hand.name;
-            InteractionManager.Singleton._focusedItemInteraction = interactiveItem;
-            InteractiveItem.ActiveItem = interactiveItem;
-            RadialMenu.Singleton._lastInteractedItem = interactiveItem;
+            if (gameObject.GetComponent<NonPlayerCharacter>())
+            {
+                //is npc
+                MelonLogger.Msg("focused NPC");
+            }
+            if (!RadialMenu.Singleton.IsShowing)
+            {
+                MelonLogger.Msg("radial not visible, updating item:");
+                //todo this is somehow one item too late
+                InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
+                InteractiveItem.ActiveItem = interactiveItem;
+                RadialMenu.Singleton._lastInteractedItem = interactiveItem;
+            }
         }
 
         //-------------------------------------------------
@@ -66,9 +77,12 @@ namespace HPVR.Gameplay
         private void OnHandHoverEnd(Hand hand)
         {
             GeneralText = gameObject.name + " No Hand Hovering";
-            InteractionManager.Singleton._focusedItemInteraction = null;
-            InteractiveItem.ActiveItem = null;
-            RadialMenu.Singleton._lastInteractedItem = null;
+            if (!RadialMenu.Singleton.IsShowing)
+            {
+                InteractionManager.Singleton.CurrentFocusedItem = null;
+                InteractiveItem.ActiveItem = null;
+                RadialMenu.Singleton._lastInteractedItem = null;
+            }
         }
 
         //-------------------------------------------------
@@ -115,34 +129,36 @@ namespace HPVR.Gameplay
                 gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed;
             }
 
-            MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
+            //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
             //toggles correctly for items, but doesnt for characters. opens the last item then.
             if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType))
             {
-                //we get here correctly, but nothing happens. either unityexplorers fault or we need to just hook the internal bit where the action resides and call it ourselves...
-                //it is unityexplorers fault because of its own input system
+                //todo test if we can grab the possible options on the interactiveItem after this and then cycle through them if we cannot get interaction to work
+
                 MelonLogger.Msg("toggling radial for " + gameObject.name);
                 RadialMenu.Singleton.Toggle();
                 radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
 
-                if(radialCanvas is null)
+                if (radialCanvas is null)
                 {
+                    MelonLogger.Msg("didnt find radialcanvas");
                     return;
                 }
 
                 Transform camera = SteamVR_Camera.instance.transform;
                 if (Laser.LastHit.point != Vector3.zero)
                 {
-                    //this seems fuzzy
                     radialCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.2f);
                 }
                 else
                 {
                     radialCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
                 }
-                //maybe this works, we'll see. or its 180 flipped
-                radialCanvas.transform.LookAt(camera.position);
+                //invert distance else it shows flipped
+                radialCanvas.transform.rotation = camera.rotation;
+                RadialMenu.Singleton.transform.FindChild("Target")?.gameObject?.SetActive(false);
+                RadialMenu.Singleton.transform.FindChild("Line")?.gameObject?.SetActive(false);
             }
         }
 

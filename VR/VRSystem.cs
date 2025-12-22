@@ -4,6 +4,7 @@ using Il2Cpp;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Standalone;
+using SteamVR_Melon.Util;
 using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
@@ -39,7 +40,7 @@ namespace HPVR.VR
         static private string fallback_fist = string.Empty;
         static private string fallback_point = string.Empty;
         static private string fallback_relaxed = string.Empty;
-        static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "Walls", "Ground", "Character", "Ragdolls", "InteractiveItems");
+        static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Characters", "Ground", "Walls");
         static private Vector3 hmdAbsoluteLastPosition = new();
         static private Vector3 hmdRotationPositionOffset = new();
         static private Vector3 vrCamPosition = new(0, 1.75f, 0);
@@ -110,6 +111,8 @@ namespace HPVR.VR
             //update offset depending on unity version
             PluginImporter.UpdateOffsetForUnityVersion();
             MelonXR.Initialize();
+
+            UnityHooks.OnBeforeRender += UpdateHMDPositions;
         }
 
         static public void SyncPlayerAndHMD()
@@ -142,7 +145,6 @@ namespace HPVR.VR
             {
                 HandleControllerMovement();
             }
-            UpdateHMDPositions();
         }
 
         private static void FinalizeSteamVRSetup()
