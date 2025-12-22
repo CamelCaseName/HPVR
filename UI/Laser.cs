@@ -29,6 +29,7 @@ namespace HPVR.UI
         public int LaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
         public static readonly int DefaultLaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
 #nullable restore
+        internal Laser? otherLaser;
 
         protected void Awake()
         {
@@ -80,6 +81,14 @@ namespace HPVR.UI
             {
                 return;
             }
+            if (otherLaser is null)
+            {
+                return;
+            }
+            if (LaserBeam is null)
+            {
+                return;
+            }
             //todo update layermask so that alll interactive items are found, like the fridge for example
             //use the same one as the InteractionManager.Singleton._primaryIMgrMask
             if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
@@ -101,6 +110,7 @@ namespace HPVR.UI
                             RadialMenu.Singleton.Toggle();
                         }
                     }
+                    hand.hoveringInteractable = null;
                     return;
                 }
 
@@ -114,7 +124,14 @@ namespace HPVR.UI
                 if (hand.hoveringInteractable != interact)
                 {
                     justEntered = true;
-                    hand.HoverLock(interact);
+                    if (hand.otherHand.hoveringInteractable is null)
+                    {
+                        hand.HoverLock(interact);
+                    }
+                    else
+                    {
+                        //MelonLogger.Msg($"{hand} got blocked by other hand from hovering {interact.gameObject.name}");
+                    }
                 }
                 lastInteract = interact;
 
@@ -136,15 +153,18 @@ namespace HPVR.UI
                 var ui = lastInteract.GetComponent<UIElement>();
                 if (ui is not null)
                 {
-                    var screenHit = WorldToUISpace(ui.canvas, hit.point);
-                    //var coll = hit.transform.GetComponent<Collider>();
-                    //MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
-                    if (justEntered)
+                    if (hand.otherHand.hoveringInteractable is null)
                     {
-                        justEntered = false;
-                        hand.hoveringInteractable.OnHandHoverBegin_Internal(hand, screenHit, true);
+                        var screenHit = WorldToUISpace(ui.canvas, hit.point);
+                        //var coll = hit.transform.GetComponent<Collider>();
+                        //MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
+                        if (justEntered)
+                        {
+                            justEntered = false;
+                            hand.hoveringInteractable.OnHandHoverBegin_Internal(hand, screenHit, true);
+                        }
+                        hand.hoveringInteractable.HandHoverUpdate_Internal(hand, screenHit, true);
                     }
-                    hand.hoveringInteractable.HandHoverUpdate_Internal(hand, screenHit, true);
                 }
             }
             else

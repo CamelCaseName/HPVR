@@ -112,6 +112,8 @@ namespace HPVR.VR
             PluginImporter.UpdateOffsetForUnityVersion();
             MelonXR.Initialize();
 
+            //do positions before rendering 
+            UnityHooks.OnBeforeRender += HandleControllerMovement;
             UnityHooks.OnBeforeRender += UpdateHMDPositions;
         }
 
@@ -141,10 +143,6 @@ namespace HPVR.VR
 
         public static void Update()
         {
-            if (MovementEnabled)
-            {
-                HandleControllerMovement();
-            }
         }
 
         private static void FinalizeSteamVRSetup()
@@ -548,6 +546,10 @@ namespace HPVR.VR
 
         private static void HandleControllerMovement()
         {
+            if (!MovementEnabled)
+            {
+                return;
+            }
             //todo add gravity with playerBody.isGrounded
             var directionXZ = new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
             Vector3 normalizedXZ = directionXZ.normalized;

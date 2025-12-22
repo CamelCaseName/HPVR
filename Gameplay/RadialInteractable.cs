@@ -125,6 +125,7 @@ namespace HPVR.Gameplay
                 // no
                 //transform.position = oldPosition;
                 //transform.rotation = oldRotation;
+                MelonLogger.Msg($"let go of {gameObject.name} with speed: {speed.x} {speed.y} {speed.z}");
                 gameObject.GetComponent<Rigidbody>().velocity = speed;
                 gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed;
             }
@@ -137,6 +138,9 @@ namespace HPVR.Gameplay
                 //todo test if we can grab the possible options on the interactiveItem after this and then cycle through them if we cannot get interaction to work
 
                 MelonLogger.Msg("toggling radial for " + gameObject.name);
+                InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
+                InteractiveItem.ActiveItem = interactiveItem;
+                RadialMenu.Singleton._lastInteractedItem = interactiveItem;
                 RadialMenu.Singleton.Toggle();
                 radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
 
@@ -149,7 +153,7 @@ namespace HPVR.Gameplay
                 Transform camera = SteamVR_Camera.instance.transform;
                 if (Laser.LastHit.point != Vector3.zero)
                 {
-                    radialCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.2f);
+                    radialCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.3f);
                 }
                 else
                 {
@@ -185,8 +189,8 @@ namespace HPVR.Gameplay
         private void HandAttachedUpdate(Hand hand)
         {
             GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, Time.time - attachTime);
-            speed = gameObject.transform.position - oldPos;
-            angularSpeed = gameObject.transform.rotation.eulerAngles - oldRot;
+            speed = (gameObject.transform.position - oldPos);
+            angularSpeed = (gameObject.transform.rotation.eulerAngles - oldRot);
             oldPos = gameObject.transform.position;
             oldRot = gameObject.transform.rotation.eulerAngles;
         }

@@ -16,14 +16,25 @@ namespace HPVR.UI
         private static readonly HashSet<Transform> canvasses = new();
         internal static readonly HashSet<MonoBehaviour> UIElements = new();
         public static bool UpdateUIPos = true;
-        public static List<Transform?> CanvasToIgnore = new();
+        public static List<string> CanvasToIgnore = new();
         private static bool initialized = false;
+        private static bool leftinitialized = false;
+        private static bool setLasers = false;
+        private static bool rightinitialized = false;
         static public void Initialize()
         {
             if (!initialized)
             {
-                Player.instance.leftHand.OnHandInitialized += i => { Player.instance.leftHand.gameObject.AddComponent<Laser>(); };
-                Player.instance.rightHand.OnHandInitialized += i => { Player.instance.rightHand.gameObject.AddComponent<Laser>(); };
+                Player.instance.leftHand.OnHandInitialized += i =>
+                {
+                    Player.instance.leftHand.gameObject.AddComponent<Laser>();
+                    leftinitialized = true;
+                };
+                Player.instance.rightHand.OnHandInitialized += i =>
+                {
+                    Player.instance.rightHand.gameObject.AddComponent<Laser>();
+                    rightinitialized = true;
+                };
                 initialized = true;
             }
         }
@@ -31,6 +42,13 @@ namespace HPVR.UI
         public static void Update()
         {
             UpdateUIPositions();
+
+            if(!setLasers && leftinitialized && rightinitialized)
+            {
+                setLasers = true;
+                Player.instance.leftHand.GetComponent<Laser>().otherLaser = Player.instance.rightHand.GetComponent<Laser>();
+                Player.instance.rightHand.GetComponent<Laser>().otherLaser = Player.instance.leftHand.GetComponent<Laser>();
+            }
         }
 
         private static void UpdateUIPositions()
@@ -53,7 +71,7 @@ namespace HPVR.UI
                             continue;
                         }
 
-                        if (CanvasToIgnore.Contains(canvas))
+                        if (CanvasToIgnore.Contains(canvas.name))
                         {
                             continue;
                         }
@@ -113,7 +131,10 @@ namespace HPVR.UI
                 //todo tune
                 //canvas.scaleFactor *= 1.1f;
                 canvas.renderMode = RenderMode.WorldSpace;
-                canvasses.Add(canvas.transform);
+                if (!CanvasToIgnore.Contains(canvas.name))
+                {
+                    canvasses.Add(canvas.transform);
+                }
             }
             UpdateUIPositions();
 

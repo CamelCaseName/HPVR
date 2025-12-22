@@ -36,6 +36,7 @@ namespace HPVR
         private Canvas? interactionCanvas;
         private Canvas? RadialCanvas;
         private Canvas? ScreenFade;
+        private static bool shownLoadingScreenInfo = false;
 
         public static bool Enabled { get; internal set; } = true;
 
@@ -121,6 +122,7 @@ namespace HPVR
             removedPlayerHead = false;
 
             UIManager.UpdateUIPos = true;
+            shownLoadingScreenInfo = false;
 
             if (inGameMain)
             {
@@ -142,6 +144,7 @@ namespace HPVR
                 Player.instance.rightHand.useFingerJointHover = true;
 
                 PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
+
             }
             else if (inMainMenu)
             {
@@ -158,14 +161,12 @@ namespace HPVR
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
 
-                GraphicsController.Singleton?.Quality?.Set(0, true);
-                GraphicsController.Singleton?.TextureQuality?.Set(3, true);
+                //GraphicsController.Singleton?.Quality?.Set(0, true);
+                //GraphicsController.Singleton?.TextureQuality?.Set(3, true);
 
                 CreateMainMenuBoundary();
 
                 UIManager.UpdateUIPos = false;
-
-                QualitySettings.SetQualityLevel(1);
             }
             else if (Player.instance is not null)
             {
@@ -186,8 +187,9 @@ namespace HPVR
 
             if (inLoadingScreen)
             {
+                //todo also set up UI here and place infront of cam
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
-                cinemachineBrain.gameObject.SetActive(false);
+                cinemachineBrain.OnDisable();
             }
 
             UIManager.OnSceneChange();
@@ -215,7 +217,7 @@ namespace HPVR
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
 
-            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
+            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Character", "Ground", "Walls");
             Player.instance.leftHand.GetComponent<Laser>().LaserMask = mask;
             Player.instance.rightHand.GetComponent<Laser>().LaserMask = mask;
             //MelonLogger.Msg("interaction manager mask:");
@@ -257,6 +259,7 @@ namespace HPVR
             //}
 
             //this one might crash so we do it last
+            SetUpSpecialCanvas();
             SetUpInGameCanvas();
         }
 
@@ -272,69 +275,14 @@ namespace HPVR
             MelonLogger.Msg("fixed floor with " + sliderDoorFloor.name);
         }
 
-        private void SetUpInGameCanvas()
+        private static void SetUpInGameCanvas()
         {
-            //todo add the screenfade canvas here, and keep it very close in front of the camera so it covers all view
-            // special handling for some canvas
-            foreach (var can in GameObject.FindObjectsOfType<Canvas>(true))
-            {
-                if (can.name == "InteractionCanvas")
-                {
-                    UIManager.CanvasToIgnore.Add(can.transform);
-                    interactionCanvas = can;
-                }
-                if (can.name == "RadialMenuCanvas")
-                {
-                    UIManager.CanvasToIgnore.Add(can.transform);
-                    RadialCanvas = can;
-                    //hook all canvas buttons
-                    foreach (var button in can.GetComponentsInChildren<Button>())
-                    {
-                        //todo this shows twice somehow
-                        button.GetComponent<UIElement>().OnSubmit += () =>
-                        {
-                            MelonLogger.Msg($"{RadialMenu.Singleton.IsShowing} {InteractionManager.Singleton.CurrentFocusedItem?.name}");
-                            if (RadialMenu.Singleton.IsShowing && InteractionManager.Singleton.CurrentFocusedItem is not null)
-                            {
-                                var option = RadialMenu.Singleton.buttons.IndexOf(button);
-                                var text = RadialMenu.Singleton._currentOptions[option].Item1;
-                                if (RadialMenu.Singleton._currentOptions[option].Item2)
-                                {
-                                    MelonLogger.Msg("choosing " + option);
-                                    var inter = InteractionManager.Singleton.CurrentFocusedItem.Cast<InteractiveItem>();
-                                    if (inter is not null)
-                                    {
-                                        inter.OnChooseInteraction(text);
-                                        RadialMenu.Singleton.Toggle();
-                                    }
-                                    else
-                                    {
-                                        MelonLogger.Msg("distractablerigidbody was no interactiveItem");
-                                    }
-                                }
-                                else
-                                {
-                                    MelonLogger.Msg("option " + option + " is greyed out");
-                                }
-                            }
-                        };
-                    }
-                    can.transform.localScale *= 2;
-                }
-                if (can.name == "ScreenFadeCanvas")
-                {
-                    UIManager.CanvasToIgnore.Add(can.transform);
-                    ScreenFade = can;
-                }
-            }
             //todo only do for some types ui, namely the ones that always show and interaction target
             //dialogue ui
             //stamina
             //bgc 
             //message bubbles
             //big disclaimer text
-            //reticle
-            //
 
             foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
             {
@@ -349,6 +297,7 @@ namespace HPVR
                     case "MiniGameCanvas":
                     case "CombatManager":
                     case "Relationship Notificatiops Canvas":
+                    case "ScreenFadeCanvas":
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         break;
                     default:
@@ -376,7 +325,69 @@ namespace HPVR
                     case "DialogueCanvas":
                     case "InventoryCanvas":
                     case "UseSelectCanvas":
+                    case "RadialMenuCanvas":
                         break;
+                }
+            }
+        }
+
+        private void SetUpSpecialCanvas()
+        {
+            // special handling for some canvas
+            foreach (var can in GameObject.FindObjectsOfType<Canvas>(true))
+            {
+                if (can.name == "InteractionCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.name);
+                    interactionCanvas = can;
+                }
+                if (can.name == "RadialMenuCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.name);
+                    RadialCanvas = can;
+                    //hook all canvas buttons
+                    foreach (var button in can.GetComponentsInChildren<Button>())
+                    {
+                        //todo this shows twice somehow
+                        button.GetComponent<UIElement>().OnSubmit += () =>
+                        {
+                            OnRadialButtonSubmit(button);
+                        };
+                    }
+                    can.transform.localScale *= 1.5f;
+                }
+                if (can.name == "ScreenFadeCanvas")
+                {
+                    UIManager.CanvasToIgnore.Add(can.name);
+                    ScreenFade = can;
+                }
+            }
+        }
+
+        private static void OnRadialButtonSubmit(Button button)
+        {
+            MelonLogger.Msg($"{RadialMenu.Singleton.IsShowing} {InteractionManager.Singleton.CurrentFocusedItem?.name}");
+            if (RadialMenu.Singleton.IsShowing && InteractionManager.Singleton.CurrentFocusedItem is not null)
+            {
+                var option = RadialMenu.Singleton.buttons.IndexOf(button);
+                var text = RadialMenu.Singleton._currentOptions[option].Item1;
+                if (RadialMenu.Singleton._currentOptions[option].Item2)
+                {
+                    MelonLogger.Msg("choosing " + option);
+                    var inter = InteractionManager.Singleton.CurrentFocusedItem.Cast<InteractiveItem>();
+                    if (inter is not null)
+                    {
+                        inter.OnChooseInteraction(text);
+                        RadialMenu.Singleton.Toggle();
+                    }
+                    else
+                    {
+                        MelonLogger.Msg("distractablerigidbody was no interactiveItem");
+                    }
+                }
+                else
+                {
+                    MelonLogger.Msg("option " + option + " is greyed out");
                 }
             }
         }
@@ -466,9 +477,7 @@ namespace HPVR
                 {
                     UpdateScreenFadeCanvas();
                 }
-
-                //dont need it now
-                //ScalePlayerToHMDHeight();
+                UpdateNarratorMessage();
             }
             else if (inLoadingScreen)
             {
@@ -481,6 +490,18 @@ namespace HPVR
 
             VRSystem.Update();
             UIManager.Update();
+        }
+
+        private static void UpdateNarratorMessage()
+        {
+            if (!NarratorManager.Singleton.IsShowing)
+            {
+                return;
+            }
+            else if (VRSystem.HandInputActive)
+            {
+                NarratorManager.Singleton.Toggle();
+            }
         }
 
         private void UpdateScreenFadeCanvas()
@@ -521,7 +542,7 @@ namespace HPVR
             interactionCanvas.transform.rotation = camera.rotation;
         }
 
-        private void UpdateHPPlayerPositiion()
+        private static void UpdateHPPlayerPositiion()
         {
             var diff = Player.instance.transform.position - PlayerCharacter.Player.transform.position;
             PlayerCharacter.Player.Controller.Move(diff);
@@ -549,7 +570,11 @@ namespace HPVR
             }
             if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f)
             {
-                MelonLogger.Msg("loading screen done!");
+                if (!shownLoadingScreenInfo)
+                {
+                    shownLoadingScreenInfo = true;
+                    MelonLogger.Msg("loading screen done!");
+                }
                 if (VRSystem.HandInputActive)
                 {
                     loading._gameLoader.allowSceneActivation = true;
@@ -628,7 +653,7 @@ namespace HPVR
             boundPlayerHands = true;
         }
 
-        private void ScalePlayerToHMDHeight()
+        private static void ScalePlayerToHMDHeight()
         {
             //todo also move vrplayer to player height when moving the playercharacter in game
 
