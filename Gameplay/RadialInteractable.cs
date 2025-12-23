@@ -1,6 +1,7 @@
 ﻿using HPVR.UI;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
+using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
@@ -57,11 +58,11 @@ namespace HPVR.Gameplay
             if (gameObject.GetComponent<NonPlayerCharacter>())
             {
                 //is npc
-                MelonLogger.Msg("focused NPC");
+                //MelonLogger.Msg("focused NPC");
             }
             if (!RadialMenu.Singleton.IsShowing)
             {
-                MelonLogger.Msg("radial not visible, updating item:");
+                //MelonLogger.Msg("radial not visible, updating item:");
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
                 InteractiveItem.ActiveItem = interactiveItem;
                 RadialMenu.Singleton._lastInteractedItem = interactiveItem;
@@ -123,16 +124,15 @@ namespace HPVR.Gameplay
                 //transform.position = oldPosition;
                 //transform.rotation = oldRotation;
                 MelonLogger.Msg($"let go of {gameObject.name} with speed: {speed.x} {speed.y} {speed.z}");
-                gameObject.GetComponent<Rigidbody>().velocity = speed;
-                gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed;
+                gameObject.GetComponent<Rigidbody>().velocity = speed / Time.deltaTime;
+                gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed / Time.deltaTime;
             }
 
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            //toggles correctly for items, but doesnt for characters. opens the last item then.
             if (hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
             {
-                MelonLogger.Msg("toggling radial for " + gameObject.name);
+                MelonLogger.Msg("toggling radial on for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
                 InteractiveItem.ActiveItem = interactiveItem;
                 RadialMenu.Singleton._lastInteractedItem = interactiveItem;
@@ -156,8 +156,10 @@ namespace HPVR.Gameplay
                 }
                 //invert distance else it shows flipped
                 radialCanvas.transform.rotation = camera.rotation;
-                RadialMenu.Singleton.transform.FindChild("Target")?.gameObject?.SetActive(false);
-                RadialMenu.Singleton.transform.FindChild("Line")?.gameObject?.SetActive(false);
+                RadialMenu.Singleton.transform.FindDeepChild("Target")?.gameObject?.SetActive(false);
+                RadialMenu.Singleton.transform.FindDeepChild("Line")?.gameObject?.SetActive(false);
+
+                MelonLogger.Msg("toggled radial on");
             }
         }
 

@@ -10,10 +10,6 @@ namespace HPVR.Gameplay
     [HarmonyPatch(typeof(InteractionManager), "FixedUpdate")]
     internal static class Patcher
     {
-        internal static float addedDistance = 2.3f;
-        internal static float maxDistance = 3f + addedDistance;
-        //private static readonly int PhysicsLayerMask = LayerMask.GetMask("InteractiveItems", "Character", "Walls", "Ground", "Default");
-
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]
         private static bool Prefix()
         {

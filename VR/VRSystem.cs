@@ -182,7 +182,7 @@ namespace HPVR.VR
             playerBody.isTrigger = false;
             playerBody.direction = 1;
             playerBody.providesContacts = false;
-            playerBody.includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems");
+            playerBody.includeLayers = LayerMask.GetMask("Walls", "Ground", "Ragdolls", "InteractiveItems", "Characters");
             SetPlayerColliderHeight(1.8f);
 
             Object.DontDestroyOnLoad(SteamVRobject);

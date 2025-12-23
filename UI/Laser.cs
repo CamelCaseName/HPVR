@@ -1,4 +1,5 @@
-﻿using Il2CppEekUI;
+﻿using Il2CppEekCharacterEngine;
+using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
@@ -26,7 +27,7 @@ namespace HPVR.UI
         Transform LaserRoot;
         bool justEntered = false;
         public static RaycastHit LastHit;
-        public int LaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
+        public int LaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems", "InteractiveItemsHighlighted");
         public static readonly int DefaultLaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
 #nullable restore
         internal Laser? otherLaser;
@@ -95,6 +96,8 @@ namespace HPVR.UI
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
                 interact ??= hit.transform.gameObject.GetComponentInChildren<Interactable>();
+                MelonLogger.Msg("hit " + interact?.name);
+
                 if (interact is null)
                 {
                     LaserBeam.gameObject.SetActive(false);
@@ -103,7 +106,7 @@ namespace HPVR.UI
                     if (HPVR.Instance?.inGameMain ?? false)
                     {
                         //disable radial if clicked
-                        if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && RadialMenu.Singleton.IsShowing)
+                        if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && !hand.otherHand.hoverLocked && RadialMenu.Singleton.IsShowing)
                         {
                             MelonLogger.Msg("make radial go away");
                             RadialMenu.Singleton.Toggle();
@@ -114,7 +117,6 @@ namespace HPVR.UI
                 }
 
                 //we do hit the buttons at this point...
-                //MelonLogger.Msg("hit " + interact);
 
                 if (hand.hoveringInteractable == lastInteract && lastInteract != interact && lastInteract is not null)
                 {
@@ -184,7 +186,7 @@ namespace HPVR.UI
                 if (HPVR.Instance?.inGameMain ?? false)
                 {
                     //disable radial if clicked
-                    if (hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp) && RadialMenu.Singleton.IsShowing)
+                    if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && !hand.otherHand.hoverLocked && RadialMenu.Singleton.IsShowing)
                     {
                         MelonLogger.Msg("make radial go away");
                         RadialMenu.Singleton.Toggle();

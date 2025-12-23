@@ -38,6 +38,7 @@ namespace HPVR
         private Canvas? ScreenFade;
         private Canvas? Dialogue;
         private static bool shownLoadingScreenInfo = false;
+        private bool DialogueVisible = false;
 
         public static bool Enabled { get; internal set; } = true;
 
@@ -159,9 +160,6 @@ namespace HPVR
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
 
-                //GraphicsController.Singleton?.Quality?.Set(0, true);
-                //GraphicsController.Singleton?.TextureQuality?.Set(3, true);
-
                 CreateMainMenuBoundary();
 
                 UIManager.UpdateUIPos = false;
@@ -226,7 +224,7 @@ namespace HPVR
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
 
-            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Character", "Ground", "Walls");
+            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Character", "Ragdolls", "Ground", "Walls");
             Player.instance.leftHand.GetComponent<Laser>().LaserMask = mask;
             Player.instance.rightHand.GetComponent<Laser>().LaserMask = mask;
 
@@ -256,6 +254,7 @@ namespace HPVR
 
             if (VRSystem.SetUpInput)
             {
+                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
                 SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueCanvas();
             }
 
@@ -266,6 +265,21 @@ namespace HPVR
 
             //this one might crash so we do it last
             SetUpInGameCanvas();
+        }
+
+        private void TrySkipDialogue()
+        {
+            if (!(DialogueUI.Singleton?.IsShowing ?? false))
+            {
+                return;
+            }
+
+            if (DialogueUI.Singleton.dialogueText.text.Length < DialogueUI.Singleton.textOnDisplay.Length)
+            {
+                DialogueUI.Singleton.dialogueText.text = DialogueUI.Singleton.textOnDisplay;
+                DialogueUI.Singleton.currentCharacter = DialogueUI.Singleton.textOnDisplay.Length;
+                DialogueUI.Singleton.DisplayResponses();
+            }
         }
 
         private static void CreateHouseBoundaryFixes()
@@ -369,7 +383,7 @@ namespace HPVR
             }
 
             MelonLogger.Msg("updating positions of dialogue UI");
-            //i can place the responses from -width/2 100 0 downwards
+
             Dialogue.transform.FindDeepChild("MoveCameraReminder").gameObject.SetActive(false);
             Dialogue.transform.FindDeepChild("AvatarComponents").localPosition = new(-400, 400, 0);
             Dialogue.transform.FindDeepChild("Stats").localPosition = new(100, 400, 0);
@@ -386,11 +400,21 @@ namespace HPVR
             var scrollView = Dialogue.transform.FindDeepChild("Scroll View");
             scrollView.localEulerAngles = new(0, 0, 0);
             scrollView.localScale = new(1, 1, 1);
-            foreach (var item in scrollView.GetComponentsInChildren<ResponseNavigationHandler>())
+            UpdateDialogueResponses();
+            scrollView.localPosition = new(0, -700, 0);
+        }
+
+        public void UpdateDialogueResponses()
+        {
+            if(Dialogue is null)
+            {
+                return;
+            }
+
+            foreach (var item in Dialogue.gameObject.GetComponentsInChildren<ResponseNavigationHandler>())
             {
                 item.transform.localEulerAngles = new(0, 0, 0);
             }
-            scrollView.position = new(0, -700, 0);
         }
 
         private static void OnRadialButtonSubmit(Button button)
@@ -507,6 +531,18 @@ namespace HPVR
                     UpdateScreenFadeCanvas();
                 }
                 UpdateNarratorMessage();
+
+                if (!DialogueVisible && DialogueUI.Singleton.IsShowing)
+                {
+                    DialogueVisible = true;
+                    VRSystem.MovementEnabled = false;
+                    UpdateDialogueCanvas();
+                }
+                else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
+                {
+                    DialogueVisible = false;
+                    VRSystem.MovementEnabled = true;
+                }
             }
             else if (inLoadingScreen)
             {
