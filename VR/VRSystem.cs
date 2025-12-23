@@ -23,7 +23,7 @@ namespace HPVR.VR
         public static bool Gravity = true;
         static private TrackedDevicePose_t[] poses = Array.Empty<TrackedDevicePose_t>();
         public static bool MovementEnabled = true;
-        private static bool SetUpInput = false;
+        internal static bool SetUpInput = false;
         static private GameObject? leftController = null;
         static private GameObject? rightController = null;
         static public Vector3 lastControllerMove = new();
@@ -550,7 +550,7 @@ namespace HPVR.VR
             {
                 return;
             }
-            //todo add gravity with playerBody.isGrounded
+
             var directionXZ = new Vector3(lastControllerMove.x, 0, lastControllerMove.z);
             Vector3 normalizedXZ = directionXZ.normalized;
             var directionY = new Vector3(0, gravity * FallTime, 0);

@@ -77,7 +77,7 @@ namespace HPVR.UI
                         }
 
                         //todo move some UI differently than others, for example move bgc text field more down, thought bubble more left and so on. Need to make a map for that
-                        canvas.position = SteamVR_Camera.instance.transform.position + (SteamVR_Camera.instance.transform.rotation * Vector3.forward * 1.4f);
+                        canvas.position = SteamVR_Camera.instance.transform.position + (SteamVR_Camera.instance.transform.rotation * Vector3.forward * 1.6f);
                         canvas.rotation = SteamVR_Camera.instance.transform.rotation;
                     }
                     //todo FIX

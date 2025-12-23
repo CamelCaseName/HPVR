@@ -48,8 +48,6 @@ namespace HPVR.Gameplay
             interactable.HandAttachedUpdate += HandAttachedUpdate;
         }
 
-        //todo debug this behaviour
-
         //-------------------------------------------------
         // Called when a Hand starts hovering over this object
         //-------------------------------------------------
@@ -64,7 +62,6 @@ namespace HPVR.Gameplay
             if (!RadialMenu.Singleton.IsShowing)
             {
                 MelonLogger.Msg("radial not visible, updating item:");
-                //todo this is somehow one item too late
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
                 InteractiveItem.ActiveItem = interactiveItem;
                 RadialMenu.Singleton._lastInteractedItem = interactiveItem;
@@ -133,10 +130,8 @@ namespace HPVR.Gameplay
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
             //toggles correctly for items, but doesnt for characters. opens the last item then.
-            if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType))
+            if (hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
             {
-                //todo test if we can grab the possible options on the interactiveItem after this and then cycle through them if we cannot get interaction to work
-
                 MelonLogger.Msg("toggling radial for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
                 InteractiveItem.ActiveItem = interactiveItem;

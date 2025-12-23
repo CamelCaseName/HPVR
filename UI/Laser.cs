@@ -89,8 +89,7 @@ namespace HPVR.UI
             {
                 return;
             }
-            //todo update layermask so that alll interactive items are found, like the fridge for example
-            //use the same one as the InteractionManager.Singleton._primaryIMgrMask
+
             if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
             {
                 var interact = hit.transform.gameObject.GetComponent<Interactable>();
@@ -104,7 +103,7 @@ namespace HPVR.UI
                     if (HPVR.Instance?.inGameMain ?? false)
                     {
                         //disable radial if clicked
-                        if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType) && RadialMenu.Singleton.IsShowing)
+                        if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && RadialMenu.Singleton.IsShowing)
                         {
                             MelonLogger.Msg("make radial go away");
                             RadialMenu.Singleton.Toggle();
@@ -173,7 +172,7 @@ namespace HPVR.UI
                 {
                     LastHit = new();
                 }
-                if (hand.hoveringInteractable == lastInteract && lastInteract is not null)
+                if (lastInteract is not null)
                 {
                     hand.HoverUnlock(lastInteract);
                     hand.hoveringInteractable = null;
@@ -185,7 +184,7 @@ namespace HPVR.UI
                 if (HPVR.Instance?.inGameMain ?? false)
                 {
                     //disable radial if clicked
-                    if (hand.uiInteractAction != null && hand.uiInteractAction.GetStateUp(hand.handType) && RadialMenu.Singleton.IsShowing)
+                    if (hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp) && RadialMenu.Singleton.IsShowing)
                     {
                         MelonLogger.Msg("make radial go away");
                         RadialMenu.Singleton.Toggle();
