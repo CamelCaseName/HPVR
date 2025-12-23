@@ -224,7 +224,7 @@ namespace HPVR
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
 
-            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Character", "Ragdolls", "Ground", "Walls");
+            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
             Player.instance.leftHand.GetComponent<Laser>().LaserMask = mask;
             Player.instance.rightHand.GetComponent<Laser>().LaserMask = mask;
 
@@ -232,6 +232,9 @@ namespace HPVR
             PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
             GameObject.Find("CH_PlayerFemale")?.SetActive(false);
             GameObject.Find("CH_PlayerMale")?.SetActive(false);
+            PlayerCharacter.Player.Controller.enabled = false;
+            PlayerCharacter.Player._controlManager.DeactivateMovement();
+            PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
             foreach (var coll in PlayerCharacter.Player.GetColliders)
             {
                 coll.enabled = false;
@@ -255,7 +258,7 @@ namespace HPVR
             if (VRSystem.SetUpInput)
             {
                 SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
-                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueCanvas();
+                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
             }
 
             //foreach (var ui in UIManager.UIElements)
@@ -370,7 +373,7 @@ namespace HPVR
             }
         }
 
-        private void UpdateDialogueCanvas()
+        private void SetUpDialogueCanvas()
         {
             if (Dialogue is null)
             {
@@ -395,18 +398,17 @@ namespace HPVR
             var responses = Dialogue.transform.FindDeepChild("Responses");
             responses.localPosition = new(0, 0, 0);
             responses.localEulerAngles = new(0, 0, 0);
-            responses.localScale = new(1, 1, 0);
+            responses.localScale = new(1.2f, 1.2f, 0);
             responses.GetComponent<RectTransform>().sizeDelta = new(2000, 2000);
             var scrollView = Dialogue.transform.FindDeepChild("Scroll View");
             scrollView.localEulerAngles = new(0, 0, 0);
             scrollView.localScale = new(1, 1, 1);
-            UpdateDialogueResponses();
             scrollView.localPosition = new(0, -700, 0);
         }
 
         public void UpdateDialogueResponses()
         {
-            if(Dialogue is null)
+            if (Dialogue is null)
             {
                 return;
             }
@@ -536,7 +538,7 @@ namespace HPVR
                 {
                     DialogueVisible = true;
                     VRSystem.MovementEnabled = false;
-                    UpdateDialogueCanvas();
+                    SetUpDialogueCanvas();
                 }
                 else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
                 {
@@ -611,8 +613,11 @@ namespace HPVR
 
         private static void UpdateHPPlayerPositiion()
         {
-            var diff = Player.instance.transform.position - PlayerCharacter.Player.transform.position;
-            PlayerCharacter.Player.Controller.Move(diff);
+            PlayerCharacter.Player.transform.position = Player.instance.transform.position;
+            PlayerCharacter.Player.Controller.enabled = false;
+            PlayerCharacter.Player._controlManager.DeactivateMovement();
+            PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
+            //MelonLogger.Msg($"{PlayerCharacter.Player.transform.position.x} {PlayerCharacter.Player.transform.position.y} {PlayerCharacter.Player.transform.position.z}");
         }
 
         private static void TryEndDisclaimerScreen()
@@ -644,6 +649,7 @@ namespace HPVR
                 }
                 if (VRSystem.HandInputActive)
                 {
+                    MelonLogger.Msg("started loading new scene!");
                     loading._gameLoader.allowSceneActivation = true;
                 }
             }

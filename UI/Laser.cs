@@ -27,8 +27,8 @@ namespace HPVR.UI
         Transform LaserRoot;
         bool justEntered = false;
         public static RaycastHit LastHit;
-        public int LaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems", "InteractiveItemsHighlighted");
-        public static readonly int DefaultLaserMask = LayerMask.GetMask("UI", "Character", "Ragdolls", "InteractiveItems");
+        public int LaserMask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
+        public static readonly int DefaultLaserMask = LayerMask.GetMask("Default", "UI", "Ragdolls", "InteractiveItems", "InteractiveItemsHighlighted");
 #nullable restore
         internal Laser? otherLaser;
 
@@ -93,10 +93,22 @@ namespace HPVR.UI
 
             if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
             {
-                var interact = hit.transform.gameObject.GetComponent<Interactable>();
-                interact ??= hit.transform.gameObject.GetComponentInParent<Interactable>();
-                interact ??= hit.transform.gameObject.GetComponentInChildren<Interactable>();
-                MelonLogger.Msg("hit " + interact?.name);
+                var interact = hit.transform.GetComponent<Interactable>();
+                interact ??= hit.transform.GetComponentInParent<Interactable>();
+                interact ??= hit.transform.GetComponentInChildren<Interactable>();
+
+                //MelonLogger.Msg("hit " + hit.transform.name);
+
+                //may be a character
+                if (interact is null)
+                {
+                    var trans = hit.transform;
+                    while (trans.parent != null)
+                    {
+                        trans = trans.parent;
+                    }
+                    interact = trans.GetComponentInChildren<Interactable>();
+                }
 
                 if (interact is null)
                 {
