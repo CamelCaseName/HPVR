@@ -128,8 +128,6 @@ namespace HPVR.UI
                         break;
                 }
 
-                //todo tune
-                //canvas.scaleFactor *= 1.1f;
                 canvas.renderMode = RenderMode.WorldSpace;
                 if (!CanvasToIgnore.Contains(canvas.name))
                 {

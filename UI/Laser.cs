@@ -1,6 +1,7 @@
 ﻿using Il2CppEekCharacterEngine;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
+using Il2CppRootMotion.Dynamics;
 using MelonLoader;
 using UnityEngine;
 using Valve.VR;
@@ -21,7 +22,7 @@ namespace HPVR.UI
         Material laserMaterial;
 #pragma warning restore IDE0051, IDE0044, CS0169 // Remove unused private members
         Transform LaserBeam;
-        Interactable lastInteract;
+        public Interactable lastInteract;
         int sign;
         Transform hitPoint;
         Transform LaserRoot;
@@ -100,10 +101,11 @@ namespace HPVR.UI
                 //MelonLogger.Msg("hit " + hit.transform.name);
 
                 //may be a character
-                if (interact is null)
+                if (interact is null && hit.transform.GetComponentInParent<PuppetMaster>() is not null)
                 {
                     var trans = hit.transform;
-                    while (trans.parent != null)
+                    int i = 0;
+                    while (trans.parent != null && i++ < 10)
                     {
                         trans = trans.parent;
                     }

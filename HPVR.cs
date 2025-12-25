@@ -5,9 +5,12 @@ using HPVR.VR;
 using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
+using Il2CppEekCharacterEngine.Events;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
+using Il2CppEekEvents.Dialogues;
 using Il2CppEekEvents.Helper;
+using Il2CppEekEvents.Items;
 using Il2CppEekUI;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
@@ -37,6 +40,7 @@ namespace HPVR
         private Canvas? RadialCanvas;
         private Canvas? ScreenFade;
         private Canvas? Dialogue;
+        private InteractiveItem? itemWhenDialogueStart = null;
         private static bool shownLoadingScreenInfo = false;
         private bool DialogueVisible = false;
 
@@ -68,17 +72,12 @@ namespace HPVR
         //##################################################################
         //##
         //##    Steps still left to do before release:
-        //##    - Main menu UI has to be fully workable
-        //##    - in game items have to work on ui click, not necessarily with physics
-        //##    - add custom loading screen
-        //##    - dialogue in game needs to work
         //##    - bind controllers to all actions needed to play through the game, so 
         //##        - Inventory, memories and Opportunity with the Q radial
         //##        - Game Menu
         //##        - E Radial
 
         //todos:
-        //remove cinemachinebrain during cutscenes and loading screen (like with third person camera)
         //bind controllers
         //player hands have a monobehaviour handposer on them. might need to remove for vr
         //player hand ik bind to gloves
@@ -138,21 +137,23 @@ namespace HPVR
 
                 Player.instance.leftHand.useHoverSphere = true;
                 Player.instance.leftHand.useControllerHoverComponent = false;
-                Player.instance.leftHand.useFingerJointHover = true;
+                Player.instance.leftHand.useFingerJointHover = false;
                 Player.instance.rightHand.useHoverSphere = true;
                 Player.instance.rightHand.useControllerHoverComponent = false;
-                Player.instance.rightHand.useFingerJointHover = true;
+                Player.instance.rightHand.useFingerJointHover = false;
 
                 PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
+                var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
+                cinemachineBrain.enabled = false;
             }
             else if (inMainMenu)
             {
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
-                Player.instance.leftHand.useFingerJointHover = true;
+                Player.instance.leftHand.useFingerJointHover = false;
                 Player.instance.rightHand.useHoverSphere = false;
                 Player.instance.rightHand.useControllerHoverComponent = false;
-                Player.instance.rightHand.useFingerJointHover = true;
+                Player.instance.rightHand.useFingerJointHover = false;
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
                 Player.instance.transform.position = new(0.55f, 0, -10);
@@ -185,7 +186,6 @@ namespace HPVR
             {
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
                 cinemachineBrain.enabled = false;
-                //todo move character about 5 units forward and turn around
                 Player.instance.transform.position = new(0, 0, 3);
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);
                 foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
@@ -343,7 +343,6 @@ namespace HPVR
                         Dialogue = canvas;
                         break;
                     case "ScreenFadeCanvas":
-                        //todo disable in loading screen
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         UIManager.CanvasToIgnore.Add(canvas.name);
                         ScreenFade = canvas;
@@ -392,18 +391,23 @@ namespace HPVR
             Dialogue.transform.FindDeepChild("Stats").localPosition = new(100, 400, 0);
             Dialogue.transform.FindDeepChild("NameContainer").localPosition = new(-50, 120, 0);
             Dialogue.transform.FindDeepChild("WhiteBorder").localPosition = new(0, 0, 0);
+
             var text = Dialogue.transform.FindDeepChild("DialogueText");
             text.localPosition = new(0, 200, 0);
             text.GetComponent<RectTransform>().sizeDelta = new(1000, 200);
+
             var responses = Dialogue.transform.FindDeepChild("Responses");
             responses.localPosition = new(0, 0, 0);
             responses.localEulerAngles = new(0, 0, 0);
             responses.localScale = new(1.2f, 1.2f, 0);
             responses.GetComponent<RectTransform>().sizeDelta = new(2000, 2000);
+
             var scrollView = Dialogue.transform.FindDeepChild("Scroll View");
             scrollView.localEulerAngles = new(0, 0, 0);
             scrollView.localScale = new(1, 1, 1);
             scrollView.localPosition = new(0, -700, 0);
+
+            Dialogue.transform.localPosition += new Vector3(0, -400, 0);
         }
 
         public void UpdateDialogueResponses()
@@ -536,12 +540,27 @@ namespace HPVR
 
                 if (!DialogueVisible && DialogueUI.Singleton.IsShowing)
                 {
-                    DialogueVisible = true;
-                    VRSystem.MovementEnabled = false;
+                    if (itemWhenDialogueStart is null)
+                    {
+                        itemWhenDialogueStart = InteractiveItem.ActiveItem;
+                        DialogueVisible = true;
+                    }
                     SetUpDialogueCanvas();
+                }
+                //disable movement only when far enough away
+                else if (DialogueVisible && DialogueUI.Singleton.IsShowing)
+                {
+                    if (itemWhenDialogueStart is not null && VRSystem.MovementEnabled)
+                    {
+                        if (DistanceEvaluator.EvaluateOne(itemWhenDialogueStart.gameObject, SteamVR_Camera.instance.gameObject, 1.7f, GreaterThanLessThanEquations.GreaterThan))
+                        {
+                            VRSystem.MovementEnabled = false;
+                        }
+                    }
                 }
                 else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
                 {
+                    itemWhenDialogueStart = null;
                     DialogueVisible = false;
                     VRSystem.MovementEnabled = true;
                 }
@@ -702,7 +721,6 @@ namespace HPVR
                         }
                         MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
                         //todo add handposer depending on the type of collider we find/what object it really is
-                        //todo not only mount an interactive item to the hand but keep it relative to where the hand was when grabbing
                     }
                     else
                     {
@@ -759,23 +777,22 @@ namespace HPVR
         {
             foreach (var cam in Object.FindObjectsOfType<Camera>())
             {
-                cam.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
+                cam.cullingMask |= LayerMask.GetMask("InvisibleToMainCamera");
             }
 
-            //todo somehow the cullmask is still wrong
-            if (PlayerCharacter.Player.Gender == Genders.Female)
-            {
-                GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
-            }
-            else
-            {
-                GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-            }
-            GameObject.Find("Hair_Mirror")?.SetActive(false);
-            var lEye = playerChar.FindDeepChild("lEye");
-            lEye.localScale = Vector3.zero;
-            var rEye = playerChar.FindDeepChild("rEye");
-            rEye.localScale = Vector3.zero;
+            //if (PlayerCharacter.Player.Gender == Genders.Female)
+            //{
+            //    GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
+            //}
+            //else
+            //{
+            //    GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
+            //}
+            //GameObject.Find("Hair_Mirror")?.SetActive(false);
+            //var lEye = playerChar.FindDeepChild("lEye");
+            //lEye.localScale = Vector3.zero;
+            //var rEye = playerChar.FindDeepChild("rEye");
+            //rEye.localScale = Vector3.zero;
             removedPlayerHead = true;
         }
     }

@@ -32,6 +32,8 @@ namespace HPVR.Gameplay
 
         private Interactable? interactable = null;
         private InteractiveItem? interactiveItem = null;
+        private static readonly LayerMask interactiveItemLayer = LayerMask.NameToLayer("InteractiveItems");
+        private static readonly LayerMask interactiveItemLayerHigh = LayerMask.NameToLayer("InteractiveItemsHighlighted");
 
         //-------------------------------------------------
         protected virtual void Awake()
@@ -97,19 +99,25 @@ namespace HPVR.Gameplay
             bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
             //&& !interactable.CompareTag("Door")
-            if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None)
+            if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None
+                && (gameObject.layer == interactiveItemLayer || gameObject.layer == interactiveItemLayerHigh))
             {
-                // Save our position/rotation so that we can restore it when we detach
-                // no we can just take them and not return 
-                //oldPosition = transform.position;
-                //oldRotation = transform.rotation;
+                MelonLogger.Msg("checking if allowed to attach");
+                // only attach if not chosen via the laser
+                if (hand.GetComponent<Laser>().lastInteract != this)
+                {
+                    // Call this to continue receiving HandHoverUpdate messages,
+                    // and prevent the hand from hovering over anything else
+                    hand.HoverLock(interactable);
 
-                // Call this to continue receiving HandHoverUpdate messages,
-                // and prevent the hand from hovering over anything else
-                hand.HoverLock(interactable);
-
-                // Attach this object to the hand
-                hand.AttachObject(gameObject, startingGrabType, attachmentFlags);
+                    // Attach this object to the hand
+                    hand.AttachObject(gameObject, startingGrabType, attachmentFlags);
+                    MelonLogger.Msg("yes");
+                }
+                else
+                {
+                    MelonLogger.Msg("no");
+                }
             }
             else if (isGrabEnding)
             {
@@ -119,10 +127,7 @@ namespace HPVR.Gameplay
                 // Call this to undo HoverLock
                 hand.HoverUnlock(interactable);
 
-                // Restore position/rotation
-                // no
-                //transform.position = oldPosition;
-                //transform.rotation = oldRotation;
+                //add speed and rotation when letting to to keep physics
                 MelonLogger.Msg($"let go of {gameObject.name} with speed: {speed.x} {speed.y} {speed.z}");
                 gameObject.GetComponent<Rigidbody>().velocity = speed / Time.deltaTime;
                 gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed / Time.deltaTime;

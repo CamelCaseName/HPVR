@@ -360,7 +360,7 @@ namespace HPVR.VR
             leftHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             leftHand.useHoverSphere = true;
             leftHand.hoverSphereTransform = leftHoverSphere.transform;
-            leftHand.hoverSphereRadius = 0.075f;
+            leftHand.hoverSphereRadius = 0.1f;
             leftHand.hoverLayerMask = defaultHandMask;
             leftHand.hoverUpdateInterval = 0.5f;
             leftHand.useControllerHoverComponent = false;
@@ -475,7 +475,7 @@ namespace HPVR.VR
             rightHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             rightHand.useHoverSphere = true;
             rightHand.hoverSphereTransform = rightHoverSphere.transform;
-            rightHand.hoverSphereRadius = 0.075f;
+            rightHand.hoverSphereRadius = 0.1f;
             rightHand.hoverLayerMask = defaultHandMask;
             rightHand.hoverUpdateInterval = 0.5f;
             rightHand.useControllerHoverComponent = false;
