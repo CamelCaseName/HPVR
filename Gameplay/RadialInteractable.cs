@@ -100,13 +100,14 @@ namespace HPVR.Gameplay
 
             Interactable lastInteract = hand.GetComponent<Laser>().lastInteract;
 
+            //todo move this part to its own grabbable/throwable Interactive item component.
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None
                 && (gameObject.layer == interactiveItemLayer || gameObject.layer == interactiveItemLayerHigh))
             {
                 MelonLogger.Msg("checking if allowed to attach");
                 // only attach if not chosen via the laser
                 MelonLogger.Msg($"inter: {lastInteract.name} - {this.name}");
-                if (lastInteract != this)
+                if (lastInteract.name != this.name)
                 {
                     MelonLogger.Msg("yes");
                     // Call this to continue receiving HandHoverUpdate messages,
@@ -137,7 +138,7 @@ namespace HPVR.Gameplay
 
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            if (lastInteract == this && hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
+            if (lastInteract.name == this.name && hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
             {
                 MelonLogger.Msg("toggling radial on for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
@@ -167,6 +168,10 @@ namespace HPVR.Gameplay
                 RadialMenu.Singleton.transform.FindDeepChild("Line")?.gameObject?.SetActive(false);
 
                 MelonLogger.Msg("toggled radial on");
+            }
+            else
+            {
+                MelonLogger.Msg($"inter: {lastInteract.name} - {this.name}");
             }
         }
 

@@ -123,18 +123,22 @@ namespace HPVR
 
             UIManager.UpdateUIPos = true;
             shownLoadingScreenInfo = false;
-
+            int counter = 0;
+            MelonLogger.Msg((counter++).ToString());
             if (inGameMain)
             {
                 playerChar = PlayerCharacter.Player.transform;
+                MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
                 Player.instance.transform.position = new(0.65f, 0, 3.55f);
+                MelonLogger.Msg((counter++).ToString());
 
                 if (inGameMain && PlayerCharacter.Player is not null)
                 {
                     RemovePlayerHead();
                 }
+                MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.leftHand.useHoverSphere = true;
                 Player.instance.leftHand.useControllerHoverComponent = false;
@@ -142,29 +146,38 @@ namespace HPVR
                 Player.instance.rightHand.useHoverSphere = true;
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
+                MelonLogger.Msg((counter++).ToString());
 
                 PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
+                MelonLogger.Msg((counter++).ToString());
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
                 cinemachineBrain.enabled = false;
+                MelonLogger.Msg((counter++).ToString());
             }
             else if (inMainMenu)
             {
+                MelonLogger.Msg((counter++).ToString());
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
                 Player.instance.leftHand.useFingerJointHover = false;
                 Player.instance.rightHand.useHoverSphere = false;
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
+                MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
                 Player.instance.transform.position = new(0.55f, 0, -10);
+                MelonLogger.Msg((counter++).ToString());
 
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
+                MelonLogger.Msg((counter++).ToString());
 
                 CreateMainMenuBoundary();
+                MelonLogger.Msg((counter++).ToString());
 
                 UIManager.UpdateUIPos = false;
+                MelonLogger.Msg((counter++).ToString());
             }
             else if (Player.instance is not null)
             {
@@ -173,22 +186,27 @@ namespace HPVR
                     Player.instance.leftHand.useHoverSphere = false;
                     Player.instance.leftHand.useControllerHoverComponent = false;
                     Player.instance.leftHand.useFingerJointHover = false;
+                    MelonLogger.Msg((counter++).ToString());
                 }
                 if (Player.instance.rightHand is not null)
                 {
                     Player.instance.rightHand.useHoverSphere = false;
                     Player.instance.rightHand.useControllerHoverComponent = false;
                     Player.instance.rightHand.useFingerJointHover = true;
+                    MelonLogger.Msg((counter++).ToString());
                 }
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
+                MelonLogger.Msg((counter++).ToString());
             }
 
             if (inLoadingScreen && Player.instance is not null)
             {
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
                 cinemachineBrain.enabled = false;
+                MelonLogger.Msg((counter++).ToString());
                 Player.instance.transform.position = new(0, 0, 3);
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);
+                MelonLogger.Msg((counter++).ToString());
                 foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
                 {
                     if (obj.name == "ScreenFade")
@@ -198,20 +216,24 @@ namespace HPVR
                     }
                     obj.Cast<Canvas>().gameObject.AddComponent<WorldSpaceOverlayUI>();
                 }
+                MelonLogger.Msg((counter++).ToString());
             }
 
             UIManager.OnSceneChange();
             Hand.UpdateScene();
+            MelonLogger.Msg((counter++).ToString());
 
             if (!inGameMain && Player.instance is not null)
             {
                 if (Player.instance.leftHand is not null)
                 {
                     Player.instance.leftHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                    MelonLogger.Msg((counter++).ToString());
                 }
                 if (Player.instance.rightHand is not null)
                 {
                     Player.instance.rightHand.GetComponent<Laser>().LaserMask = Laser.DefaultLaserMask;
+                    MelonLogger.Msg((counter++).ToString());
                 }
             }
 
@@ -721,33 +743,34 @@ namespace HPVR
                     item.gameObject.AddComponent<RadialInteractable>();
 
                     //add special handlers apart from radial
-                    //if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
-                    //{
-                    //    item.gameObject.AddComponent<VelocityEstimator>();
-                    //    inter.highlightOnHover = false;
-                    //    inter.handFollowTransform = true;
-                    //    inter.snapAttachEaseInTime = 0.15f;
-                    //    inter.useHandObjectAttachmentPoint = true;
-                    //    if (item.gameObject.GetComponent<Rigidbody>() is not null)
-                    //    {
-                    //        var thrower = item.gameObject.AddComponent<Throwable>();
-                    //        thrower.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.TurnOffGravity | Hand.AttachmentFlags.VelocityMovement;
-                    //        thrower.catchingSpeedThreshold = -1;
-                    //        thrower.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
-                    //        thrower.releaseVelocityTimeOffset = -0.011f;
-                    //        thrower.scaleReleaseVelocity = 1.1f;
-                    //        thrower.scaleReleaseVelocityThreshold = -1;
-                    //        thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
-                    //        thrower.restoreOriginalParent = false;
-                    //    }
-                    //    //MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
-                    //    //todo add handposer depending on the type of collider we find/what object it really is
-                    //}
-                    //else
-                    //{
-                    //    inter.highlightOnHover = false;
-                    //    inter.useHandObjectAttachmentPoint = false;
-                    //}
+                    if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
+                    {
+                        item.gameObject.AddComponent<VelocityEstimator>();
+                        inter.highlightOnHover = false;
+                        inter.handFollowTransform = true;
+                        inter.snapAttachEaseInTime = 0.15f;
+                        inter.useHandObjectAttachmentPoint = true;
+                        if (item.gameObject.GetComponent<Rigidbody>() is not null)
+                        {
+                            var thrower = item.gameObject.AddComponent<Throwable>();
+                            thrower.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.TurnOffGravity | Hand.AttachmentFlags.VelocityMovement;
+                            thrower.catchingSpeedThreshold = -1;
+                            thrower.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
+                            thrower.releaseVelocityTimeOffset = -0.011f;
+                            thrower.scaleReleaseVelocity = 1.1f;
+                            thrower.scaleReleaseVelocityThreshold = -1;
+                            thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
+                            thrower.restoreOriginalParent = false;
+                        }
+                        //MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
+                        //todo add handposer depending on the type of collider we find/what object it really is
+                    }
+                    else
+                    {
+                        //this is currently the one we always get
+                        inter.highlightOnHover = false;
+                        inter.useHandObjectAttachmentPoint = false;
+                    }
                 }
             }
         }
