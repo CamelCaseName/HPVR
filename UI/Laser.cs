@@ -126,7 +126,11 @@ namespace HPVR.UI
                             RadialMenu.Singleton.Toggle();
                         }
                     }
-                    hand.hoveringInteractable = null;
+                    if (hand.hoveringInteractable == lastInteract || hand.hoveringInteractable == otherLaser.lastInteract)
+                    {
+                        hand.hoveringInteractable = null;
+                    }
+
                     return;
                 }
 
@@ -191,7 +195,11 @@ namespace HPVR.UI
                 if (lastInteract is not null)
                 {
                     hand.HoverUnlock(lastInteract);
-                    hand.hoveringInteractable = null;
+                    //todo test or add a smarter system where we always add a notice what hand or laser set the interactible...
+                    if (hand.hoveringInteractable == lastInteract || hand.hoveringInteractable == otherLaser.lastInteract)
+                    {
+                        hand.hoveringInteractable = null;
+                    }
                     justEntered = false;
                     lastInteract = null!;
                     LaserBeam.gameObject.SetActive(false);

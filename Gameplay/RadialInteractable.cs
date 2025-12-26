@@ -98,7 +98,6 @@ namespace HPVR.Gameplay
             GrabTypes startingGrabType = hand.GetGrabStarting();
             bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
-            //&& !interactable.CompareTag("Door")
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None
                 && (gameObject.layer == interactiveItemLayer || gameObject.layer == interactiveItemLayerHigh))
             {
@@ -106,6 +105,7 @@ namespace HPVR.Gameplay
                 // only attach if not chosen via the laser
                 if (hand.GetComponent<Laser>().lastInteract != this)
                 {
+                    MelonLogger.Msg($"inter: {hand.GetComponent<Laser>().lastInteract.name} - {this.name}");
                     // Call this to continue receiving HandHoverUpdate messages,
                     // and prevent the hand from hovering over anything else
                     hand.HoverLock(interactable);

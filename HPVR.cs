@@ -538,32 +538,7 @@ namespace HPVR
                 }
                 UpdateNarratorMessage();
 
-                if (!DialogueVisible && DialogueUI.Singleton.IsShowing)
-                {
-                    if (itemWhenDialogueStart is null)
-                    {
-                        itemWhenDialogueStart = InteractiveItem.ActiveItem;
-                        DialogueVisible = true;
-                    }
-                    SetUpDialogueCanvas();
-                }
-                //disable movement only when far enough away
-                else if (DialogueVisible && DialogueUI.Singleton.IsShowing)
-                {
-                    if (itemWhenDialogueStart is not null && VRSystem.MovementEnabled)
-                    {
-                        if (DistanceEvaluator.EvaluateOne(itemWhenDialogueStart.gameObject, SteamVR_Camera.instance.gameObject, 1.7f, GreaterThanLessThanEquations.GreaterThan))
-                        {
-                            VRSystem.MovementEnabled = false;
-                        }
-                    }
-                }
-                else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
-                {
-                    itemWhenDialogueStart = null;
-                    DialogueVisible = false;
-                    VRSystem.MovementEnabled = true;
-                }
+                TryDisableMoveDuringDialogue();
             }
             else if (inLoadingScreen)
             {
@@ -578,6 +553,43 @@ namespace HPVR
 
             VRSystem.Update();
             UIManager.Update();
+        }
+
+        private void TryDisableMoveDuringDialogue()
+        {
+            if (!DialogueVisible && DialogueUI.Singleton.IsShowing)
+            {
+                if (itemWhenDialogueStart is null)
+                {
+                    itemWhenDialogueStart = InteractiveItem.ActiveItem;
+                    DialogueVisible = true;
+                    //MelonLogger.Msg("set item and dialogue visible");
+                }
+                SetUpDialogueCanvas();
+            }
+            //disable movement only when far enough away
+            else if (DialogueVisible && DialogueUI.Singleton.IsShowing)
+            {
+                if (itemWhenDialogueStart is not null && VRSystem.MovementEnabled)
+                {
+                    if (DistanceEvaluator.EvaluateOne(itemWhenDialogueStart.gameObject, SteamVR_Camera.instance.gameObject, 2.3f, GreaterThanLessThanEquations.GreaterThan))
+                    {
+                        //MelonLogger.Msg("more than 2.3f away");
+                        VRSystem.MovementEnabled = false;
+                    }
+                }
+            }
+            else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
+            {
+                itemWhenDialogueStart = null;
+                DialogueVisible = false;
+                VRSystem.MovementEnabled = true;
+                //MelonLogger.Msg("unset item and dialogue visibility");
+            }
+            else if (!DialogueVisible && !DialogueUI.Singleton.IsShowing && itemWhenDialogueStart is not null)
+            {
+                itemWhenDialogueStart = null;
+            }
         }
 
         private static void UpdateNarratorMessage()
