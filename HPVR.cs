@@ -104,6 +104,7 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
         }
 
+        //todo fix crash here on all scenes but gamemain
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             inGameMain = sceneName == "GameMain";
@@ -644,10 +645,18 @@ namespace HPVR
 
         private static void UpdateHPPlayerPositiion()
         {
+            if (PlayerCharacter.Player is null)
+            {
+                return;
+            }
+
             PlayerCharacter.Player.transform.position = Player.instance.transform.position;
-            PlayerCharacter.Player.Controller.enabled = false;
-            PlayerCharacter.Player._controlManager.DeactivateMovement();
-            PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
+            if (PlayerCharacter.Player.Controller is not null)
+            {
+                PlayerCharacter.Player.Controller.enabled = false;
+            }
+            PlayerCharacter.Player._controlManager?.DeactivateMovement();
+            PlayerCharacter.Player.PuppetMaster?.Puppet?.gameObject?.SetActive(false);
             //MelonLogger.Msg($"{PlayerCharacter.Player.transform.position.x} {PlayerCharacter.Player.transform.position.y} {PlayerCharacter.Player.transform.position.z}");
         }
 
@@ -706,39 +715,39 @@ namespace HPVR
                 }
                 if (!Items.Contains(item))
                 {
-                    MelonLogger.Msg("iteminteractable checking: " + item.name + ":" + item.SpecialItemType.ToString());
+                    //MelonLogger.Msg("iteminteractable checking: " + item.name + ":" + item.SpecialItemType.ToString());
                     Items.Add(item);
                     var inter = item.gameObject.AddComponent<Interactable>();
                     item.gameObject.AddComponent<RadialInteractable>();
 
                     //add special handlers apart from radial
-                    if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
-                    {
-                        item.gameObject.AddComponent<VelocityEstimator>();
-                        inter.highlightOnHover = false;
-                        inter.handFollowTransform = true;
-                        inter.snapAttachEaseInTime = 0.15f;
-                        inter.useHandObjectAttachmentPoint = true;
-                        if (item.gameObject.GetComponent<Rigidbody>() is not null)
-                        {
-                            var thrower = item.gameObject.AddComponent<Throwable>();
-                            thrower.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.TurnOffGravity | Hand.AttachmentFlags.VelocityMovement;
-                            thrower.catchingSpeedThreshold = -1;
-                            thrower.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
-                            thrower.releaseVelocityTimeOffset = -0.011f;
-                            thrower.scaleReleaseVelocity = 1.1f;
-                            thrower.scaleReleaseVelocityThreshold = -1;
-                            thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
-                            thrower.restoreOriginalParent = false;
-                        }
-                        MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
-                        //todo add handposer depending on the type of collider we find/what object it really is
-                    }
-                    else
-                    {
-                        inter.highlightOnHover = false;
-                        inter.useHandObjectAttachmentPoint = false;
-                    }
+                    //if (item.SpecialItemType == Il2CppEekEvents.Items.SpecialItemTypes.None)
+                    //{
+                    //    item.gameObject.AddComponent<VelocityEstimator>();
+                    //    inter.highlightOnHover = false;
+                    //    inter.handFollowTransform = true;
+                    //    inter.snapAttachEaseInTime = 0.15f;
+                    //    inter.useHandObjectAttachmentPoint = true;
+                    //    if (item.gameObject.GetComponent<Rigidbody>() is not null)
+                    //    {
+                    //        var thrower = item.gameObject.AddComponent<Throwable>();
+                    //        thrower.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.TurnOffGravity | Hand.AttachmentFlags.VelocityMovement;
+                    //        thrower.catchingSpeedThreshold = -1;
+                    //        thrower.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
+                    //        thrower.releaseVelocityTimeOffset = -0.011f;
+                    //        thrower.scaleReleaseVelocity = 1.1f;
+                    //        thrower.scaleReleaseVelocityThreshold = -1;
+                    //        thrower.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0, 0.1f, 1, 1);
+                    //        thrower.restoreOriginalParent = false;
+                    //    }
+                    //    //MelonLogger.Msg("Added ItemInteractible onto " + item.gameObject.name);
+                    //    //todo add handposer depending on the type of collider we find/what object it really is
+                    //}
+                    //else
+                    //{
+                    //    inter.highlightOnHover = false;
+                    //    inter.useHandObjectAttachmentPoint = false;
+                    //}
                 }
             }
         }

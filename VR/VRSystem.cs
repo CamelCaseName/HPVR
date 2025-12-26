@@ -245,16 +245,16 @@ namespace HPVR.VR
             }
 
             leftController = new GameObject("Controller (left)");
-            leftController.transform.localPosition = new(0.25f, 1, 0);
             leftController.transform.parent = SteamVRobject.transform;
+            leftController.transform.localPosition = new(0.25f, 1, 0);
             leftController.layer = LayerMask.NameToLayer("Penis");
             var leftHoverSphere = new GameObject("HoverPoint");
             var leftObjectAttachement = new GameObject("ObjectAttachement");
-            leftHoverSphere.transform.localPosition = new(0.052f, -0.016f, -0.1163f);
             leftHoverSphere.transform.parent = leftController.transform;
+            leftHoverSphere.transform.localPosition = new(0.052f, -0.016f, -0.1163f);
+            leftObjectAttachement.transform.parent = leftController.transform;
             leftObjectAttachement.transform.localRotation = Quaternion.Euler(135, -170, -90);
             leftObjectAttachement.transform.localPosition = new(0.052f, -0.0157f, -0.1163f);
-            leftObjectAttachement.transform.parent = leftController.transform;
 
             //create the "prefabs"
             var leftControllerPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/prefabs/controller.prefab").Cast<GameObject>());
@@ -390,16 +390,16 @@ namespace HPVR.VR
             Object.DontDestroyOnLoad(leftController);
 
             rightController = new GameObject("Controller (right)");
-            rightController.transform.localPosition = new(0.25f, 1, 0);
             rightController.transform.parent = SteamVRobject.transform;
+            rightController.transform.localPosition = new(0.25f, 1, 0);
             rightController.layer = LayerMask.NameToLayer("Penis");
             var rightHoverSphere = new GameObject("HoverPoint");
             var rightObjectAttachement = new GameObject("ObjectAttachement");
-            rightHoverSphere.transform.localPosition = new(0.052f, -0.016f, -0.1163f);
             rightHoverSphere.transform.parent = rightController.transform;
+            rightHoverSphere.transform.localPosition = new(0.052f, -0.016f, -0.1163f);
+            rightObjectAttachement.transform.parent = rightController.transform;
             rightObjectAttachement.transform.localRotation = Quaternion.Euler(135, -170, -90);
             rightObjectAttachement.transform.localPosition = new(0.052f, -0.0157f, -0.1163f);
-            rightObjectAttachement.transform.parent = rightController.transform;
 
             var vrGloverightModelSlimPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/prefabs/vr_glove_right_model_slim.prefab").Cast<GameObject>());
             var vrGloverightFallback = vrGloverightModelSlimPrefab.transform.GetChild(1).gameObject;

@@ -98,21 +98,23 @@ namespace HPVR.Gameplay
             GrabTypes startingGrabType = hand.GetGrabStarting();
             bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
+            Interactable lastInteract = hand.GetComponent<Laser>().lastInteract;
+
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None
                 && (gameObject.layer == interactiveItemLayer || gameObject.layer == interactiveItemLayerHigh))
             {
                 MelonLogger.Msg("checking if allowed to attach");
                 // only attach if not chosen via the laser
-                if (hand.GetComponent<Laser>().lastInteract != this)
+                MelonLogger.Msg($"inter: {lastInteract.name} - {this.name}");
+                if (lastInteract != this)
                 {
-                    MelonLogger.Msg($"inter: {hand.GetComponent<Laser>().lastInteract.name} - {this.name}");
+                    MelonLogger.Msg("yes");
                     // Call this to continue receiving HandHoverUpdate messages,
                     // and prevent the hand from hovering over anything else
                     hand.HoverLock(interactable);
 
                     // Attach this object to the hand
                     hand.AttachObject(gameObject, startingGrabType, attachmentFlags);
-                    MelonLogger.Msg("yes");
                 }
                 else
                 {
@@ -135,7 +137,7 @@ namespace HPVR.Gameplay
 
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            if (hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
+            if (lastInteract == this && hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
             {
                 MelonLogger.Msg("toggling radial on for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
