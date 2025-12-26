@@ -5,7 +5,7 @@ using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Behaviours
 {
     [HarmonyPatch(typeof(InteractionManager), "FixedUpdate")]
     internal static class Patcher

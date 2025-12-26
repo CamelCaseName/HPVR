@@ -29,11 +29,15 @@ namespace HPVR.UI
                 {
                     Player.instance.leftHand.gameObject.AddComponent<Laser>();
                     leftinitialized = true;
+
+                    SyncLasersToAnother();
                 };
                 Player.instance.rightHand.OnHandInitialized += i =>
                 {
                     Player.instance.rightHand.gameObject.AddComponent<Laser>();
                     rightinitialized = true;
+
+                    SyncLasersToAnother();
                 };
                 initialized = true;
             }
@@ -42,12 +46,15 @@ namespace HPVR.UI
         public static void Update()
         {
             UpdateUIPositions();
+        }
 
-            if(!setLasers && leftinitialized && rightinitialized)
+        private static void SyncLasersToAnother()
+        {
+            if (!setLasers && leftinitialized && rightinitialized)
             {
                 setLasers = true;
-                Player.instance.leftHand.GetComponent<Laser>().otherLaser = Player.instance.rightHand.GetComponent<Laser>();
-                Player.instance.rightHand.GetComponent<Laser>().otherLaser = Player.instance.leftHand.GetComponent<Laser>();
+                Laser.LeftLaser.otherLaser = Laser.RightLaser;
+                Laser.RightLaser.otherLaser = Laser.LeftLaser;
             }
         }
 

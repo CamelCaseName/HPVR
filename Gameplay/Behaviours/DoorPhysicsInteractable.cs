@@ -4,14 +4,15 @@ using MelonLoader;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Behaviours
 {
     [RegisterTypeInIl2Cpp]
-    internal class ImmovableInteractable : MonoBehaviour
+    internal class DoorPhysicsInteractable : MonoBehaviour
     {
-        public ImmovableInteractable(IntPtr value) : base(value) { }
+        //todo someday
+        public DoorPhysicsInteractable(IntPtr value) : base(value) { }
 
-        public ImmovableInteractable() : base(ClassInjector.DerivedConstructorPointer<ImmovableInteractable>()) => ClassInjector.DerivedConstructorBody(this);
+        public DoorPhysicsInteractable() : base(ClassInjector.DerivedConstructorPointer<DoorPhysicsInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private string generalText = string.Empty;
         private string hoveringText = string.Empty;

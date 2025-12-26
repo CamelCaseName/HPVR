@@ -18,37 +18,18 @@ namespace HPVR.Gameplay
 
         public RadialInteractable() : base(ClassInjector.DerivedConstructorPointer<RadialInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
-        private string generalText = string.Empty;
-        private string hoveringText = string.Empty;
-        private Vector3 speed = Vector3.zero;
-        private Vector3 oldPos = Vector3.zero;
-        private Vector3 oldRot = Vector3.zero;
-        private Vector3 angularSpeed = Vector3.zero;
         private static Canvas? radialCanvas;
-
-        private float attachTime;
-
-        private readonly Hand.AttachmentFlags attachmentFlags = Hand.defaultAttachmentFlags & ~Hand.AttachmentFlags.SnapOnAttach & ~Hand.AttachmentFlags.DetachOthers & ~Hand.AttachmentFlags.VelocityMovement;
-
         private Interactable? interactable = null;
         private InteractiveItem? interactiveItem = null;
-        private static readonly LayerMask interactiveItemLayer = LayerMask.NameToLayer("InteractiveItems");
-        private static readonly LayerMask interactiveItemLayerHigh = LayerMask.NameToLayer("InteractiveItemsHighlighted");
 
         //-------------------------------------------------
         protected virtual void Awake()
         {
-            GeneralText = gameObject.name + " No Hand Hovering";
-            HoveringText = gameObject.name + " Hovering: False";
-
             interactable = GetComponent<Interactable>();
             interactiveItem = GetComponent<InteractiveItem>();
             interactable.HandHoverUpdate += HandHoverUpdate;
-            interactable.OnAttachedToHand += OnAttachedToHand;
-            interactable.OnDetachedFromHand += OnDetachedFromHand;
             interactable.OnHandHoverBegin += OnHandHoverBegin;
             interactable.OnHandHoverEnd += OnHandHoverEnd;
-            interactable.HandAttachedUpdate += HandAttachedUpdate;
         }
 
         //-------------------------------------------------
@@ -56,12 +37,6 @@ namespace HPVR.Gameplay
         //-------------------------------------------------
         private void OnHandHoverBegin(Hand hand, Vector2 pos, bool posIsValid)
         {
-            GeneralText = gameObject.name + " Hovering hand: " + hand.name;
-            if (gameObject.GetComponent<NonPlayerCharacter>())
-            {
-                //is npc
-                //MelonLogger.Msg("focused NPC");
-            }
             if (!RadialMenu.Singleton.IsShowing)
             {
                 //MelonLogger.Msg("radial not visible, updating item:");
@@ -76,7 +51,6 @@ namespace HPVR.Gameplay
         //-------------------------------------------------
         private void OnHandHoverEnd(Hand hand)
         {
-            GeneralText = gameObject.name + " No Hand Hovering";
             if (!RadialMenu.Singleton.IsShowing)
             {
                 InteractionManager.Singleton.CurrentFocusedItem = null;
@@ -93,57 +67,32 @@ namespace HPVR.Gameplay
             if (interactable is null)
             {
                 MelonLogger.Msg("interactable on " + name + " is null!!");
+                enabled = false;
                 return;
             }
-            GrabTypes startingGrabType = hand.GetGrabStarting();
-            bool isGrabEnding = hand.IsGrabEnding(gameObject);
 
-            Interactable lastInteract = hand.GetComponent<Laser>().lastInteract;
-
-            //todo move this part to its own grabbable/throwable Interactive item component.
-            if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None
-                && (gameObject.layer == interactiveItemLayer || gameObject.layer == interactiveItemLayerHigh))
+            Interactable? lastInteract = null;
+            if (hand.handType == SteamVR_Input_Sources.LeftHand)
             {
-                MelonLogger.Msg("checking if allowed to attach");
-                // only attach if not chosen via the laser
-                MelonLogger.Msg($"inter: {lastInteract.name} - {this.name}");
-                if (lastInteract.name != this.name)
-                {
-                    MelonLogger.Msg("yes");
-                    // Call this to continue receiving HandHoverUpdate messages,
-                    // and prevent the hand from hovering over anything else
-                    hand.HoverLock(interactable);
-
-                    // Attach this object to the hand
-                    hand.AttachObject(gameObject, startingGrabType, attachmentFlags);
-                }
-                else
-                {
-                    MelonLogger.Msg("no");
-                }
+                lastInteract = Laser.LeftLaser.pointingAt;
             }
-            else if (isGrabEnding)
+            else if (hand.handType == SteamVR_Input_Sources.RightHand)
             {
-                // Detach this object from the hand
-                hand.DetachObject(gameObject);
-
-                // Call this to undo HoverLock
-                hand.HoverUnlock(interactable);
-
-                //add speed and rotation when letting to to keep physics
-                MelonLogger.Msg($"let go of {gameObject.name} with speed: {speed.x} {speed.y} {speed.z}");
-                gameObject.GetComponent<Rigidbody>().velocity = speed / Time.deltaTime;
-                gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed / Time.deltaTime;
+                lastInteract = Laser.RightLaser.pointingAt;
             }
-
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            if (lastInteract.name == this.name && hand.uiInteractAction != null && (hand.uiInteractAction.stateUp || hand.otherHand.uiInteractAction.stateUp))
+            if (lastInteract?.name == this.name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
             {
                 MelonLogger.Msg("toggling radial on for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
                 InteractiveItem.ActiveItem = interactiveItem;
                 RadialMenu.Singleton._lastInteractedItem = interactiveItem;
+                //if its already showing toggle twice to turn off and on again
+                if (RadialMenu.Singleton.IsShowing)
+                {
+                    RadialMenu.Singleton.Toggle();
+                }
                 RadialMenu.Singleton.Toggle();
                 radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
 
@@ -167,56 +116,7 @@ namespace HPVR.Gameplay
                 RadialMenu.Singleton.transform.FindDeepChild("Target")?.gameObject?.SetActive(false);
                 RadialMenu.Singleton.transform.FindDeepChild("Line")?.gameObject?.SetActive(false);
 
-                MelonLogger.Msg("toggled radial on");
-            }
-            else
-            {
-                MelonLogger.Msg($"inter: {lastInteract.name} - {this.name}");
-            }
-        }
-
-        //-------------------------------------------------
-        // Called when this GameObject becomes attached to the hand
-        //-------------------------------------------------
-        private void OnAttachedToHand(Hand hand)
-        {
-            GeneralText = string.Format("Attached: {0}", hand.name);
-            attachTime = Time.time;
-        }
-
-        //-------------------------------------------------
-        // Called when this GameObject is detached from the hand
-        //-------------------------------------------------
-        private void OnDetachedFromHand(Hand hand)
-        {
-            GeneralText = string.Format("Detached: {0}", hand.name);
-        }
-
-        //-------------------------------------------------
-        // Called every Update() while this GameObject is attached to the hand
-        //-------------------------------------------------
-        private void HandAttachedUpdate(Hand hand)
-        {
-            GeneralText = string.Format("Attached: {0} :: Time: {1:F2}", hand.name, Time.time - attachTime);
-            speed = (gameObject.transform.position - oldPos);
-            angularSpeed = (gameObject.transform.rotation.eulerAngles - oldRot);
-            oldPos = gameObject.transform.position;
-            oldRot = gameObject.transform.rotation.eulerAngles;
-        }
-
-        private bool lastHovering = false;
-
-        public string GeneralText { get => generalText; set { generalText = value; MelonLogger.Msg(value); } }
-        public string HoveringText { get => hoveringText; set { hoveringText = value; MelonLogger.Msg(value); } }
-
-        protected virtual void Update()
-        {
-            if (interactable is null)
-            { return; }
-            if (interactable.isHovering != lastHovering) //save on the .tostrings a bit
-            {
-                HoveringText = string.Format("Hovering: {0}", interactable.isHovering);
-                lastHovering = interactable.isHovering;
+                //MelonLogger.Msg("toggled radial on");
             }
         }
     }

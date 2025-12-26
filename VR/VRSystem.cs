@@ -1,4 +1,4 @@
-﻿using HPVR.Gameplay;
+﻿using HPVR.Gameplay.Behaviours;
 using HPVR.utils;
 using Il2Cpp;
 using Il2CppInterop.Runtime;
@@ -30,7 +30,7 @@ namespace HPVR.VR
         static private GameObject vrPlayer = null!;
         static private CapsuleCollider playerBody = null!;
         static private GameObject SteamVRobject = null!;
-        static private readonly bool debug = false;
+        static private readonly bool debug = true;
 #nullable disable
         static private Hand leftHand;
         static private Hand rightHand;
@@ -41,6 +41,7 @@ namespace HPVR.VR
         static private string fallback_point = string.Empty;
         static private string fallback_relaxed = string.Empty;
         static private LayerMask defaultHandMask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
+        static private LayerMask defaultHoverMask = LayerMask.GetMask("Default", "InteractiveItems", "InteractiveItemsHighlighted");
         static private Vector3 hmdAbsoluteLastPosition = new();
         static private Vector3 hmdRotationPositionOffset = new();
         static private Vector3 vrCamPosition = new(0, 1.75f, 0);
@@ -155,8 +156,10 @@ namespace HPVR.VR
 
         private static void SetUpSteamVR()
         {
-            vrPlayer = new GameObject("VR Player");
-            vrPlayer.layer = LayerMask.NameToLayer("Ragdolls");
+            vrPlayer = new GameObject("VR Player")
+            {
+                layer = LayerMask.NameToLayer("Character")
+            };
             Object.DontDestroyOnLoad(vrPlayer);
 
             //we need a steamvr player as well for the hands :(
@@ -360,8 +363,8 @@ namespace HPVR.VR
             leftHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             leftHand.useHoverSphere = true;
             leftHand.hoverSphereTransform = leftHoverSphere.transform;
-            leftHand.hoverSphereRadius = 0.1f;
-            leftHand.hoverLayerMask = defaultHandMask;
+            leftHand.hoverSphereRadius = 0.15f;
+            leftHand.hoverLayerMask = defaultHoverMask;
             leftHand.hoverUpdateInterval = 0.5f;
             leftHand.useControllerHoverComponent = false;
             leftHand.controllerHoverComponent = "tip";
@@ -475,8 +478,8 @@ namespace HPVR.VR
             rightHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             rightHand.useHoverSphere = true;
             rightHand.hoverSphereTransform = rightHoverSphere.transform;
-            rightHand.hoverSphereRadius = 0.1f;
-            rightHand.hoverLayerMask = defaultHandMask;
+            rightHand.hoverSphereRadius = 0.15f;
+            rightHand.hoverLayerMask = defaultHoverMask;
             rightHand.hoverUpdateInterval = 0.5f;
             rightHand.useControllerHoverComponent = false;
             rightHand.controllerHoverComponent = "tip";

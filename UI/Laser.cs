@@ -22,21 +22,31 @@ namespace HPVR.UI
         Material laserMaterial;
 #pragma warning restore IDE0051, IDE0044, CS0169 // Remove unused private members
         Transform LaserBeam;
-        public Interactable lastInteract;
-        int sign;
+        public Interactable pointingAt;
         Transform hitPoint;
         Transform LaserRoot;
-        bool justEntered = false;
+        public static Laser LeftLaser { get; private set; }
+        public static Laser RightLaser { get; private set; }
+#nullable restore
+        int sign;
         public static RaycastHit LastHit;
+        bool justEntered = false;
         public int LaserMask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
         public static readonly int DefaultLaserMask = LayerMask.GetMask("Default", "UI", "Ragdolls", "InteractiveItems", "InteractiveItemsHighlighted");
-#nullable restore
         internal Laser? otherLaser;
 
         protected void Awake()
         {
             hand = GetComponent<Hand>();
             sign = hand.handType == SteamVR_Input_Sources.LeftHand ? -1 : 1;
+            if (hand.handType == SteamVR_Input_Sources.LeftHand)
+            {
+                LeftLaser = this;
+            }
+            else if (hand.handType == SteamVR_Input_Sources.RightHand)
+            {
+                RightLaser = this;
+            }
 
             //rootgo is attached to hand root, rootgo.forward is forward out of the fingers. more or less
             var laserRootGO = new GameObject("LaserRoot");
@@ -91,17 +101,27 @@ namespace HPVR.UI
             {
                 return;
             }
+            if (hitPoint is null)
+            {
+                return;
+            }
+            if (hand.hoverLocked)
+            {
+                LaserBeam.gameObject.SetActive(false);
+                hitPoint.gameObject.SetActive(false);
+                return;
+            }
 
             if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
             {
-                var interact = hit.transform.GetComponent<Interactable>();
-                interact ??= hit.transform.GetComponentInParent<Interactable>();
-                interact ??= hit.transform.GetComponentInChildren<Interactable>();
+                var interact = hit.transform?.GetComponent<Interactable>();
+                interact ??= hit.transform?.GetComponentInParent<Interactable>();
+                interact ??= hit.transform?.GetComponentInChildren<Interactable>();
 
-                //MelonLogger.Msg("hit " + hit.transform.name);
+                //MelonLogger.Msg("hit " + hit.transform?.name);
 
                 //may be a character
-                if (interact is null && hit.transform.GetComponentInParent<PuppetMaster>() is not null)
+                if (interact is null && hit.transform?.GetComponentInParent<PuppetMaster>() is not null)
                 {
                     var trans = hit.transform;
                     int i = 0;
@@ -114,65 +134,66 @@ namespace HPVR.UI
 
                 if (interact is null)
                 {
+                    //MelonLogger.Msg("interact null");
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
 
-                    if (HPVR.Instance?.inGameMain ?? false)
-                    {
-                        //disable radial if clicked
-                        if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && !hand.otherHand.hoverLocked && RadialMenu.Singleton.IsShowing)
-                        {
-                            MelonLogger.Msg("make radial go away");
-                            RadialMenu.Singleton.Toggle();
-                        }
-                    }
-                    if (hand.hoveringInteractable == lastInteract || hand.hoveringInteractable == otherLaser.lastInteract)
+                    CheckRadialShouldShow();
+                    if (hand.hoveringInteractable == pointingAt || hand.hoveringInteractable == otherLaser.pointingAt)
                     {
                         hand.hoveringInteractable = null;
                     }
 
+                    pointingAt = null;
                     return;
                 }
 
                 //we do hit the buttons at this point...
-
-                if (hand.hoveringInteractable == lastInteract && lastInteract != interact && lastInteract is not null)
-                {
-                    hand.HoverUnlock(lastInteract);
-                }
+                //MelonLogger.Msg("getting maybe ui");
+                var ui = pointingAt?.GetComponent<UIElement>();
                 if (hand.hoveringInteractable != interact)
                 {
-                    justEntered = true;
-                    if (hand.otherHand.hoveringInteractable is null)
+                    if (ui is not null && hand.otherHand?.hoveringInteractable is null)
                     {
-                        hand.HoverLock(interact);
+                        justEntered = true;
+                        hand.hoveringInteractable = interact;
                     }
-                    else
+                    else if (ui is not null)
                     {
-                        //MelonLogger.Msg($"{hand} got blocked by other hand from hovering {interact.gameObject.name}");
+                        hand.hoveringInteractable = null;
+                        pointingAt = null;
+                        LaserBeam.gameObject.SetActive(false);
+                        hitPoint.gameObject.SetActive(false);
+                        return;
+                    }
+                    else if (ui is null)
+                    {
+                        justEntered = true;
+                        hand.hoveringInteractable = interact;
                     }
                 }
-                lastInteract = interact;
+                pointingAt = interact;
 
                 hitPoint.position = hit.point;
                 LastHit = hit;
                 if (hand.ObjectIsAttached(interact.gameObject))
                 {
+                    //MelonLogger.Msg("deactivate because attached");
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
                 }
                 else
                 {
+                    //MelonLogger.Msg("set laser");
                     LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
                     LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
                     LaserBeam.gameObject.SetActive(true);
                     hitPoint.gameObject.SetActive(true);
                 }
 
-                var ui = lastInteract.GetComponent<UIElement>();
                 if (ui is not null)
                 {
-                    if (hand.otherHand.hoveringInteractable is null)
+                    if (hand.otherHand?.hoveringInteractable is null)
                     {
                         var screenHit = WorldToUISpace(ui.canvas, hit.point);
                         //var coll = hit.transform.GetComponent<Collider>();
@@ -188,32 +209,36 @@ namespace HPVR.UI
             }
             else
             {
-                if (hand.otherHand.hoveringInteractable == null)
+                if (hand.otherHand?.hoveringInteractable == null)
                 {
                     LastHit = new();
                 }
-                if (lastInteract is not null)
+                if (pointingAt is not null)
                 {
-                    hand.HoverUnlock(lastInteract);
                     //todo test or add a smarter system where we always add a notice what hand or laser set the interactible...
-                    if (hand.hoveringInteractable == lastInteract || hand.hoveringInteractable == otherLaser.lastInteract)
+                    if (hand.hoveringInteractable == pointingAt || hand.hoveringInteractable == otherLaser.pointingAt)
                     {
                         hand.hoveringInteractable = null;
                     }
                     justEntered = false;
-                    lastInteract = null!;
+                    pointingAt = null!;
                     LaserBeam.gameObject.SetActive(false);
                     hitPoint.gameObject.SetActive(false);
                 }
-                if (HPVR.Instance?.inGameMain ?? false)
-                {
-                    //disable radial if clicked
-                    if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp && !hand.otherHand.hoverLocked && RadialMenu.Singleton.IsShowing)
-                    {
-                        MelonLogger.Msg("make radial go away");
-                        RadialMenu.Singleton.Toggle();
-                    }
-                }
+
+                CheckRadialShouldShow();
+            }
+        }
+
+        private void CheckRadialShouldShow()
+        {
+            if ((HPVR.Instance?.inGameMain ?? false)
+                                    && ((hand.uiInteractAction != null && hand.uiInteractAction.stateUp) || (hand.otherHand?.uiInteractAction != null && hand.otherHand.uiInteractAction.stateUp))
+                                    && otherLaser?.pointingAt is null
+                                    && (RadialMenu.Singleton?.IsShowing ?? false))
+            {
+                MelonLogger.Msg("make radial go away");
+                RadialMenu.Singleton?.Toggle();
             }
         }
 

@@ -3,7 +3,7 @@ using MelonLoader;
 using UnityEngine;
 using Valve.VR;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Behaviours
 {
     [RegisterTypeInIl2Cpp()]
     public class CameraFader : MonoBehaviour
