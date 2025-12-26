@@ -17,19 +17,21 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] load into the house
 
-[ ] get the start message out of the way
+[x] get the start message out of the way
 
 [x] walk around in the house
 
 [x] trigger the radial menu
 
-[ ] interact with item via the radial
+[x] interact with item via the radial
 
-[ ] interact with characters via the radial 
+[x] interact with characters via the radial 
 
 [ ] interact with yourself via the radial 
 
 [ ] memories, inventory and so on
+
+[o] usw with menu
 
 [ ] settings and in game menu
 
@@ -41,7 +43,7 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] physics interaction with items and your vr hands
 
-[ ] grabbing items with your vr hands
+[x] grabbing items with your vr hands
 
 [ ] tying the Player model to your VR presence and using IK to estimate Pose
 

@@ -50,6 +50,7 @@ namespace HPVR.Gameplay.Behaviours
             GrabTypes startingGrabType = hand.GetGrabStarting();
 
             Interactable? laserPointingAt = null;
+            float distance = Laser.LastHit.distance;
             if (hand.handType == SteamVR_Input_Sources.LeftHand)
             {
                 laserPointingAt = Laser.LeftLaser.pointingAt;
@@ -63,9 +64,9 @@ namespace HPVR.Gameplay.Behaviours
             if (interactable.attachedToHand == null && startingGrabType != GrabTypes.None)
             {
                 //MelonLogger.Msg("checking if allowed to attach");
-                // only attach if not chosen via the laser
+                // only attach if not chosen via the laser, or at a very small distance
                 //MelonLogger.Msg($"inter: {laserPointingAt?.name} - {name}");
-                if (laserPointingAt?.name != name)
+                if (laserPointingAt?.name != name || (distance != 0 && distance < 0.3f))
                 {
                     //MelonLogger.Msg("yes");
                     // Call this to continue receiving HandHoverUpdate messages,
