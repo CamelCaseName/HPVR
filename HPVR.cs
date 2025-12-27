@@ -64,22 +64,16 @@ namespace HPVR
 
         public static bool Enabled { get; internal set; } = true;
         public static HPVR? Instance { get; private set; }
-        //##################################################################
-        //##################################################################
-        //##
-        //##    Steps still left to do before release:
-        //##    - bind controllers to all actions needed to play through the game, so 
-        //##        - Inventory, memories and Opportunity with the Q radial
-        //##        - Game Menu
-        //##        - E Radial
 
-        //todos:
-        //bind controllers
-        //player hands have a monobehaviour handposer on them. might need to remove for vr
-        //player hand ik bind to gloves
-        //maybe do IK with the player object -> finalik dokumentation
-        //curve ui canvases slightly
-        //build a keyboard? using maybe Ikeyboardevent
+        //todo set player is crouching if headset is low enough
+        //todo fix quest popup menu
+        //todo fix opportunity menu
+        //todo fix memory menu
+        //todo set player holding/taking item accordingly to what the player is actually grabbing
+        //todo use fists to hit people, depending on speed and if fully made a fist
+        //todo turn off cutscene movement in game main, but keep the teleporting and rotation setting in x and z
+        //todo use headset movement in POV sex
+        //todo use hand movement to masturbate
 
         public override void OnInitializeMelon()
         {
@@ -619,6 +613,7 @@ namespace HPVR
             Dialogue.transform.localPosition += new Vector3(0, -400, 0);
         }
 
+        //do not move screenfade at the beginning
         private void SetUpInGameCanvas()
         {
             foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
@@ -665,10 +660,12 @@ namespace HPVR
                         break;
 
                     //dont add to these
+                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
+                        canvas.transform.localScale *= 1.7f;
+                        goto case "UseSelectCanvas";
                     case "GameMenuCanvas":
                     case "AudioSettingsCanvas":
                     case "GameplaySettingsCanvas":
-                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
                     case "GraphicsMenuCanvas":
                     case "ConsoleCanvas":
                     case "DebugCanvas": //debug log

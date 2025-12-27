@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using HPVR.UI;
 using Il2Cpp;
 using Il2CppHouseParty.Interface;
 using MelonLoader;
@@ -21,6 +22,7 @@ namespace HPVR.Gameplay.Patches
                     item.RectTransform.localEulerAngles = Vector3.zero;
                     item.RectTransform.localPosition = new Vector3(item.RectTransform.localPosition.x, item.RectTransform.localPosition.y);
                 }
+                MessageHandler.Singleton.Canvas.GetComponent<WorldSpaceOverlayUI>().Start();
             }
         }
     }

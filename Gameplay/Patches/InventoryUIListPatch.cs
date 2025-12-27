@@ -2,6 +2,7 @@
 using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
 using Il2Cpp;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 using Valve.VR.InteractionSystem;
@@ -20,7 +21,8 @@ namespace HPVR.Gameplay.Patches
                 //MelonLogger.Msg($"{child.name} + {child.transform.position.x} + {child.transform.position.x}");
                 child.transform.localEulerAngles = Vector3.zero;
             }
-            if (container.parent.parent.name == "InventoryCanvas")
+
+            if (container.parent.parent.parent.parent.parent.name == "InventoryCanvas")
             {
                 foreach (var act in container.GetComponentsInChildren<InventoryGamepadAction>())
                 {

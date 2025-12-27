@@ -1,6 +1,9 @@
 ﻿using HPVR.Gameplay.Behaviours;
 using HPVR.utils;
 using Il2Cpp;
+using Il2CppEekCharacterEngine;
+using Il2CppEekCharacterEngine.Interaction;
+using Il2CppEekUI;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Standalone;
@@ -19,7 +22,8 @@ namespace HPVR.VR
     //loads all vr plugins and handles headset and controller movement
     internal static class VRSystem
     {
-        public const float gravity = -4f;
+        public const float gravity = -2f;
+        private const float Stepheight = 0.3f;
         public static bool Gravity = true;
         static private TrackedDevicePose_t[] poses = Array.Empty<TrackedDevicePose_t>();
         public static bool MovementEnabled = true;
@@ -49,7 +53,6 @@ namespace HPVR.VR
         public static float Deadzone = 0.0f;
         public static float speed = 0.5f;
         private static float FallTime = 0.01f;
-        private static float Stepheight = 0.3f;
         private static bool Grounded = false;
         private static bool rotated;
 
@@ -309,7 +312,6 @@ namespace HPVR.VR
             vrLeftGloveSkeleton.skeletonBlend = 1;
             vrLeftGloveSkeleton.mirroring = SteamVR_Behaviour_Skeleton.MirrorType.None;
             vrLeftGloveSkeleton.fallbackPoser = vrLeftFallback;
-            vrLeftGloveSkeleton.fallbackCurlAction = SteamVR_Actions.default_Squeeze;
             vrLeftGloveSkeleton.Initialize();
             vrLeftGloveSkeleton.FinishInit();
             MelonLogger.Warning("built the vrgloveleftmodelslimprefab");
@@ -357,8 +359,7 @@ namespace HPVR.VR
             leftHand.otherHand = null;
             leftHand.handType = SteamVR_Input_Sources.LeftHand;
             leftHand.trackedObject = null;
-            leftHand.grabPinchAction = SteamVR_Actions.default_GrabPinch;
-            leftHand.grabGripAction = SteamVR_Actions.default_GrabGrip;
+            leftHand.grabGripAction = SteamVR_Actions.default_Grab;
             leftHand.hapticAction = SteamVR_Actions.default_Haptic;
             leftHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             leftHand.useHoverSphere = true;
@@ -425,7 +426,6 @@ namespace HPVR.VR
             vrRightGloveSkeleton.skeletonBlend = 1;
             vrRightGloveSkeleton.mirroring = SteamVR_Behaviour_Skeleton.MirrorType.None;
             vrRightGloveSkeleton.fallbackPoser = vrRightFallback;
-            vrRightGloveSkeleton.fallbackCurlAction = SteamVR_Actions.default_Squeeze;
             vrRightGloveSkeleton.Initialize();
             vrRightGloveSkeleton.FinishInit();
             MelonLogger.Warning("built the vrgloverightmodelslimprefab");
@@ -472,8 +472,7 @@ namespace HPVR.VR
             rightHand = rightController.AddComponent<Hand>();
             rightHand.handType = SteamVR_Input_Sources.RightHand;
             rightHand.trackedObject = null;
-            rightHand.grabPinchAction = SteamVR_Actions.default_GrabPinch;
-            rightHand.grabGripAction = SteamVR_Actions.default_GrabGrip;
+            rightHand.grabGripAction = SteamVR_Actions.default_Grab;
             rightHand.hapticAction = SteamVR_Actions.default_Haptic;
             rightHand.uiInteractAction = SteamVR_Actions.default_InteractUI;
             rightHand.useHoverSphere = true;
@@ -722,9 +721,8 @@ namespace HPVR.VR
         private static void SetUpSteamActionsIfNeeded()
         {
             SteamVR_Actions._default.Activate();
-            SteamVR_Actions.platformer_Move.actionSet.Activate(priority: 1);
 
-            if (!SteamVR_Actions._default.IsActive() || !SteamVR_Actions.platformer_Move.actionSet.IsActive() || SetUpInput)
+            if (!SteamVR_Actions._default.IsActive() || SetUpInput)
             {
                 if (!SetUpInput)
                 {
@@ -733,9 +731,8 @@ namespace HPVR.VR
                 return;
             }
 
-            SteamVR_Actions.platformer_Move.onAxis += (SteamVR_Action_Vector2 fromAction, SteamVR_Input_Sources fromSource, Vector2 axis, Vector2 delta) =>
+            SteamVR_Actions.default_Move.onAxis += (fromAction, fromSource, axis, delta) =>
             {
-
                 if (axis.magnitude > Deadzone)
                 {
                     var yRotation = Quaternion.Euler(0, vrCamRotation.eulerAngles.y, 0);
@@ -752,16 +749,100 @@ namespace HPVR.VR
                 }
             };
 
-            SteamVR_Actions.default_SnapTurnLeft.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
+            SteamVR_Actions.default_SnapTurnLeft.onStateDown += (fromAction, fromSource) =>
             {
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
                 rotated = true;
             };
 
-            SteamVR_Actions.default_SnapTurnRight.onStateDown += (SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource) =>
+            SteamVR_Actions.default_SnapTurnRight.onStateDown += (fromAction, fromSource) =>
             {
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
                 rotated = true;
+            };
+
+            SteamVR_Actions.default_GameMenu.onStateDown += (fromAction, fromSource) =>
+            {
+                GameMenu.Singleton?.Toggle();
+            };
+
+            SteamVR_Actions.default_Inventory.onStateDown += (fromAction, fromSource) =>
+            {
+                InventoryUI.Singleton?.Toggle();
+            };
+
+            SteamVR_Actions.default_Memories.onStateDown += (fromAction, fromSource) =>
+            {
+                OpportunityWindowManager.Singleton?.OnMemories();
+                OpportunityWindowManager.Singleton?.Toggle();
+            };
+
+            SteamVR_Actions.default_Opportunities.onStateDown += (fromAction, fromSource) =>
+            {
+                OpportunityWindowManager.Singleton?.OnOpportunity();
+                OpportunityWindowManager.Singleton?.Toggle();
+            };
+
+            SteamVR_Actions.default_Self_Radial.onStateDown += (fromAction, fromSource) =>
+            {
+                if (RadialMenu.Singleton is null || InteractionManager.Singleton is null || PlayerCharacter.Player is null)
+                {
+                    return;
+                }
+                RadialInteractable.ToggleRadial(Vector3.zero, PlayerCharacter.Player.Interaction);
+            };
+
+            SteamVR_Actions.default_UI_Radial.onStateDown += (fromAction, fromSource) =>
+            {
+                if(OpportunityWindowManager.Singleton?.IsShowing ?? false)
+                {
+                    OpportunityWindowManager.Singleton?.Toggle();
+                }
+                if (InventoryUI.Singleton?.IsShowing ?? false)
+                {
+                    InventoryUI.Singleton?.Toggle();
+                }
+                UIRadialMenu.Singleton?.Toggle();
+            };
+
+            SteamVR_Actions.default_Combat.onStateDown += (fromAction, fromSource) =>
+            {
+                PlayerCharacter.Player?.OnCombatMode();
+            };
+
+            SteamVR_Actions.default_Crouch.onStateDown += (fromAction, fromSource) =>
+            {
+                if (PlayerCharacter.Player is null)
+                {
+                    return;
+                }
+                PlayerCharacter.Player.IsCrouching = !PlayerCharacter.Player.IsCrouching;
+            };
+
+            SteamVR_Actions.default_Flash.onStateDown += (fromAction, fromSource) =>
+            {
+                if (PlayerCharacter.Player is null)
+                {
+                    return;
+                }
+                if (PlayerCharacter.Player.Gender == Il2CppEekEvents.Genders.Female)
+                {
+                    PlayerCharacter.Player.OnFlashBreasts();
+                }
+                else
+                {
+                    PlayerCharacter.Player.OnPenis();
+                }
+            };
+
+            SteamVR_Actions.default_Masturbate.onStateDown += (fromAction, fromSource) =>
+            {
+                PlayerCharacter.Player?.OnMasturbate();
+            };
+
+            SteamVR_Actions.default_Pee.onStateDown += (fromAction, fromSource) =>
+            {
+                PlayerCharacter.Player?.OnPee();
             };
 
             SetUpInput = true;

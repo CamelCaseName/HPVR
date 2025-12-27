@@ -473,6 +473,5 @@ namespace HPVR.UI
                 }
             }
         }
-
     }
 }

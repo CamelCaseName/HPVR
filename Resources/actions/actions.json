@@ -1,24 +1,18 @@
 {
   "actions": [
     {
-      "name": "/actions/default/in/InteractUI",
-      "type": "boolean"
+      "name": "/actions/default/in/Move",
+      "type": "vector2",
+      "requirement": "mandatory"
     },
     {
-      "name": "/actions/default/in/Teleport",
-      "type": "boolean"
-    },
-    {
-      "name": "/actions/default/in/GrabPinch",
-      "type": "boolean"
-    },
-    {
-      "name": "/actions/default/in/GrabGrip",
+      "name": "/actions/default/in/Grab",
       "type": "boolean"
     },
     {
       "name": "/actions/default/in/Pose",
-      "type": "pose"
+      "type": "pose",
+      "requirement": "mandatory"
     },
     {
       "name": "/actions/default/in/SkeletonLeftHand",
@@ -31,11 +25,6 @@
       "skeleton": "/skeleton/hand/right"
     },
     {
-      "name": "/actions/default/in/Squeeze",
-      "type": "vector1",
-      "requirement": "optional"
-    },
-    {
       "name": "/actions/default/in/HeadsetOnHead",
       "type": "boolean",
       "requirement": "optional"
@@ -43,62 +32,82 @@
     {
       "name": "/actions/default/in/SnapTurnLeft",
       "type": "boolean",
-      "requirement": "suggested"
+      "requirement": "mandatory"
     },
     {
       "name": "/actions/default/in/SnapTurnRight",
-      "type": "boolean"
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/UI Radial",
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/Self_Radial",
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/Pee",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/Masturbate",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/InteractUI",
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/Inventory",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/Memories",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/Opportunities",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/Flash",
+      "type": "boolean",
+      "requirement": "suggested"
+    },
+    {
+      "name": "/actions/default/in/GameMenu",
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/Combat",
+      "type": "boolean",
+      "requirement": "mandatory"
+    },
+    {
+      "name": "/actions/default/in/Crouch",
+      "type": "boolean",
+      "requirement": "optional"
     },
     {
       "name": "/actions/default/out/Haptic",
       "type": "vibration"
-    },
-    {
-      "name": "/actions/platformer/in/Move",
-      "type": "vector2"
-    },
-    {
-      "name": "/actions/platformer/in/Jump",
-      "type": "boolean"
-    },
-    {
-      "name": "/actions/buggy/in/Steering",
-      "type": "vector2"
-    },
-    {
-      "name": "/actions/buggy/in/Throttle",
-      "type": "vector1"
-    },
-    {
-      "name": "/actions/buggy/in/Brake",
-      "type": "boolean"
-    },
-    {
-      "name": "/actions/buggy/in/Reset",
-      "type": "boolean"
-    },
-    {
-      "name": "/actions/mixedreality/in/ExternalCamera",
-      "type": "pose",
-      "requirement": "optional"
     }
   ],
   "action_sets": [
     {
       "name": "/actions/default",
-      "usage": "single"
-    },
-    {
-      "name": "/actions/platformer",
-      "usage": "single"
-    },
-    {
-      "name": "/actions/buggy",
-      "usage": "single"
-    },
-    {
-      "name": "/actions/mixedreality",
-      "usage": "single"
+      "usage": "leftright"
     }
   ],
   "default_bindings": [
@@ -158,18 +167,27 @@
   "localization": [
     {
       "language_tag": "en_US",
-      "/actions/default/in/GrabGrip": "Grab Grip",
-      "/actions/default/in/GrabPinch": "Grab Pinch",
       "/actions/default/in/HeadsetOnHead": "Headset on head (proximity sensor)",
-      "/actions/default/in/InteractUI": "Interact With UI",
       "/actions/default/in/Pose": "Pose",
       "/actions/default/in/SkeletonLeftHand": "Skeleton (Left)",
       "/actions/default/in/SkeletonRightHand": "Skeleton (Right)",
-      "/actions/default/in/Teleport": "Teleport",
       "/actions/default/out/Haptic": "Haptic",
-      "/actions/platformer/in/Jump": "Jump",
       "/actions/default/in/SnapTurnLeft": "Snap Turn (Left)",
-      "/actions/default/in/SnapTurnRight": "Snap Turn (Right)"
+      "/actions/default/in/SnapTurnRight": "Snap Turn (Right)",
+      "/actions/default/in/Move": "Move",
+      "/actions/default/in/UI Radial": "UI radial",
+      "/actions/default/in/Self_Radial": "Player radial",
+      "/actions/default/in/Pee": "Pee",
+      "/actions/default/in/Masturbate": "Masturbate",
+      "/actions/default/in/interactUI": "UI Interaction",
+      "/actions/default/in/Inventory": "Open Inventory",
+      "/actions/default/in/Memories": "Open Memories",
+      "/actions/default/in/Opportunities": "Open Opportunities",
+      "/actions/default/in/Flash": "Flash your private bits",
+      "/actions/default/in/Grab": "Grabbing",
+      "/actions/default/in/GameMenu": "Open game menu",
+      "/actions/default/in/Combat": "Toggle Combat mode",
+      "/actions/default/in/Crouch": "Toggle Crouch"
     }
   ]
 }
