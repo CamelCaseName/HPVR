@@ -1,90 +1,193 @@
 {
-  "bindings": {
-    "/actions/buggy": {
-      "chords": [],
-      "poses": [],
-      "haptics": [],
-      "sources": [],
-      "skeleton": []
-    },
-    "/actions/default": {
-      "chords": [],
-      "poses": [
-        {
-          "output": "/actions/default/in/pose",
-          "path": "/user/hand/left/pose/raw"
-        },
-        {
-          "output": "/actions/default/in/pose",
-          "path": "/user/hand/right/pose/raw"
-        }
-      ],
-      "haptics": [
-        {
-          "output": "/actions/default/out/haptic",
-          "path": "/user/hand/left/output/haptic"
-        },
-        {
-          "output": "/actions/default/out/haptic",
-          "path": "/user/hand/right/output/haptic"
-        }
-      ],
-      "sources": [
-        {
-          "path": "/user/hand/left/input/joystick",
-          "mode": "dpad",
-          "parameters": {
-            "deadzone_pct": "85",
-            "overlap_pct": "0",
-            "sub_mode": "touch"
-          },
-          "inputs": {
-            "east": {
-              "output": "/actions/default/in/snapturnright"
+   "bindings" : {
+      "/actions/buggy" : {
+         "chords" : [],
+         "haptics" : [],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : []
+      },
+      "/actions/default" : {
+         "chords" : [],
+         "haptics" : [
+            {
+               "output" : "/actions/default/out/haptic",
+               "path" : "/user/hand/left/output/haptic"
             },
-            "west": {
-              "output": "/actions/default/in/snapturnleft"
+            {
+               "output" : "/actions/default/out/haptic",
+               "path" : "/user/hand/right/output/haptic"
             }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/joystick",
-          "mode": "dpad",
-          "parameters": {
-            "deadzone_pct": "85",
-            "overlap_pct": "0",
-            "sub_mode": "touch"
-          },
-          "inputs": {
-            "east": {
-              "output": "/actions/default/in/snapturnright"
+         ],
+         "poses" : [
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/raw"
             },
-            "west": {
-              "output": "/actions/default/in/snapturnleft"
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/raw"
+            },
+            {
+               "output" : "none",
+               "path" : "/user/hand/left/pose/openxr_poke"
             }
-          }
-        }
-      ],
-      "skeleton": [
-        {
-          "output": "/actions/default/in/skeletonlefthand",
-          "path": "/user/hand/left/input/skeleton/left"
-        },
-        {
-          "output": "/actions/default/in/skeletonrighthand",
-          "path": "/user/hand/right/input/skeleton/right"
-        }
-      ]
-    },
-    "/actions/platformer": {
-      "chords": [],
-      "poses": [],
-      "haptics": [],
-      "sources": [],
-      "skeleton": []
-    }
-  },
-  "controller_type": "oculus_touch",
-  "description": "",
-  "name": "oculus_touch"
+         ],
+         "skeleton" : [
+            {
+               "output" : "/actions/default/in/skeletonlefthand",
+               "path" : "/user/hand/left/input/skeleton/left"
+            },
+            {
+               "output" : "/actions/default/in/skeletonrighthand",
+               "path" : "/user/hand/right/input/skeleton/right"
+            }
+         ],
+         "sources" : [
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/flash"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "click_activate_threshold" : "0.8",
+                  "click_deactivate_threshold" : "0.7"
+               },
+               "path" : "/user/hand/left/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/combat"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "click_activate_threshold" : "0.8",
+                  "click_deactivate_threshold" : "0.7"
+               },
+               "path" : "/user/hand/right/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/pee"
+                  },
+                  "position" : {
+                     "output" : "/actions/default/in/move"
+                  }
+               },
+               "mode" : "joystick",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/joystick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/gamemenu"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/application_menu"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/grab"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/self_radial"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/y"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/grab"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/interactui"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/a"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/interactui"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/x"
+            },
+            {
+               "inputs" : {
+                  "center" : {
+                     "output" : "/actions/default/in/masturbate"
+                  },
+                  "east" : {
+                     "output" : "/actions/default/in/snapturnright"
+                  },
+                  "north" : {
+                     "output" : "/actions/default/in/inventory"
+                  },
+                  "south" : {
+                     "output" : "/actions/default/in/opportunities"
+                  },
+                  "west" : {
+                     "output" : "/actions/default/in/snapturnleft"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "click"
+               },
+               "path" : "/user/hand/right/input/joystick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/ui radial"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/b"
+            }
+         ]
+      },
+      "/actions/platformer" : {
+         "chords" : [],
+         "haptics" : [],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : []
+      }
+   },
+   "controller_type" : "oculus_touch",
+   "description" : "",
+   "name" : "oculus_touch"
 }

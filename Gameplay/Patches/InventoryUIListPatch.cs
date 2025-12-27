@@ -2,7 +2,6 @@
 using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
 using Il2Cpp;
-using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 using Valve.VR.InteractionSystem;
