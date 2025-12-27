@@ -1,6 +1,10 @@
 # HPVR
 "small" mod to add vr into house party.
+based on MelonLoader, modified SteamVR, modified OpenXR and a whole bunch of custom stuff.
 
+late 2025 showcase:
+[<img src="https://img.youtube.com/vi/md4gWZ6TkTk/hqdefault.jpg" width="600" height="300"
+/>](https://www.youtube.com/embed/md4gWZ6TkTk)
 # currently still under development!.
 to use it you need to clone the repo and build the mod dll yourself!
 
@@ -13,7 +17,11 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] interact with most necessary Buttons in Main Menu UI
 
-[ ] interact with other controls apart from buttons (dropdown, sliders, etc.)
+[ ] interact with dropdowns
+
+[ ] interact with sliders/scrollviews correctly
+
+[ ] interact with the color selection
 
 [x] load into the house
 
@@ -27,17 +35,19 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] interact with characters via the radial 
 
-[ ] interact with yourself via the radial 
+[ ] open the radial to interact with yourself
 
-[ ] memories, inventory and so on
+[x] interact with yourself via the radial 
 
-[o] usw with menu
+[ ] open memories, inventory and so on with buttons
 
-[ ] settings and in game menu
+[x] interact with use with menu
 
-[ ] rebound controls for each window like on keyboard
+[x] interact with inventory
 
-[ ] POV intimacy
+[ ] open settings and in game menu
+
+[x] interact with settings and in game menu
 
 [ ] cutscene compatibility
 
@@ -45,9 +55,38 @@ to use it you need to clone the repo and build the mod dll yourself!
 
 [x] grabbing items with your vr hands
 
+[ ] POV intimacy
+
 [ ] tying the Player model to your VR presence and using IK to estimate Pose
 
 [ ] replacing vr hands with player hands
+
+[ ] using vr hands to punch
+
+[ ] using vr hands to physically open/close doors
+
+[ ] using vr hands to combine items
+
+# compatibility
+## game seller
+
+[x] tested with game bought on steam
+
+[ ] tested with game bought on gog
+
+[ ] tested with game bought on epic
+
+## vr hardware
+
+[ ] oculus quest 2
+
+[ ] oculus quest 3
+
+[ ] HTC Vive (Pro)
+
+[ ] Valve Index
+
+[x] WMR
 
 
 ## QuickStart MelonLoader
