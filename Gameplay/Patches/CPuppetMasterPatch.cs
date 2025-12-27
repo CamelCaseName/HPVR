@@ -29,7 +29,7 @@ namespace HPVR.Gameplay.Patches
                 {
                     if (puppet.mode != PuppetMaster.Mode.Kinematic)
                     {
-                    //MelonLogger.Msg(__instance.Character.name + " in range, turning puppet on");
+                        //MelonLogger.Msg(__instance.Character.name + " in range, turning puppet on");
                         puppet.SwitchToKinematicMode();
                         __instance.Cast<ComponentBase>().CUpdate();
                     }

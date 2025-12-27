@@ -1,5 +1,4 @@
-﻿using Il2CppEekCharacterEngine;
-using Il2CppEekUI;
+﻿using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppRootMotion.Dynamics;
 using MelonLoader;
@@ -38,19 +37,19 @@ namespace HPVR.UI
         protected void Awake()
         {
             hand = GetComponent<Hand>();
-            sign = hand.handType == SteamVR_Input_Sources.LeftHand ? -1 : 1;
-            if (hand.handType == SteamVR_Input_Sources.LeftHand)
+            sign = hand.handType == SteamVRInputSources.LeftHand ? -1 : 1;
+            if (hand.handType == SteamVRInputSources.LeftHand)
             {
                 LeftLaser = this;
             }
-            else if (hand.handType == SteamVR_Input_Sources.RightHand)
+            else if (hand.handType == SteamVRInputSources.RightHand)
             {
                 RightLaser = this;
             }
 
             //rootgo is attached to hand root, rootgo.forward is forward out of the fingers. more or less
             var laserRootGO = new GameObject("LaserRoot");
-            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVR_Skeleton_JointIndexEnum.root).parent;
+            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVRSkeletonJointIndexEnum.root).parent;
             laserRootGO.transform.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
             laserRootGO.transform.localEulerAngles = new Vector3(30, sign * -5, 0);
             LaserRoot = laserRootGO.transform;
@@ -180,9 +179,9 @@ namespace HPVR.UI
                         if (justEntered)
                         {
                             justEntered = false;
-                            hand.hoveringInteractable.OnHandHoverBegin_Internal(hand, screenHit, true);
+                            hand.hoveringInteractable.OnHandHoverBeginInternal(hand, screenHit, true);
                         }
-                        hand.hoveringInteractable.HandHoverUpdate_Internal(hand, screenHit, true);
+                        hand.hoveringInteractable.HandHoverUpdateInternal(hand, screenHit, true);
                     }
                 }
             }

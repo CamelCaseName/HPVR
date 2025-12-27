@@ -1,14 +1,8 @@
 ﻿using HPVR.UI;
-using Il2Cpp;
-using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
-using Il2CppEekEvents.Helper;
-using Il2CppEekEvents.Items;
-using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.UIElements;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 
@@ -64,11 +58,11 @@ namespace HPVR.Gameplay.Behaviours
             if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
             {
                 Vector3 point = Vector3.zero;
-                if (hand.handType == SteamVR_Input_Sources.LeftHand)
+                if (hand.handType == SteamVRInputSources.LeftHand)
                 {
                     point = Laser.LeftLaser.LastHit.point;
                 }
-                else if (hand.handType == SteamVR_Input_Sources.RightHand)
+                else if (hand.handType == SteamVRInputSources.RightHand)
                 {
                     point = Laser.RightLaser.LastHit.point;
                 }

@@ -5,11 +5,11 @@ namespace HPVR.utils
 {
     public static class Extensions
     {
-        public static string Beautify(this TrackedDevicePose_t[] values, string seperator = ", ")
+        public static string Beautify(this TrackedDevicePoseT[] values, string seperator = ", ")
         {
             StringBuilder stringBuilder = new(values.Length * 3);
 
-            foreach (TrackedDevicePose_t value in values)
+            foreach (TrackedDevicePoseT value in values)
             {
                 stringBuilder.Append(value.ToStringDetail() ?? null);
                 stringBuilder.Append(seperator);
@@ -19,7 +19,7 @@ namespace HPVR.utils
             return stringBuilder.ToString();
         }
 
-        public static string ToStringDetail(this TrackedDevicePose_t data)
+        public static string ToStringDetail(this TrackedDevicePoseT data)
         {
             var pos = data.mDeviceToAbsoluteTracking.GetPosition();
             var rot = data.mDeviceToAbsoluteTracking.GetRotation().eulerAngles;

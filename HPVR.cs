@@ -65,6 +65,7 @@ namespace HPVR
         public static bool Enabled { get; internal set; } = true;
         public static HPVR? Instance { get; private set; }
 
+        //todo add teleportation, maybe steamvrs teleportation component
         //todo set player is crouching if headset is low enough
         //todo fix quest popup menu
         //todo fix opportunity menu
@@ -232,7 +233,7 @@ namespace HPVR
 
         public override void OnUpdate()
         {
-            if (SteamVR_Camera.instance?.transform is null)
+            if (SteamVRCamera.instance?.transform is null)
             {
                 return;
             }
@@ -333,7 +334,7 @@ namespace HPVR
 
         private static void ScalePlayerToHMDHeight()
         {
-            var headSetHeight = SteamVR_Camera.instance.transform.position.y;
+            var headSetHeight = SteamVRCamera.instance.transform.position.y;
             if (headSetHeight > 1f)
             {
                 if (PlayerCharacter.Player.Gender == Genders.Male)
@@ -570,7 +571,7 @@ namespace HPVR
 
         private void UpdateCameraCulling()
         {
-            SteamVR_Camera.instance.camera.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
+            SteamVRCamera.instance.camera.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
 
             updatedCameraCull = true;
         }
@@ -723,7 +724,7 @@ namespace HPVR
             {
                 if (DialogueSpeaker is not null && VRSystem.MovementEnabled)
                 {
-                    if (DistanceEvaluator.EvaluateOne(DialogueSpeaker.gameObject, SteamVR_Camera.instance.gameObject, 2.1f, GreaterThanLessThanEquations.GreaterThan))
+                    if (DistanceEvaluator.EvaluateOne(DialogueSpeaker.gameObject, SteamVRCamera.instance.gameObject, 2.1f, GreaterThanLessThanEquations.GreaterThan))
                     {
                         //MelonLogger.Msg("more than 2.3f away");
                         VRSystem.MovementEnabled = false;
@@ -831,7 +832,7 @@ namespace HPVR
                 return;
             }
 
-            Transform camera = SteamVR_Camera.instance.transform;
+            Transform camera = SteamVRCamera.instance.transform;
             ScreenFade.transform.position = camera.position + (camera.rotation * Vector3.forward * 0.4f);
 
             ScreenFade.transform.LookAt(ScreenFade.transform.position - camera.position);

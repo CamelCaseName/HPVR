@@ -1,6 +1,4 @@
 ﻿using HPVR.UI;
-using Il2Cpp;
-using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
@@ -74,12 +72,12 @@ namespace HPVR.Gameplay.Behaviours
 
             Interactable? lastInteract = null;
             Vector3 point = Vector3.zero;
-            if (hand.handType == SteamVR_Input_Sources.LeftHand)
+            if (hand.handType == SteamVRInputSources.LeftHand)
             {
                 lastInteract = Laser.LeftLaser.pointingAt;
                 point = Laser.LeftLaser.LastHit.point;
             }
-            else if (hand.handType == SteamVR_Input_Sources.RightHand)
+            else if (hand.handType == SteamVRInputSources.RightHand)
             {
                 lastInteract = Laser.RightLaser.pointingAt;
                 point = Laser.RightLaser.LastHit.point;
@@ -116,7 +114,7 @@ namespace HPVR.Gameplay.Behaviours
                 return;
             }
 
-            Transform camera = SteamVR_Camera.instance.transform;
+            Transform camera = SteamVRCamera.instance.transform;
             if (point != Vector3.zero)
             {
                 radialCanvas.transform.position = point + camera.rotation * Vector3.forward * -0.3f;

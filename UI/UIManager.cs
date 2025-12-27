@@ -83,8 +83,8 @@ namespace HPVR.UI
                             continue;
                         }
 
-                        canvas.position = SteamVR_Camera.instance.transform.position + (SteamVR_Camera.instance.transform.rotation * Vector3.forward * 1.6f);
-                        canvas.rotation = SteamVR_Camera.instance.transform.rotation;
+                        canvas.position = SteamVRCamera.instance.transform.position + (SteamVRCamera.instance.transform.rotation * Vector3.forward * 1.6f);
+                        canvas.rotation = SteamVRCamera.instance.transform.rotation;
                     }
                     //todo FIX
                     catch

@@ -1,8 +1,6 @@
-﻿using HPVR.UI;
-using Il2CppInterop.Runtime.Injection;
+﻿using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
-using Valve.VR;
 using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Behaviours

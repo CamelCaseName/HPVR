@@ -1,10 +1,7 @@
 ﻿using HarmonyLib;
 using HPVR.UI;
-using Il2Cpp;
 using Il2CppHouseParty.Interface;
-using MelonLoader;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace HPVR.Gameplay.Patches
 {
