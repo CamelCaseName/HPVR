@@ -65,7 +65,7 @@ namespace HPVR.Gameplay.Behaviours
         //-------------------------------------------------
         private void HandHoverUpdate(Hand hand, Vector2 pos, bool posIsValid)
         {
-            if (interactable is null)
+            if (interactable is null || interactiveItem is null)
             {
                 MelonLogger.Msg("interactable on " + name + " is null!!");
                 enabled = false;
@@ -88,42 +88,48 @@ namespace HPVR.Gameplay.Behaviours
 
             if (lastInteract?.name == name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
             {
-                MelonLogger.Msg("toggling radial on for " + gameObject.name);
-                InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
-                InteractiveItem.ActiveItem = interactiveItem;
-                RadialMenu.Singleton._lastInteractedItem = interactiveItem;
-                //if its already showing toggle twice to turn off and on again
-                if (RadialMenu.Singleton.IsShowing)
-                {
-                    RadialMenu.Singleton.Toggle();
-                }
-                RadialMenu.Singleton.Toggle();
-
-                //only done once
-                radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
-
-                if (radialCanvas is null)
-                {
-                    MelonLogger.Msg("didnt find radialcanvas");
-                    return;
-                }
-
-                Transform camera = SteamVR_Camera.instance.transform;
-                if (point != Vector3.zero)
-                {
-                    radialCanvas.transform.position = point + camera.rotation * Vector3.forward * -0.3f;
-                }
-                else
-                {
-                    radialCanvas.transform.position = camera.position + camera.rotation * Vector3.forward * 1.45f;
-                }
-                //invert distance else it shows flipped
-                radialCanvas.transform.rotation = camera.rotation;
-                RadialMenu.Singleton.transform.FindDeepChild("Target")?.gameObject?.SetActive(false);
-                RadialMenu.Singleton.transform.FindDeepChild("Line")?.gameObject?.SetActive(false);
+                ToggleRadial(point, interactiveItem);
 
                 //MelonLogger.Msg("toggled radial on");
             }
+        }
+
+        public static void ToggleRadial(Vector3 point, InteractiveItem item)
+        {
+            MelonLogger.Msg("toggling radial on for " + item.name);
+            InteractionManager.Singleton.CurrentFocusedItem = item;
+            InteractiveItem.ActiveItem = item;
+            RadialMenu.Singleton._lastInteractedItem = item;
+            //if its already showing toggle twice to turn off and on again
+            if (RadialMenu.Singleton.IsShowing)
+            {
+                RadialMenu.Singleton.Toggle();
+            }
+            RadialMenu.Singleton.Toggle();
+
+            //only done once
+            radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
+
+            if (radialCanvas is null)
+            {
+                MelonLogger.Msg("didnt find radialcanvas");
+                return;
+            }
+
+            Transform camera = SteamVR_Camera.instance.transform;
+            if (point != Vector3.zero)
+            {
+                radialCanvas.transform.position = point + camera.rotation * Vector3.forward * -0.3f;
+            }
+            else
+            {
+                radialCanvas.transform.position = camera.position + camera.rotation * Vector3.forward * 1.45f;
+            }
+            //invert distance else it shows flipped
+            radialCanvas.transform.rotation = camera.rotation;
+            RadialMenu.Singleton.transform.FindDeepChild("Target")?.gameObject?.SetActive(false);
+            RadialMenu.Singleton.transform.FindDeepChild("Line")?.gameObject?.SetActive(false);
+            return;
         }
     }
 }

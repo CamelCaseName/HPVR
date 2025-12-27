@@ -526,7 +526,6 @@ namespace HPVR
             Laser.RightLaser.LaserMask = mask;
 
             //turn off player collision and hide the mesh for the camera, but not for mirrors
-            PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
             if (PlayerCharacter.Player.Gender == Genders.Male)
             {
                 var p = GameObject.Find("CH_PlayerMale");
@@ -646,9 +645,19 @@ namespace HPVR
                         if (canvas.transform?.parent?.name is (
                             "OpportunityWindow"
                             or "QuestPopup" //todo test
-                            or "Messages" //todo add patch to the populator to fix rotation for more than the first item.
+                            or "Messages"
                             or "InputManager2"
                             or "ThrowMeter" //todo fix at all
+                            ))
+                        {
+                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        }
+                        else if (canvas.transform?.name is (
+                            "OpportunityWindow"
+                            or "QuestPopup"
+                            or "Messages"
+                            or "InputManager2"
+                            or "ThrowMeter"
                             ))
                         {
                             canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
@@ -690,7 +699,6 @@ namespace HPVR
                         canvas.transform.localScale *= 1.5f;
                         break;
                     case "InventoryCanvas":
-                        //todo add component that triggers the radialmenu canvas as an onSubmit to all buttons in the inventory, whenever that is opened
                         break;
                     case "InteractionCanvas":
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
