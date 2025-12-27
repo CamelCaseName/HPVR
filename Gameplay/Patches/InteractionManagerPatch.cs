@@ -5,9 +5,9 @@ using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Gameplay.Behaviours
+namespace HPVR.Gameplay.Patches
 {
-    [HarmonyPatch(typeof(InteractionManager), "FixedUpdate")]
+    [HarmonyPatch(typeof(InteractionManager), nameof(InteractionManager.FixedUpdate))]
     internal static class Patcher
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]

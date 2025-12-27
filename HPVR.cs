@@ -1,5 +1,4 @@
-﻿using HPVR.Gameplay;
-using HPVR.Gameplay.Behaviours;
+﻿using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
 using HPVR.utils;
 using HPVR.VR;
@@ -26,29 +25,23 @@ namespace HPVR
 {
     public class HPVR : MelonMod
     {
-        public static HPVR? Instance { get; private set; }
-        public bool inGameMain = false;
-        public bool inMainMenu = false;
-        public bool inLoadingScreen;
         public bool inDisclaimer;
-        private bool removedPlayerHead = false;
-        private readonly List<BoxCollider> colliders = new(5);
+        public bool inGameMain = false;
+        public bool inLoadingScreen;
+        public bool inMainMenu = false;
         public Transform? playerChar;
-        private bool boundPlayerHands;
-        private Canvas? interactionCanvas;
-        private Canvas? RadialCanvas;
-        private Canvas? ScreenFade;
-        private Canvas? Dialogue;
-        private InteractiveItem? itemWhenDialogueStart = null;
         private static bool shownLoadingScreenInfo = false;
-        private bool DialogueVisible = false;
-        int IIHighlighted = LayerMask.NameToLayer("InteractiveItemsHighlighted");
-        int II = LayerMask.NameToLayer("InteractiveItems");
-
-        public static bool Enabled { get; internal set; } = true;
-
+        private readonly List<BoxCollider> colliders = new(5);
+        readonly int II = LayerMask.NameToLayer("InteractiveItems");
+        readonly int IIHighlighted = LayerMask.NameToLayer("InteractiveItemsHighlighted");
         private readonly List<InteractiveItem> Items = new();
-
+        private bool boundPlayerHands;
+        private Canvas? Dialogue;
+        private bool DialogueVisible = false;
+        private Canvas? interactionCanvas;
+        private CharacterBase? DialogueSpeaker = null;
+        private bool updatedCameraCull = false;
+        private Canvas? ScreenFade;
         static HPVR()
         {
             //MelonLogger.Msg("Static init");
@@ -69,6 +62,8 @@ namespace HPVR
             Enabled = false;
         }
 
+        public static bool Enabled { get; internal set; } = true;
+        public static HPVR? Instance { get; private set; }
         //##################################################################
         //##################################################################
         //##
@@ -105,7 +100,6 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
         }
 
-        //todo fix crash here on all scenes but gamemain
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             inGameMain = sceneName == "GameMain";
@@ -120,7 +114,14 @@ namespace HPVR
             UIManager.Initialize();
 
             MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
-            removedPlayerHead = false;
+            updatedCameraCull = false;
+
+            MelonLogger.Msg("Available Layers:");
+            MelonLogger.Msg(LayerMask.LayerToName(0));
+            for (int i = 0; i < 32; i++)
+            {
+                MelonLogger.Msg(LayerMask.LayerToName(1 << i));
+            }
 
             UIManager.UpdateUIPos = true;
             shownLoadingScreenInfo = false;
@@ -133,12 +134,6 @@ namespace HPVR
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
                 Player.instance.transform.position = new(0.65f, 0, 3.55f);
-                //MelonLogger.Msg((counter++).ToString());
-
-                if (inGameMain && PlayerCharacter.Player is not null)
-                {
-                    RemovePlayerHead();
-                }
                 //MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.leftHand.useHoverSphere = true;
@@ -241,197 +236,52 @@ namespace HPVR
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
         }
 
-        private void GameMainLateStart()
+        public override void OnUpdate()
         {
-            MelonLogger.Msg("late start");
-
-            CreateHouseBoundaryFixes();
-            UpdateInteractiveItems();
-
-            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
-            Laser.LeftLaser.LaserMask = mask;
-            Laser.RightLaser.LaserMask = mask;
-
-            //turn off player model and collision for now
-            PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
-            GameObject.Find("CH_PlayerFemale")?.SetActive(false);
-            GameObject.Find("CH_PlayerMale")?.SetActive(false);
-            PlayerCharacter.Player.Controller.enabled = false;
-            PlayerCharacter.Player._controlManager.DeactivateMovement();
-            PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
-            foreach (var coll in PlayerCharacter.Player.GetColliders)
+            if (SteamVR_Camera.instance?.transform is null)
             {
-                coll.enabled = false;
+                return;
             }
 
-            MelonLogger.Msg("disabling Volumetric Fog");
-            var fogs = GameObject.FindObjectsOfType<Volume>(true);
-            foreach (var f in fogs)
+            if (inGameMain)
             {
-                if (f?.name == "Fallback Fog Global Volume")
+                UpdateHPPlayerPositiion();
+                if (!updatedCameraCull)
                 {
-                    MelonLogger.Msg("turned on fallback fog");
-                    f.gameObject.SetActive(true);
-                    f.priority = 9999;
-                    break;
+                    UpdateCameraCulling();
                 }
-            }
-
-            VRSystem.SyncPlayerAndHMD();
-
-            if (VRSystem.SetUpInput)
-            {
-                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
-                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
-            }
-
-            //foreach (var ui in UIManager.UIElements)
-            //{
-            //    ui.GetComponent<UIElement>().SetDebugMesh("");
-            //}
-
-            //this one might crash so we do it last
-            SetUpInGameCanvas();
-        }
-
-        private void TrySkipDialogue()
-        {
-            if (!(DialogueUI.Singleton?.IsShowing ?? false))
-            {
-                return;
-            }
-
-            if (DialogueUI.Singleton.dialogueText.text.Length < DialogueUI.Singleton.textOnDisplay.Length)
-            {
-                DialogueUI.Singleton.dialogueText.text = DialogueUI.Singleton.textOnDisplay;
-                DialogueUI.Singleton.currentCharacter = DialogueUI.Singleton.textOnDisplay.Length;
-                DialogueUI.Singleton.DisplayResponses();
-            }
-        }
-
-        private static void CreateHouseBoundaryFixes()
-        {
-            MelonLogger.Msg("Fixing sliding door floor");
-            var sliderDoorFloor = new GameObject("floorFix");
-            sliderDoorFloor.transform.parent = GameObject.Find("Door_slide").transform;
-            sliderDoorFloor.layer = LayerMask.NameToLayer("Ground");
-            sliderDoorFloor.AddComponent<BoxCollider>();
-            sliderDoorFloor.transform.localPosition = new Vector3(0.4f, -0.47f, 0);
-
-            MelonLogger.Msg("fixed floor with " + sliderDoorFloor.name);
-        }
-
-        private void SetUpInGameCanvas()
-        {
-            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
-            {
-                Canvas canvas = obj.Cast<Canvas>();
-                switch (canvas.gameObject.name)
+                if (!boundPlayerHands)
                 {
-                    case "BGCUICanvas":
-                    case "OrgasmManager":
-                    case "NarrartorCanvas":
-                    case "GameOverCanvas":
-                    case "MiniGameCanvas":
-                    case "CombatManager":
-                    case "Relationship Notificatiops Canvas":
-                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        break;
-                    default:
-                        if (canvas.transform?.parent?.name is (
-                            "OpportunityWindow"
-                            or "QuestPopup"
-                            or "Messages"
-                            or "InputManager2"
-                            or "ThrowMeter"))
-                        {
-                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        }
-                        break;
-
-                    //dont add to these
-                    case "GameMenuCanvas":
-                    case "AudioSettingsCanvas":
-                    case "GameplaySettingsCanvas":
-                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
-                    case "GraphicsMenuCanvas":
-                    case "ConsoleCanvas":
-                    case "DebugCanvas": //debug log
-                    case "SaveCanvas":
-                    case "LoadCanvas":
-                    case "CameraView":
-                    case "MadisonPhoneCanvas":
-                    case "UseSelectCanvas":
-                        break;
-                    case "DialogueCanvas":
-                        Dialogue = canvas;
-                        break;
-                    case "ScreenFadeCanvas":
-                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        UIManager.CanvasToIgnore.Add(canvas.name);
-                        ScreenFade = canvas;
-                        break;
-                    case "RadialMenuCanvas":
-                        UIManager.CanvasToIgnore.Add(canvas.name);
-                        RadialCanvas = canvas;
-                        //hook all canvas buttons
-                        foreach (var button in canvas.GetComponentsInChildren<Button>())
-                        {
-                            button.GetComponent<UIElement>().OnSubmit += () =>
-                            {
-                                OnRadialButtonSubmit(button);
-                            };
-                        }
-                        canvas.transform.localScale *= 1.5f;
-                        break;
-                    case "InventoryCanvas":
-                        //todo add component that triggers the radialmenu canvas as an onSubmit to all buttons in the inventory, whenever that is opened
-                        break;
-                    case "InteractionCanvas":
-                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        UIManager.CanvasToIgnore.Add(canvas.name);
-                        interactionCanvas = canvas;
-                        break;
+                    BindPlayerHandsToVRHands();
                 }
-            }
-        }
 
-        private void SetUpDialogueCanvas()
-        {
-            if (Dialogue is null)
+                UpdateInteractiveItems();
+
+                if (interactionCanvas is not null)
+                {
+                    UpdateInteractionCanvas();
+                }
+                if (ScreenFade is not null)
+                {
+                    UpdateScreenFadeCanvas();
+                }
+                UpdateNarratorMessage();
+
+                TryDisableMoveDuringDialogue();
+            }
+            else if (inLoadingScreen)
             {
-                return;
+                TryEndLoadingScreen();
+                //MelonLogger.Msg($"{Player.instance.transform.position.x} {Player.instance.transform.position.y} {Player.instance.transform.position.z}");
+                //MelonLogger.Msg($"{Player.instance.transform.eulerAngles.x} {Player.instance.transform.eulerAngles.y} {Player.instance.transform.eulerAngles.z}");
             }
-
-            if (!Dialogue.gameObject.active)
+            else if (inDisclaimer)
             {
-                return;
+                TryEndDisclaimerScreen();
             }
 
-            MelonLogger.Msg("updating positions of dialogue UI");
-
-            Dialogue.transform.FindDeepChild("MoveCameraReminder").gameObject.SetActive(false);
-            Dialogue.transform.FindDeepChild("AvatarComponents").localPosition = new(-400, 400, 0);
-            Dialogue.transform.FindDeepChild("Stats").localPosition = new(100, 400, 0);
-            Dialogue.transform.FindDeepChild("NameContainer").localPosition = new(-50, 120, 0);
-            Dialogue.transform.FindDeepChild("WhiteBorder").localPosition = new(0, 0, 0);
-
-            var text = Dialogue.transform.FindDeepChild("DialogueText");
-            text.localPosition = new(0, 200, 0);
-            text.GetComponent<RectTransform>().sizeDelta = new(1000, 200);
-
-            var responses = Dialogue.transform.FindDeepChild("Responses");
-            responses.localPosition = new(0, 0, 0);
-            responses.localEulerAngles = new(0, 0, 0);
-            responses.localScale = new(1.2f, 1.2f, 0);
-            responses.GetComponent<RectTransform>().sizeDelta = new(2000, 2000);
-
-            var scrollView = Dialogue.transform.FindDeepChild("Scroll View");
-            scrollView.localEulerAngles = new(0, 0, 0);
-            scrollView.localScale = new(1, 1, 1);
-            scrollView.localPosition = new(0, -700, 0);
-
-            Dialogue.transform.localPosition += new Vector3(0, -400, 0);
+            VRSystem.Update();
+            UIManager.Update();
         }
 
         public void UpdateDialogueResponses()
@@ -445,6 +295,18 @@ namespace HPVR
             {
                 item.transform.localEulerAngles = new(0, 0, 0);
             }
+        }
+
+        private static void CreateHouseBoundaryFixes()
+        {
+            MelonLogger.Msg("Fixing sliding door floor");
+            var sliderDoorFloor = new GameObject("floorFix");
+            sliderDoorFloor.transform.parent = GameObject.Find("Door_slide").transform;
+            sliderDoorFloor.layer = LayerMask.NameToLayer("Ground");
+            sliderDoorFloor.AddComponent<BoxCollider>();
+            sliderDoorFloor.transform.localPosition = new Vector3(0.4f, -0.47f, 0);
+
+            MelonLogger.Msg("fixed floor with " + sliderDoorFloor.name);
         }
 
         private static void OnRadialButtonSubmit(Button button)
@@ -473,6 +335,127 @@ namespace HPVR
                     MelonLogger.Msg("option " + option + " is greyed out");
                 }
             }
+        }
+
+        private static void ScalePlayerToHMDHeight()
+        {
+            var headSetHeight = SteamVR_Camera.instance.transform.position.y;
+            if (headSetHeight > 1f)
+            {
+                if (PlayerCharacter.Player.Gender == Genders.Male)
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.75f);
+                }
+                else
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.65f);
+                }
+                PlayerCharacter.Player.IsCrouching = false;
+            }
+            else
+            {
+                if (PlayerCharacter.Player.Gender == Genders.Male)
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.8f);
+                }
+                else
+                {
+                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.73f);
+                }
+                PlayerCharacter.Player.IsCrouching = true;
+            }
+        }
+
+        private static void TryEndDisclaimerScreen()
+        {
+            var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
+            if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && VRSystem.HandInputActive)
+            {
+                disclaimer._shouldProcessSceneTransition = true;
+            }
+        }
+
+        private static void TryEndLoadingScreen()
+        {
+            var loading = Object.FindObjectOfType<LoadingScreenManager>();
+            if (loading is null)
+            {
+                return;
+            }
+            if (loading._gameLoader is null)
+            {
+                return;
+            }
+            if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f)
+            {
+                if (!shownLoadingScreenInfo)
+                {
+                    shownLoadingScreenInfo = true;
+                    MelonLogger.Msg("loading screen done!");
+                }
+                if (VRSystem.HandInputActive)
+                {
+                    MelonLogger.Msg("started loading new scene!");
+                    loading._gameLoader.allowSceneActivation = true;
+                }
+            }
+        }
+
+        private static void TrySkipDialogue()
+        {
+            if (!(DialogueUI.Singleton?.IsShowing ?? false))
+            {
+                return;
+            }
+
+            if (DialogueUI.Singleton.dialogueText.text.Length < DialogueUI.Singleton.textOnDisplay.Length)
+            {
+                DialogueUI.Singleton.dialogueText.text = DialogueUI.Singleton.textOnDisplay;
+                DialogueUI.Singleton.currentCharacter = DialogueUI.Singleton.textOnDisplay.Length;
+                DialogueUI.Singleton.DisplayResponses();
+            }
+        }
+
+        private static void UpdateHPPlayerPositiion()
+        {
+            if (PlayerCharacter.Player is null)
+            {
+                return;
+            }
+
+            PlayerCharacter.Player.transform.position = Player.instance.transform.position;
+            if (PlayerCharacter.Player.Controller is not null)
+            {
+                PlayerCharacter.Player.Controller.enabled = false;
+            }
+            PlayerCharacter.Player._controlManager?.DeactivateMovement();
+            PlayerCharacter.Player.PuppetMaster?.Puppet?.gameObject?.SetActive(false);
+            //MelonLogger.Msg($"{PlayerCharacter.Player.transform.position.x} {PlayerCharacter.Player.transform.position.y} {PlayerCharacter.Player.transform.position.z}");
+        }
+
+        private static void UpdateNarratorMessage()
+        {
+            if (!NarratorManager.Singleton.IsShowing)
+            {
+                return;
+            }
+            else if (VRSystem.HandInputActive)
+            {
+                NarratorManager.Singleton.Toggle();
+            }
+        }
+
+        private void BindPlayerHandsToVRHands()
+        {
+            if (PlayerCharacter.Player is null || Player.instance.leftHand is null || Player.instance.rightHand is null)
+            {
+                return;
+            }
+
+            PlayerCharacter.Player.FinalIK.BodyIK.solver.leftHandEffector.target = Player.instance.leftHand.transform;
+            PlayerCharacter.Player.FinalIK.BodyIK.solver.rightHandEffector.target = Player.instance.rightHand.transform;
+
+            boundPlayerHands = true;
         }
 
         private void CreateMainMenuBoundary()
@@ -531,61 +514,200 @@ namespace HPVR
             }
         }
 
-        public override void OnUpdate()
+        private void GameMainLateStart()
         {
-            if (SteamVR_Camera.instance?.transform is null)
+            MelonLogger.Msg("late start");
+
+            CreateHouseBoundaryFixes();
+            UpdateInteractiveItems();
+
+            var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
+            Laser.LeftLaser.LaserMask = mask;
+            Laser.RightLaser.LaserMask = mask;
+
+            //turn off player collision and hide the mesh for the camera, but not for mirrors
+            PlayerCharacter.Player._bodySkinnedMeshRenderer.enabled = false;
+            if (PlayerCharacter.Player.Gender == Genders.Male)
+            {
+                var p = GameObject.Find("CH_PlayerMale");
+                p.SetLayerRecursively(LayerMask.NameToLayer("InvisibleToMainCamera"));
+            }
+            else
+            {
+                var p = GameObject.Find("CH_PlayerFemale");
+                p.SetLayerRecursively(LayerMask.NameToLayer("InvisibleToMainCamera"));
+            }
+            PlayerCharacter.Player.Controller.enabled = false;
+            PlayerCharacter.Player._controlManager.DeactivateMovement();
+            PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
+            foreach (var coll in PlayerCharacter.Player.GetColliders)
+            {
+                coll.enabled = false;
+            }
+
+            MelonLogger.Msg("disabling Volumetric Fog");
+            var fogs = GameObject.FindObjectsOfType<Volume>(true);
+            foreach (var f in fogs)
+            {
+                if (f?.name == "Fallback Fog Global Volume")
+                {
+                    MelonLogger.Msg("turned on fallback fog");
+                    f.gameObject.SetActive(true);
+                    f.priority = 9999;
+                    break;
+                }
+            }
+
+            VRSystem.SyncPlayerAndHMD();
+
+            if (VRSystem.SetUpInput)
+            {
+                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
+                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
+            }
+
+            //foreach (var ui in UIManager.UIElements)
+            //{
+            //    ui.GetComponent<UIElement>().SetDebugMesh("");
+            //}
+
+            //this one might crash so we do it last
+            SetUpInGameCanvas();
+        }
+
+        private void UpdateCameraCulling()
+        {
+            SteamVR_Camera.instance.camera.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
+
+            updatedCameraCull = true;
+        }
+
+        private void SetUpDialogueCanvas()
+        {
+            if (Dialogue is null)
             {
                 return;
             }
 
-            if (inGameMain)
+            if (!Dialogue.gameObject.active)
             {
-                UpdateHPPlayerPositiion();
-                if (!removedPlayerHead)
-                {
-                    RemovePlayerHead();
-                }
-                if (!boundPlayerHands)
-                {
-                    BindPlayerHandsToVRHands();
-                }
-
-                UpdateInteractiveItems();
-
-                if (interactionCanvas is not null)
-                {
-                    UpdateInteractionCanvas();
-                }
-                if (ScreenFade is not null)
-                {
-                    UpdateScreenFadeCanvas();
-                }
-                UpdateNarratorMessage();
-
-                TryDisableMoveDuringDialogue();
-            }
-            else if (inLoadingScreen)
-            {
-                TryEndLoadingScreen();
-                //MelonLogger.Msg($"{Player.instance.transform.position.x} {Player.instance.transform.position.y} {Player.instance.transform.position.z}");
-                //MelonLogger.Msg($"{Player.instance.transform.eulerAngles.x} {Player.instance.transform.eulerAngles.y} {Player.instance.transform.eulerAngles.z}");
-            }
-            else if (inDisclaimer)
-            {
-                TryEndDisclaimerScreen();
+                return;
             }
 
-            VRSystem.Update();
-            UIManager.Update();
+            MelonLogger.Msg("updating positions of dialogue UI");
+
+            Dialogue.transform.FindDeepChild("MoveCameraReminder").gameObject.SetActive(false);
+            Dialogue.transform.FindDeepChild("AvatarComponents").localPosition = new(-400, 400, 0);
+            Dialogue.transform.FindDeepChild("Stats").localPosition = new(100, 400, 0);
+            Dialogue.transform.FindDeepChild("NameContainer").localPosition = new(-50, 120, 0);
+            Dialogue.transform.FindDeepChild("WhiteBorder").localPosition = new(0, 0, 0);
+
+            var text = Dialogue.transform.FindDeepChild("DialogueText");
+            text.localPosition = new(0, 200, 0);
+            text.GetComponent<RectTransform>().sizeDelta = new(1000, 200);
+
+            var responses = Dialogue.transform.FindDeepChild("Responses");
+            responses.localPosition = new(0, 0, 0);
+            responses.localEulerAngles = new(0, 0, 0);
+            responses.localScale = new(1.2f, 1.2f, 0);
+            responses.GetComponent<RectTransform>().sizeDelta = new(2000, 2000);
+
+            var scrollView = Dialogue.transform.FindDeepChild("Scroll View");
+            scrollView.localEulerAngles = new(0, 0, 0);
+            scrollView.localScale = new(1, 1, 1);
+            scrollView.localPosition = new(0, -700, 0);
+
+            Dialogue.transform.localPosition += new Vector3(0, -400, 0);
+        }
+
+        private void SetUpInGameCanvas()
+        {
+            foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
+            {
+                Canvas canvas = obj.Cast<Canvas>();
+                switch (canvas.gameObject.name)
+                {
+                    case "Relationship Notificatiops Canvas":
+                        canvas.transform.localPosition += new Vector3(200, 0, 0);
+                        goto case "GameOverCanvas";
+                    case "BGCUICanvas":
+                        canvas.transform.localPosition += new Vector3(0, -200, 0);
+                        goto case "GameOverCanvas";
+                    case "NarrartorCanvas":
+                        canvas.transform.localPosition += new Vector3(0, 200, 0);
+                        goto case "GameOverCanvas";
+                    case "OrgasmManager":
+                    case "MiniGameCanvas":
+                    case "CombatManager":
+                    case "GameOverCanvas":
+                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        break;
+                    default:
+                        if (canvas.transform?.parent?.name is (
+                            "OpportunityWindow"
+                            or "QuestPopup" //todo test
+                            or "Messages" //todo add patch to the populator to fix rotation for more than the first item.
+                            or "InputManager2"
+                            or "ThrowMeter" //todo fix at all
+                            ))
+                        {
+                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        }
+                        break;
+
+                    //dont add to these
+                    case "GameMenuCanvas":
+                    case "AudioSettingsCanvas":
+                    case "GameplaySettingsCanvas":
+                    case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
+                    case "GraphicsMenuCanvas":
+                    case "ConsoleCanvas":
+                    case "DebugCanvas": //debug log
+                    case "SaveCanvas":
+                    case "LoadCanvas":
+                    case "CameraView":
+                    case "MadisonPhoneCanvas":
+                    case "UseSelectCanvas":
+                        break;
+                    case "DialogueCanvas":
+                        Dialogue = canvas;
+                        break;
+                    case "ScreenFadeCanvas":
+                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        UIManager.CanvasToIgnore.Add(canvas.name);
+                        ScreenFade = canvas;
+                        break;
+                    case "RadialMenuCanvas":
+                        UIManager.CanvasToIgnore.Add(canvas.name);
+                        //hook all canvas buttons
+                        foreach (var button in canvas.GetComponentsInChildren<Button>())
+                        {
+                            button.GetComponent<UIElement>().OnSubmit += () =>
+                            {
+                                OnRadialButtonSubmit(button);
+                            };
+                        }
+                        canvas.transform.localScale *= 1.5f;
+                        break;
+                    case "InventoryCanvas":
+                        //todo add component that triggers the radialmenu canvas as an onSubmit to all buttons in the inventory, whenever that is opened
+                        break;
+                    case "InteractionCanvas":
+                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        UIManager.CanvasToIgnore.Add(canvas.name);
+                        interactionCanvas = canvas;
+                        break;
+                }
+            }
         }
 
         private void TryDisableMoveDuringDialogue()
         {
             if (!DialogueVisible && DialogueUI.Singleton.IsShowing)
             {
-                if (itemWhenDialogueStart is null)
+                if (DialogueSpeaker is null)
                 {
-                    itemWhenDialogueStart = InteractiveItem.ActiveItem;
+                    DialogueSpeaker = DialogueUI.Singleton.CurrentSpeaker;
                     DialogueVisible = true;
                     //MelonLogger.Msg("set item and dialogue visible");
                 }
@@ -594,9 +716,9 @@ namespace HPVR
             //disable movement only when far enough away
             else if (DialogueVisible && DialogueUI.Singleton.IsShowing)
             {
-                if (itemWhenDialogueStart is not null && VRSystem.MovementEnabled)
+                if (DialogueSpeaker is not null && VRSystem.MovementEnabled)
                 {
-                    if (DistanceEvaluator.EvaluateOne(itemWhenDialogueStart.gameObject, SteamVR_Camera.instance.gameObject, 2.3f, GreaterThanLessThanEquations.GreaterThan))
+                    if (DistanceEvaluator.EvaluateOne(DialogueSpeaker.gameObject, SteamVR_Camera.instance.gameObject, 2.1f, GreaterThanLessThanEquations.GreaterThan))
                     {
                         //MelonLogger.Msg("more than 2.3f away");
                         VRSystem.MovementEnabled = false;
@@ -605,45 +727,15 @@ namespace HPVR
             }
             else if (DialogueVisible && !DialogueUI.Singleton.IsShowing)
             {
-                itemWhenDialogueStart = null;
+                DialogueSpeaker = null;
                 DialogueVisible = false;
                 VRSystem.MovementEnabled = true;
                 //MelonLogger.Msg("unset item and dialogue visibility");
             }
-            else if (!DialogueVisible && !DialogueUI.Singleton.IsShowing && itemWhenDialogueStart is not null)
+            else if (!DialogueVisible && !DialogueUI.Singleton.IsShowing && DialogueSpeaker is not null)
             {
-                itemWhenDialogueStart = null;
+                DialogueSpeaker = null;
             }
-        }
-
-        private static void UpdateNarratorMessage()
-        {
-            if (!NarratorManager.Singleton.IsShowing)
-            {
-                return;
-            }
-            else if (VRSystem.HandInputActive)
-            {
-                NarratorManager.Singleton.Toggle();
-            }
-        }
-
-        private void UpdateScreenFadeCanvas()
-        {
-            if (ScreenFade is null)
-            {
-                return;
-            }
-
-            if (!(Il2CppEekCharacterEngine.Interface.ScreenFade.Singleton?.IsFadeVisible ?? false))
-            {
-                return;
-            }
-
-            Transform camera = SteamVR_Camera.instance.transform;
-            ScreenFade.transform.position = camera.position + (camera.rotation * Vector3.forward * 0.4f);
-
-            ScreenFade.transform.LookAt(ScreenFade.transform.position - camera.position);
         }
 
         private void UpdateInteractionCanvas()
@@ -652,69 +744,9 @@ namespace HPVR
             {
                 return;
             }
-
-            Transform camera = SteamVR_Camera.instance.transform;
-            if (Laser.LastHit.point != Vector3.zero)
+            if (interactionCanvas.enabled)
             {
-                interactionCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.05f);
-            }
-            else
-            {
-                interactionCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
-            }
-            //maybe this works, we'll see. or its 180 flipped
-            interactionCanvas.transform.rotation = camera.rotation;
-        }
-
-        private static void UpdateHPPlayerPositiion()
-        {
-            if (PlayerCharacter.Player is null)
-            {
-                return;
-            }
-
-            PlayerCharacter.Player.transform.position = Player.instance.transform.position;
-            if (PlayerCharacter.Player.Controller is not null)
-            {
-                PlayerCharacter.Player.Controller.enabled = false;
-            }
-            PlayerCharacter.Player._controlManager?.DeactivateMovement();
-            PlayerCharacter.Player.PuppetMaster?.Puppet?.gameObject?.SetActive(false);
-            //MelonLogger.Msg($"{PlayerCharacter.Player.transform.position.x} {PlayerCharacter.Player.transform.position.y} {PlayerCharacter.Player.transform.position.z}");
-        }
-
-        private static void TryEndDisclaimerScreen()
-        {
-            var disclaimer = Object.FindObjectOfType<DisclaimerManager>();
-            if (!disclaimer._shouldProcessSceneTransition && !disclaimer._loadedNextScene && VRSystem.HandInputActive)
-            {
-                disclaimer._shouldProcessSceneTransition = true;
-            }
-        }
-
-        private static void TryEndLoadingScreen()
-        {
-            var loading = Object.FindObjectOfType<LoadingScreenManager>();
-            if (loading is null)
-            {
-                return;
-            }
-            if (loading._gameLoader is null)
-            {
-                return;
-            }
-            if (!loading._gameLoader.allowSceneActivation && loading._loaded && loading._gameLoader.progress >= 0.9f)
-            {
-                if (!shownLoadingScreenInfo)
-                {
-                    shownLoadingScreenInfo = true;
-                    MelonLogger.Msg("loading screen done!");
-                }
-                if (VRSystem.HandInputActive)
-                {
-                    MelonLogger.Msg("started loading new scene!");
-                    loading._gameLoader.allowSceneActivation = true;
-                }
+                interactionCanvas.enabled = false;
             }
         }
 
@@ -750,80 +782,54 @@ namespace HPVR
 
                     if (item.gameObject.layer == II || item.gameObject.layer == IIHighlighted)
                     {
-                        //todo fine tune and keep out things like oven and stuff
                         //this seems to include most items for now
                         if (item.canBeGrabbed)
                         {
                             item.gameObject.AddComponent<GrabbableInteractable>();
+                            //var velocity = item.gameObject.AddComponent<VelocityEstimator>();
+                            //velocity.velocityAverageFrames = 5;
+                            //velocity.angularVelocityAverageFrames = 11;
+                            //velocity.estimateOnAwake = false;
+
+                            //var throwable = item.gameObject.AddComponent<Throwable>();
+                            //throwable.attachmentFlags = Hand.AttachmentFlags.SnapOnAttach | Hand.AttachmentFlags.DetachFromOtherHand | Hand.AttachmentFlags.ParentToHand | Hand.AttachmentFlags.TurnOnKinematic;
+                            //throwable.catchingSpeedThreshold = -1;
+                            //throwable.releaseVelocityStyle = ReleaseStyle.ShortEstimation;
+                            //throwable.releaseVelocityTimeOffset = -0.011f;
+                            //throwable.scaleReleaseVelocity = 1.1f;
+                            //throwable.scaleReleaseVelocityThreshold = -1;
+                            //throwable.scaleReleaseVelocityCurve = AnimationCurve.EaseInOut(0.0f, 0.1f, 1.0f, 1.0f);
+                            //throwable.restoreOriginalParent = true;
+
+                            var rigid = item.GetComponent<Rigidbody>();
+                            rigid ??= item.GetComponentInChildren<Rigidbody>();
+                            rigid ??= item.GetComponentInParent<Rigidbody>();
+                            if (rigid is not null)
+                            {
+                                rigid.useGravity = true;
+                            }
                         }
                     }
                 }
             }
         }
 
-        private void BindPlayerHandsToVRHands()
+        private void UpdateScreenFadeCanvas()
         {
-            if (PlayerCharacter.Player is null || Player.instance.leftHand is null || Player.instance.rightHand is null)
+            if (ScreenFade is null)
             {
                 return;
             }
 
-            PlayerCharacter.Player.FinalIK.BodyIK.solver.leftHandEffector.target = Player.instance.leftHand.transform;
-            PlayerCharacter.Player.FinalIK.BodyIK.solver.rightHandEffector.target = Player.instance.rightHand.transform;
-
-            boundPlayerHands = true;
-        }
-
-        private static void ScalePlayerToHMDHeight()
-        {
-            var headSetHeight = SteamVR_Camera.instance.transform.position.y;
-            if (headSetHeight > 1f)
+            if (!(Il2CppEekCharacterEngine.Interface.ScreenFade.Singleton?.IsFadeVisible ?? false))
             {
-                if (PlayerCharacter.Player.Gender == Genders.Male)
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.75f);
-                }
-                else
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.65f);
-                }
-                PlayerCharacter.Player.IsCrouching = false;
-            }
-            else
-            {
-                if (PlayerCharacter.Player.Gender == Genders.Male)
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.8f);
-                }
-                else
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.73f);
-                }
-                PlayerCharacter.Player.IsCrouching = true;
-            }
-        }
-
-        private void RemovePlayerHead()
-        {
-            foreach (var cam in Object.FindObjectsOfType<Camera>())
-            {
-                cam.cullingMask |= LayerMask.GetMask("InvisibleToMainCamera");
+                return;
             }
 
-            //if (PlayerCharacter.Player.Gender == Genders.Female)
-            //{
-            //    GameObject.Find("PlayerFemale_HeadMirror")?.SetActive(false);
-            //}
-            //else
-            //{
-            //    GameObject.Find("PlayerMale_HeadMirror")?.SetActive(false);
-            //}
-            //GameObject.Find("Hair_Mirror")?.SetActive(false);
-            //var lEye = playerChar.FindDeepChild("lEye");
-            //lEye.localScale = Vector3.zero;
-            //var rEye = playerChar.FindDeepChild("rEye");
-            //rEye.localScale = Vector3.zero;
-            removedPlayerHead = true;
+            Transform camera = SteamVR_Camera.instance.transform;
+            ScreenFade.transform.position = camera.position + (camera.rotation * Vector3.forward * 0.4f);
+
+            ScreenFade.transform.LookAt(ScreenFade.transform.position - camera.position);
         }
     }
 }

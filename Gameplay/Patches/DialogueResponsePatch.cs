@@ -1,9 +1,9 @@
 ﻿using HarmonyLib;
 using Il2CppEekUI;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Patches
 {
-    [HarmonyPatch(typeof(DialogueUI._DisplayResponses_d__59), "MoveNext")]
+    [HarmonyPatch(typeof(DialogueUI._DisplayResponses_d__59), nameof(DialogueUI._DisplayResponses_d__59.MoveNext))]
     internal class DialogueResponsePatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]

@@ -1,4 +1,5 @@
 ﻿using HPVR.UI;
+using Il2Cpp;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents.Helper;
@@ -9,7 +10,7 @@ using UnityEngine;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Behaviours
 {
     [RegisterTypeInIl2Cpp]
     internal class RadialInteractable : MonoBehaviour
@@ -72,17 +73,20 @@ namespace HPVR.Gameplay
             }
 
             Interactable? lastInteract = null;
+            Vector3 point = Vector3.zero;
             if (hand.handType == SteamVR_Input_Sources.LeftHand)
             {
                 lastInteract = Laser.LeftLaser.pointingAt;
+                point = Laser.LeftLaser.LastHit.point;
             }
             else if (hand.handType == SteamVR_Input_Sources.RightHand)
             {
                 lastInteract = Laser.RightLaser.pointingAt;
+                point = Laser.RightLaser.LastHit.point;
             }
             //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            if (lastInteract?.name == this.name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
+            if (lastInteract?.name == name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
             {
                 MelonLogger.Msg("toggling radial on for " + gameObject.name);
                 InteractionManager.Singleton.CurrentFocusedItem = interactiveItem;
@@ -94,6 +98,8 @@ namespace HPVR.Gameplay
                     RadialMenu.Singleton.Toggle();
                 }
                 RadialMenu.Singleton.Toggle();
+
+                //only done once
                 radialCanvas ??= GameObject.Find("RadialMenuCanvas").GetComponent<Canvas>();
 
                 if (radialCanvas is null)
@@ -103,13 +109,13 @@ namespace HPVR.Gameplay
                 }
 
                 Transform camera = SteamVR_Camera.instance.transform;
-                if (Laser.LastHit.point != Vector3.zero)
+                if (point != Vector3.zero)
                 {
-                    radialCanvas.transform.position = Laser.LastHit.point + (camera.rotation * Vector3.forward * -0.3f);
+                    radialCanvas.transform.position = point + camera.rotation * Vector3.forward * -0.3f;
                 }
                 else
                 {
-                    radialCanvas.transform.position = camera.position + (camera.rotation * Vector3.forward * 1.45f);
+                    radialCanvas.transform.position = camera.position + camera.rotation * Vector3.forward * 1.45f;
                 }
                 //invert distance else it shows flipped
                 radialCanvas.transform.rotation = camera.rotation;

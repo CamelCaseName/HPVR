@@ -3,9 +3,9 @@ using Il2CppEekAddOns;
 using Il2CppEekCharacterEngine;
 using Il2CppRootMotion.Dynamics;
 
-namespace HPVR.Gameplay
+namespace HPVR.Gameplay.Patches
 {
-    [HarmonyPatch(typeof(CPuppetMaster), "CUpdate")]
+    [HarmonyPatch(typeof(CPuppetMaster), nameof(CPuppetMaster.CUpdate))]
     internal class CPuppetMasterPatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]
