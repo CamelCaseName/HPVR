@@ -26,7 +26,6 @@ namespace HPVR.Gameplay.Behaviours
         //-------------------------------------------------
         protected virtual void Awake()
         {
-            //todo change because im sure this works differently
             //we can get the item name from the transform name and get the item object with that
             interactable = GetComponent<Interactable>();
             interactable.HandHoverUpdate += HandHoverUpdate;

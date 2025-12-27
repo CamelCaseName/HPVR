@@ -14,16 +14,10 @@ namespace HPVR.UI
         TextMeshProUGUI[] uiTextsToApplyTo = Array.Empty<TextMeshProUGUI>();
         //Allows us to reuse materials
         private readonly Dictionary<Material, Material> materialMappings = new();
-        protected virtual void Start()
+        public virtual void Start()
         {
-            if (uiGraphicsToApplyTo.Length == 0)
-            {
-                uiGraphicsToApplyTo = gameObject.GetComponentsInChildren<Graphic>();
-            }
-            if (uiTextsToApplyTo.Length == 0)
-            {
-                uiTextsToApplyTo = gameObject.GetComponentsInChildren<TextMeshProUGUI>();
-            }
+            uiGraphicsToApplyTo = gameObject.GetComponentsInChildren<Graphic>();
+            uiTextsToApplyTo = gameObject.GetComponentsInChildren<TextMeshProUGUI>();
             foreach (var graphic in uiGraphicsToApplyTo)
             {
                 Material material = graphic.materialForRendering;

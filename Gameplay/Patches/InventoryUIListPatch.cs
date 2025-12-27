@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using HPVR.Gameplay.Behaviours;
+using HPVR.UI;
 using Il2Cpp;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,7 +20,7 @@ namespace HPVR.Gameplay.Patches
                 //MelonLogger.Msg($"{child.name} + {child.transform.position.x} + {child.transform.position.x}");
                 child.transform.localEulerAngles = Vector3.zero;
             }
-            if (container.GetComponentInParent<Canvas>().name == "InventoryCanvas")
+            if (container.parent.parent.name == "InventoryCanvas")
             {
                 foreach (var act in container.GetComponentsInChildren<InventoryGamepadAction>())
                 {
@@ -27,9 +28,14 @@ namespace HPVR.Gameplay.Patches
                     if (maybe == null)
                     {
                         act.gameObject.AddComponent<InventoryInteractable>();
-                        act.gameObject.GetComponent<UIElement>().enabled = false;
+                        var ui = act.gameObject.GetComponent<UIElement>();
+                        if (ui is not null)
+                        {
+                            ui.enabled = false;
+                        }
                     }
                 }
+                container.GetComponent<WorldSpaceOverlayUI>().Start();
             }
         }
     }

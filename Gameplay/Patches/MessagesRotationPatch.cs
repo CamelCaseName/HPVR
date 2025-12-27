@@ -10,7 +10,6 @@ namespace HPVR.Gameplay.Patches
     [HarmonyPatch(typeof(MessageHandler), nameof(MessageHandler.OnDisplayMessage))]
     internal class MessageRotationPatch
     {
-        //todo
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]
         private static void Postfix()
         {
