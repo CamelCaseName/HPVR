@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using UnityEngine;
 using Valve.VR;
 
 namespace HPVR.utils
@@ -26,6 +27,15 @@ namespace HPVR.utils
             var vel = data.vVelocity;
             var ang = data.vAngularVelocity;
             return $"pos: x{pos.x} y{pos.y} z{pos.z} |rot: x{rot.x} y{rot.y} z{rot.z} |vel: x{vel.v0} y{vel.v1} z{vel.v2} |ang: x{ang.v0} y{ang.v1} z{ang.v2}";
+        }
+
+        public static void MoveContents(this Canvas canvas, Vector3 moveBy)
+        {
+            for (int i = 0; i < canvas.transform.childCount; i++)
+            {
+                var child = canvas.transform.GetChild(i);
+                child.localPosition += moveBy;
+            }
         }
     }
 }

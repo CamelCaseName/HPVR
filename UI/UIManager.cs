@@ -139,7 +139,7 @@ namespace HPVR.UI
                         }
                         else
                         {
-                            canvas.transform.localScale *= 0.0008f;
+                            canvas.transform.localScale *= 0.001f;
                         }
                         break;
                 }

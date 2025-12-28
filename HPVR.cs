@@ -16,6 +16,7 @@ using MelonLoader;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
@@ -64,8 +65,8 @@ namespace HPVR
         public static bool Enabled { get; internal set; } = true;
         public static HPVR? Instance { get; private set; }
 
-        //todo add teleportation, maybe steamvrs teleportation component
-        //todo fix quest popup menu
+        //todo add teleportation, maybe steamvrs teleportation component (involved)
+        //todo fix quest popup menu (find who populates that and then fix rotation/scale/z index there)
         //todo fix opportunity menu
         //todo fix memory menu
         //todo set player holding/taking item accordingly to what the player is actually grabbing
@@ -73,6 +74,8 @@ namespace HPVR
         //todo turn off cutscene movement in game main, but keep the teleporting and rotation setting in x and z
         //todo use headset movement in POV sex
         //todo use hand movement to masturbate
+        //todo screenfade can maybe just stay as an override?
+        //todo add compatibility for headset + xbox controller
 
         public override void OnInitializeMelon()
         {
@@ -122,6 +125,8 @@ namespace HPVR
             //MelonLogger.Msg((counter++).ToString());
             if (inGameMain)
             {
+                SetUpPostProcessing();
+
                 playerChar = PlayerCharacter.Player.transform;
                 //MelonLogger.Msg((counter++).ToString());
 
@@ -145,6 +150,8 @@ namespace HPVR
             }
             else if (inMainMenu)
             {
+                SetUpGraphicsSettings();
+
                 //MelonLogger.Msg((counter++).ToString());
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
@@ -229,12 +236,70 @@ namespace HPVR
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
         }
 
+        private static void SetUpGraphicsSettings()
+        {
+            GraphicsController.Singleton.Toggle();
+            GraphicsController.Singleton.AntiAliasing.Set(1);
+            GraphicsController.Singleton.AmbientOcclusionQuality.Set(0);
+            GraphicsController.Singleton.Bloom.Set(false);
+            GraphicsController.Singleton.MotionBlur.Set(false);
+            GraphicsController.Singleton.ScreenSpaceReflections.Set(false);
+            GraphicsController.Singleton.FSRResolutionScaling.Set(3);
+            GraphicsController.Singleton.VolumetricFogQuality.Set(0);
+            GraphicsController.Singleton.ShadowQuality.Set(1);
+            //GraphicsController.Singleton.transform.FindDeepChild("Apply").GetComponent<Button>().onClick.Invoke();
+            GraphicsController.Singleton.ApplySettings();
+            if (GraphicsController.Singleton.IsShowing)
+            {
+                GraphicsController.Singleton.Toggle();
+            }
+        }
+
+        private static void SetUpPostProcessing()
+        {
+            var volume = GameMenu.Singleton._globalVolume.GetComponent<Volume>().profile;
+            foreach (var vol in volume.components)
+            {
+                if (vol.GetIl2CppType() == Il2CppType.Of<ScreenSpaceAmbientOcclusion>())
+                {
+                    vol.active = false;
+                }
+                else
+                if (vol.GetIl2CppType() == Il2CppType.Of<ScreenSpaceReflection>())
+                {
+                    vol.active = false;
+                }
+                if (vol.GetIl2CppType() == Il2CppType.Of<Bloom>())
+                {
+                    vol.active = false;
+                }
+                if (vol.GetIl2CppType() == Il2CppType.Of<ChromaticAberration>())
+                {
+                    vol.active = false;
+                }
+                if (vol.GetIl2CppType() == Il2CppType.Of<FilmGrain>())
+                {
+                    vol.active = false;
+                }
+                if (vol.GetIl2CppType() == Il2CppType.Of<MotionBlur>())
+                {
+                    vol.active = false;
+                }
+                if (vol.GetIl2CppType() == Il2CppType.Of<LensDistortion>())
+                {
+                    vol.active = false;
+                }
+            }
+        }
+
         public override void OnUpdate()
         {
             if (SteamVRCamera.instance?.transform is null)
             {
                 return;
             }
+
+            UIManager.Update();
 
             if (inGameMain)
             {
@@ -269,8 +334,6 @@ namespace HPVR
                 TryEndDisclaimerScreen();
             }
 
-            VRSystem.Update();
-            UIManager.Update();
         }
 
         public void UpdateDialogueResponses()
@@ -525,8 +588,15 @@ namespace HPVR
             UpdateInteractiveItems();
 
             var mask = LayerMask.GetMask("Default", "UI", "InteractiveItems", "InteractiveItemsHighlighted", "Ragdolls", "Ground", "Walls");
-            Laser.LeftLaser.LaserMask = mask;
-            Laser.RightLaser.LaserMask = mask;
+            if (Laser.LeftLaser is not null)
+            {
+                Laser.LeftLaser.LaserMask = mask;
+            }
+
+            if (Laser.RightLaser is not null)
+            {
+                Laser.RightLaser.LaserMask = mask;
+            }
 
             //turn off player collision and hide the mesh for the camera, but not for mirrors
             if (PlayerCharacter.Player.Gender == Genders.Male)
@@ -548,17 +618,7 @@ namespace HPVR
             }
 
             MelonLogger.Msg("disabling Volumetric Fog");
-            var fogs = GameObject.FindObjectsOfType<Volume>(true);
-            foreach (var f in fogs)
-            {
-                if (f?.name == "Fallback Fog Global Volume")
-                {
-                    MelonLogger.Msg("turned on fallback fog");
-                    f.gameObject.SetActive(true);
-                    f.priority = 9999;
-                    break;
-                }
-            }
+            GameMenu.Singleton._fallbackFogGlobalVolume.SetActive(true);
 
             VRSystem.SyncPlayerAndHMD();
 
@@ -619,10 +679,10 @@ namespace HPVR
             scrollView.localScale = new(1, 1, 1);
             scrollView.localPosition = new(0, -700, 0);
 
-            Dialogue.transform.localPosition += new Vector3(0, -400, 0);
+            Dialogue.transform.GetChild(0).localPosition += new Vector3(0, -300, 0);
+            Dialogue.transform.localScale *= 1.1f;
         }
 
-        //do not move screenfade at the beginning
         private void SetUpInGameCanvas()
         {
             foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
@@ -631,15 +691,19 @@ namespace HPVR
                 switch (canvas.gameObject.name)
                 {
                     case "Relationship Notificatiops Canvas":
-                        canvas.transform.localPosition += new Vector3(200, 0, 0);
+                        canvas.MoveContents(new Vector3(200, 0, 0));
                         goto case "GameOverCanvas";
                     case "BGCUICanvas":
-                        canvas.transform.localPosition += new Vector3(0, -200, 0);
+                        canvas.MoveContents(new Vector3(0, -400, 0));
+                        canvas.GetComponent<RectTransform>().sizeDelta *= 0.7f;
                         goto case "GameOverCanvas";
                     case "NarrartorCanvas":
-                        canvas.transform.localPosition += new Vector3(0, 200, 0);
+                        canvas.MoveContents(new Vector3(0, 300, 0));
+                        canvas.GetComponent<RectTransform>().sizeDelta *= 0.7f;
                         goto case "GameOverCanvas";
                     case "OrgasmManager":
+                        canvas.MoveContents(new Vector3(0, -200, 0));
+                        goto case "GameOverCanvas";
                     case "MiniGameCanvas":
                     case "CombatManager":
                     case "ScreenFadeCanvas":
@@ -647,24 +711,21 @@ namespace HPVR
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         break;
                     default:
-                        if (canvas.transform?.parent?.name is (
+                        if ((canvas.transform?.parent?.name is (
                             "OpportunityWindow"
                             or "QuestPopup" //todo test
                             or "Messages"
                             or "InputManager2"
                             or "ThrowMeter" //todo fix at all
-                            ))
-                        {
-                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        }
-                        else if (canvas.transform?.name is (
+                            )) || (canvas.transform?.name is (
                             "OpportunityWindow"
                             or "QuestPopup"
                             or "Messages"
                             or "InputManager2"
                             or "ThrowMeter"
-                            ))
+                            )))
                         {
+                            //todo moving questpopup and inspect has to be done when updating the canvas position sadly
                             canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         }
                         break;
@@ -673,12 +734,14 @@ namespace HPVR
                     case "UIRadialMenuCanvas": //uiradial = messages, opportunity window open radial
                         canvas.transform.localScale *= 1.7f;
                         goto case "UseSelectCanvas";
+                    case "DebugCanvas": //debug log
+                        canvas.transform.localScale *= 1.3f;
+                        goto case "UseSelectCanvas";
                     case "GameMenuCanvas":
                     case "AudioSettingsCanvas":
                     case "GameplaySettingsCanvas":
                     case "GraphicsMenuCanvas":
                     case "ConsoleCanvas":
-                    case "DebugCanvas": //debug log
                     case "SaveCanvas":
                     case "LoadCanvas":
                     case "CameraView":
@@ -728,7 +791,7 @@ namespace HPVR
             {
                 if (DialogueSpeaker is not null && VRSystem.MovementEnabled)
                 {
-                    if (DistanceEvaluator.EvaluateOne(DialogueSpeaker.gameObject, SteamVRCamera.instance.gameObject, 2.1f, GreaterThanLessThanEquations.GreaterThan))
+                    if (DistanceEvaluator.EvaluateOne(DialogueSpeaker.gameObject, SteamVRCamera.instance.gameObject, 2.3f, GreaterThanLessThanEquations.GreaterThan))
                     {
                         //MelonLogger.Msg("more than 2.3f away");
                         VRSystem.MovementEnabled = false;

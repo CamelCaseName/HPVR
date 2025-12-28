@@ -19,5 +19,5 @@ MonoBehaviour:
   InitializationType: 1
   EditorAppKey: application.generated.unity.houseparty.exe
   ActionManifestFileRelativeFilePath: StreamingAssets\SteamVR_Melon\actions.json
-  MirrorView: 2
+  MirrorView: 3
   HasCopiedDefaults: 0

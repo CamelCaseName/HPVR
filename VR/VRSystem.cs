@@ -137,6 +137,10 @@ namespace HPVR.VR
                 SetUpControllers();
                 //add the hands to the player and start it
                 FinalizeSteamVRSetup();
+
+                //UnityEngine.Rendering.XRGraphics.stereoRenderingMode = UnityEngine.Rendering.XRGraphics.StereoRenderingMode.SinglePassInstanced;
+                UnityEngine.Rendering.TextureXR.maxViews = 2;
+
                 Initialized = true;
             }
             else
@@ -692,11 +696,6 @@ namespace HPVR.VR
             //reAdd player height
             vrCamPosition = vrPlayer.transform.position + (vrPlayer.transform.rotation * locationDifference) + new Vector3(0, hmdAbsoluteLastPosition.y, 0);
 
-            //hmdRotationPositionOffset.y = 0;
-            //Vector3 vector3 = vrPlayer.transform.position - Player.instance.hands[0].transform.position;
-            //MelonLogger.Msg($"diff {vector3.x} | {vector3.z}");
-            //Player.instance.hands[0].transform.position -= (hmdRotationPositionOffset);
-            //Player.instance.hands[1].transform.position -= (hmdRotationPositionOffset);
             Player.instance.hands[0].transform.position += new Vector3(0, 0.025f, 0);
             Player.instance.hands[1].transform.position += new Vector3(0, 0.025f, 0);
 
