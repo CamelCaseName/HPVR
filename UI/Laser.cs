@@ -2,7 +2,10 @@
 using Il2CppInterop.Runtime.Injection;
 using Il2CppRootMotion.Dynamics;
 using MelonLoader;
+using UnityEditor.Rendering.HighDefinition;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 
@@ -54,29 +57,56 @@ namespace HPVR.UI
             laserRootGO.transform.localEulerAngles = new Vector3(30, sign * -5, 0);
             LaserRoot = laserRootGO.transform;
 
-            var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             DontDestroyOnLoad(laserBeamGO);
             laserBeamGO.transform.parent = laserRootGO.transform;
-            laserBeamGO.transform.localScale = new(0.005f, 2, 0.005f);
+            laserBeamGO.transform.localScale = new(0.004f, 2, 0.004f);
             laserBeamGO.transform.localPosition = new(0, 0, 2);
             laserBeamGO.transform.localEulerAngles = new(90, 0, 0);
             laserBeamGO.name = name + " LaserPointer";
 
             var hitGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DontDestroyOnLoad(hitGO);
+            hitGO.name = name + " LaserHit";
+            hitGO.transform.parent = LaserRoot;
             hitPoint = hitGO.transform;
             hitPoint.localScale = new(0.01f, 0.01f, 0.01f);
 
             var renderer = laserBeamGO.GetComponent<MeshRenderer>();
             renderer.material.shader = Shader.Find("HDRP/Lit");
-            renderer.material.color = Color.white;
+            var beammaterial = new Material(renderer.material)
+            {
+                color = new Color(1, 0, 0.6666f, 0.1490f)
+            };
+            beammaterial.SetInt("_EnableBlendModePreserveSpecularLighting", 1);
+            beammaterial.SetInt("_EnableFogOnTransparent", 1);
+            beammaterial.SetFloat("_Smoothness", 0.85f);
+            HDMaterial.SetSurfaceType(beammaterial, true);
+            HDMaterial.SetUseEmissiveIntensity(beammaterial, true);
+            HDMaterial.SetEmissiveColor(beammaterial, new Color(1, 0, 0.6666f));
+            HDMaterial.SetEmissiveIntensity(beammaterial, 200, EmissiveIntensityUnit.Nits);
+            HDMaterial.SetRenderingPass(beammaterial, HDMaterial.RenderingPass.Default);
+            beammaterial.shader = beammaterial.shader;
+            HDMaterial.ValidateMaterial(beammaterial);
+            renderer.material = beammaterial;
 
             var hitRenderer = hitPoint.GetComponent<MeshRenderer>();
             hitRenderer.material.shader = Shader.Find("HDRP/Lit");
-            hitRenderer.material.color = Color.white;
-
-            //todo get a cool laser material from zigga?
-            //renderer.material = laserMaterial;
+            var hitMaterial = new Material(hitRenderer.material)
+            {
+                color = new Color(1, 0, 0.6666f, 0.1490f)
+            };
+            hitMaterial.SetInt("_EnableBlendModePreserveSpecularLighting", 1);
+            hitMaterial.SetInt("_EnableFogOnTransparent", 1);
+            hitMaterial.SetFloat("_Smoothness", 0.85f);
+            HDMaterial.SetSurfaceType(hitMaterial, true);
+            HDMaterial.SetUseEmissiveIntensity(hitMaterial, true);
+            HDMaterial.SetEmissiveColor(hitMaterial, new Color(1, 0, 0.6666f));
+            HDMaterial.SetEmissiveIntensity(hitMaterial, 200, EmissiveIntensityUnit.Nits);
+            HDMaterial.SetRenderingPass(hitMaterial, HDMaterial.RenderingPass.Default);
+            hitMaterial.shader = hitMaterial.shader;
+            HDMaterial.ValidateMaterial(hitMaterial);
+            hitRenderer.material = hitMaterial;
 
             DestroyImmediate(laserBeamGO.GetComponent<CapsuleCollider>());
             DestroyImmediate(hitPoint.GetComponent<SphereCollider>());

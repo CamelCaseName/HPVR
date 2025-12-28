@@ -41,7 +41,6 @@ namespace HPVR
         private Canvas? interactionCanvas;
         private CharacterBase? DialogueSpeaker = null;
         private bool updatedCameraCull = false;
-        private Canvas? ScreenFade;
         static HPVR()
         {
             //MelonLogger.Msg("Static init");
@@ -66,7 +65,6 @@ namespace HPVR
         public static HPVR? Instance { get; private set; }
 
         //todo add teleportation, maybe steamvrs teleportation component
-        //todo set player is crouching if headset is low enough
         //todo fix quest popup menu
         //todo fix opportunity menu
         //todo fix memory menu
@@ -256,10 +254,6 @@ namespace HPVR
                 {
                     UpdateInteractionCanvas();
                 }
-                if (ScreenFade is not null)
-                {
-                    UpdateScreenFadeCanvas();
-                }
                 UpdateNarratorMessage();
 
                 TryDisableMoveDuringDialogue();
@@ -310,6 +304,10 @@ namespace HPVR
             if (RadialMenu.Singleton.IsShowing && InteractionManager.Singleton.CurrentFocusedItem is not null)
             {
                 var option = RadialMenu.Singleton.buttons.IndexOf(button);
+                if (option < 0 || option >= RadialMenu.Singleton._currentOptions.Count)
+                {
+                    return;
+                }
                 var text = RadialMenu.Singleton._currentOptions[option].Item1;
                 if (RadialMenu.Singleton._currentOptions[option].Item2)
                 {
@@ -425,6 +423,16 @@ namespace HPVR
             }
             PlayerCharacter.Player._controlManager?.DeactivateMovement();
             PlayerCharacter.Player.PuppetMaster?.Puppet?.gameObject?.SetActive(false);
+
+            //set player crouching state
+            if (SteamVRCamera.instance.transform.position.y - Player.instance.transform.position.y < 0.8f)
+            {
+                PlayerCharacter.Player.IsCrouching = true;
+            }
+            else
+            {
+                PlayerCharacter.Player.IsCrouching = false;
+            }
             //MelonLogger.Msg($"{PlayerCharacter.Player.transform.position.x} {PlayerCharacter.Player.transform.position.y} {PlayerCharacter.Player.transform.position.z}");
         }
 
@@ -634,6 +642,7 @@ namespace HPVR
                     case "OrgasmManager":
                     case "MiniGameCanvas":
                     case "CombatManager":
+                    case "ScreenFadeCanvas":
                     case "GameOverCanvas":
                         canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         break;
@@ -678,11 +687,6 @@ namespace HPVR
                         break;
                     case "DialogueCanvas":
                         Dialogue = canvas;
-                        break;
-                    case "ScreenFadeCanvas":
-                        canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
-                        UIManager.CanvasToIgnore.Add(canvas.name);
-                        ScreenFade = canvas;
                         break;
                     case "RadialMenuCanvas":
                         UIManager.CanvasToIgnore.Add(canvas.name);
@@ -818,24 +822,6 @@ namespace HPVR
                     }
                 }
             }
-        }
-
-        private void UpdateScreenFadeCanvas()
-        {
-            if (ScreenFade is null)
-            {
-                return;
-            }
-
-            if (!(Il2CppEekCharacterEngine.Interface.ScreenFade.Singleton?.IsFadeVisible ?? false))
-            {
-                return;
-            }
-
-            Transform camera = SteamVRCamera.instance.transform;
-            ScreenFade.transform.position = camera.position + (camera.rotation * Vector3.forward * 0.4f);
-
-            ScreenFade.transform.LookAt(ScreenFade.transform.position - camera.position);
         }
     }
 }

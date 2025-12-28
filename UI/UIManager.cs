@@ -12,7 +12,6 @@ namespace HPVR.UI
 {
     internal static class UIManager
     {
-
         private static readonly HashSet<Transform> canvasses = new();
         internal static readonly HashSet<MonoBehaviour> UIElements = new();
         public static bool UpdateUIPos = true;
@@ -31,6 +30,7 @@ namespace HPVR.UI
                     leftinitialized = true;
 
                     SyncLasersToAnother();
+                    MelonLogger.Msg("left hand initialized");
                 };
                 Player.instance.rightHand.OnHandInitialized += i =>
                 {
@@ -38,6 +38,7 @@ namespace HPVR.UI
                     rightinitialized = true;
 
                     SyncLasersToAnother();
+                    MelonLogger.Msg("right hand initialized");
                 };
                 initialized = true;
             }
@@ -110,6 +111,7 @@ namespace HPVR.UI
                     //MelonLogger.Msg(gameObject.name + " " + ((int)gameObject.hideFlags));
                     continue;
                 }
+
                 if (canvasses.Contains(canvas.transform))
                 {
                     continue;
@@ -130,7 +132,15 @@ namespace HPVR.UI
                         canvas.transform.localScale *= 0.02f;
                         break;
                     default:
-                        canvas.transform.localScale *= 0.0008f;
+                        if (canvas.name == "ScreenFadeCanvas")
+                        {
+                            canvas.transform.localScale *= 0.01f;
+                            canvas.transform.position = new(0.65f, 0, 3.45f);
+                        }
+                        else
+                        {
+                            canvas.transform.localScale *= 0.0008f;
+                        }
                         break;
                 }
 
@@ -461,14 +471,15 @@ namespace HPVR.UI
                 inter.snapAttachEaseInTime = 0.15f;
                 inter.useHandObjectAttachmentPoint = false;
 
-                var ui = uiComponent.gameObject.AddComponent<UIElement>();
+                uiComponent.gameObject.AddComponent<UIElement>();
                 if (HPVR.Instance?.inMainMenu ?? false)
                 {
+                    //var ui = ;
                     //ui.SetDebugMesh("Floor");
                 }
                 else if (HPVR.Instance?.inGameMain ?? false)
                 {
-
+                    //var ui = uiComponent.gameObject.AddComponent<UIElement>();
                     //ui.SetDebugMesh("");
                 }
             }

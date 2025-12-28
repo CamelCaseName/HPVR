@@ -1,6 +1,5 @@
 ﻿using HarmonyLib;
 using HPVR.Gameplay.Behaviours;
-using HPVR.UI;
 using Il2Cpp;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,7 +20,7 @@ namespace HPVR.Gameplay.Patches
                 child.transform.localEulerAngles = Vector3.zero;
             }
 
-            if (container.parent.parent.parent.parent.parent.name == "InventoryCanvas")
+            if (container.parent?.parent?.parent?.parent?.parent?.name == "InventoryCanvas")
             {
                 foreach (var act in container.GetComponentsInChildren<InventoryGamepadAction>())
                 {
@@ -36,7 +35,6 @@ namespace HPVR.Gameplay.Patches
                         }
                     }
                 }
-                container.GetComponent<WorldSpaceOverlayUI>().Start();
             }
         }
     }
