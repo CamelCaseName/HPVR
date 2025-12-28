@@ -244,7 +244,16 @@ namespace HPVR
             GraphicsController.Singleton.Bloom.Set(false);
             GraphicsController.Singleton.MotionBlur.Set(false);
             GraphicsController.Singleton.ScreenSpaceReflections.Set(false);
-            GraphicsController.Singleton.FSRResolutionScaling.Set(3);
+            if (HDDynamicResolutionPlatformCapabilities.DLSSDetected)
+            {
+                GraphicsController.Singleton.NVIDIADLSS.Set(2);
+            }
+            else
+            {
+                //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
+                MelonLogger.Msg("disabling bultin FSR");
+                GraphicsController.Singleton.FSRResolutionScaling.Set(0);
+            }
             GraphicsController.Singleton.VolumetricFogQuality.Set(0);
             GraphicsController.Singleton.ShadowQuality.Set(1);
             //GraphicsController.Singleton.transform.FindDeepChild("Apply").GetComponent<Button>().onClick.Invoke();
@@ -679,8 +688,7 @@ namespace HPVR
             scrollView.localScale = new(1, 1, 1);
             scrollView.localPosition = new(0, -700, 0);
 
-            Dialogue.transform.GetChild(0).localPosition += new Vector3(0, -300, 0);
-            Dialogue.transform.localScale *= 1.1f;
+            Dialogue.transform.GetChild(0).localPosition = new Vector3(0, -300, 0);
         }
 
         private void SetUpInGameCanvas()
@@ -750,6 +758,7 @@ namespace HPVR
                         break;
                     case "DialogueCanvas":
                         Dialogue = canvas;
+                        Dialogue.transform.localScale *= 1.1f;
                         break;
                     case "RadialMenuCanvas":
                         UIManager.CanvasToIgnore.Add(canvas.name);
