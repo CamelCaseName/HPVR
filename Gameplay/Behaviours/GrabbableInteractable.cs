@@ -8,9 +8,6 @@ namespace HPVR.Gameplay.Behaviours
     [RegisterTypeInIl2Cpp]
     internal class GrabbableInteractable : MonoBehaviour
     {
-        public GrabbableInteractable(IntPtr value) : base(value) { }
-
-        public GrabbableInteractable() : base(ClassInjector.DerivedConstructorPointer<GrabbableInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private Vector3 speed = Vector3.zero;
         private Vector3 oldPos = Vector3.zero;

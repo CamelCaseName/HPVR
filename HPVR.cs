@@ -1,4 +1,5 @@
-﻿using HPVR.Gameplay.Behaviours;
+﻿using HPVR.FSR3;
+using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
 using HPVR.utils;
 using HPVR.VR;
@@ -94,6 +95,8 @@ namespace HPVR
             string folderPath = Path.Combine(HousePartyMainLocation, "HouseParty_Data", "StreamingAssets");
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", "", "vrshaders");
             Il2CppHelper.CreateAndSaveToPath(folderPath, "vrshaders.vrshaders", ".manifest", "vrshaders");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", "", "fsrshaders");
+            Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", ".manifest", "fsrshaders");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -253,6 +256,12 @@ namespace HPVR
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
+                MelonLogger.Msg("Adding UNITYFSR3 Component");
+                //todo fix hooks
+
+                Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
+                Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
+                SteamVRCamera.instance.ForceLast();
             }
             GraphicsController.Singleton.VolumetricFogQuality.Set(0);
             GraphicsController.Singleton.ShadowQuality.Set(1);
@@ -342,7 +351,6 @@ namespace HPVR
             {
                 TryEndDisclaimerScreen();
             }
-
         }
 
         public void UpdateDialogueResponses()

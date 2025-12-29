@@ -11,9 +11,6 @@ namespace HPVR.Gameplay.Behaviours
     [RegisterTypeInIl2Cpp]
     internal class InventoryInteractable : MonoBehaviour
     {
-        public InventoryInteractable(IntPtr value) : base(value) { }
-
-        public InventoryInteractable() : base(ClassInjector.DerivedConstructorPointer<InventoryInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private Interactable? interactable = null;
 

@@ -14,10 +14,6 @@ namespace HPVR.UI
     [RegisterTypeInIl2Cpp]
     internal class Laser : MonoBehaviour
     {
-        public Laser(IntPtr value) : base(value) { }
-
-        public Laser() : base(ClassInjector.DerivedConstructorPointer<Laser>()) => ClassInjector.DerivedConstructorBody(this);
-
 #nullable disable
         Hand hand;
 #pragma warning disable IDE0051, IDE0044, CS0169 // we'll get a cool material from zigga :D

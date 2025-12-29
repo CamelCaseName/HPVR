@@ -36,6 +36,8 @@
     <None Remove="Resources\assets\hpvr_assets.manifest" />
     <None Remove="Resources\assets\spherePose.asset" />
     <None Remove="Resources\assets\sphereSmallPose.asset" />
+    <None Remove="Resources\fsrshaders\fsrshaders" />
+    <None Remove="Resources\fsrshaders\fsrshaders.manifest" />
     <None Remove="Resources\HPUI.dll" />
     <None Remove="Resources\OpenVRSettings.asset" />
     <None Remove="Resources\openvr_api.dll" />
@@ -75,6 +77,8 @@
     <EmbeddedResource Include="Resources\assets\hpvr_assets.manifest" />
     <EmbeddedResource Include="Resources\assets\spherePose.asset" />
     <EmbeddedResource Include="Resources\assets\sphereSmallPose.asset" />
+    <EmbeddedResource Include="Resources\fsrshaders\fsrshaders" />
+    <EmbeddedResource Include="Resources\fsrshaders\fsrshaders.manifest" />
     <EmbeddedResource Include="Resources\HPUI.dll" />
     <EmbeddedResource Include="Resources\OpenVRSettings.asset" />
     <EmbeddedResource Include="Resources\openvr_api.dll" />
@@ -448,6 +452,10 @@
   <ItemGroup>
     <ProjectReference Include="..\SteamVR_Melon\SteamVR_Melon.csproj" />
     <ProjectReference Include="..\SteamXR_Melon\SteamXR_Melon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="FSR3\" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

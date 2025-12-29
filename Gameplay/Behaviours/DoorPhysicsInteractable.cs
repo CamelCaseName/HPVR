@@ -10,9 +10,6 @@ namespace HPVR.Gameplay.Behaviours
     internal class DoorPhysicsInteractable : MonoBehaviour
     {
         //todo someday
-        public DoorPhysicsInteractable(IntPtr value) : base(value) { }
-
-        public DoorPhysicsInteractable() : base(ClassInjector.DerivedConstructorPointer<DoorPhysicsInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private string generalText = string.Empty;
         private string hoveringText = string.Empty;

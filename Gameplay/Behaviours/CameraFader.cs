@@ -12,10 +12,6 @@ namespace HPVR.Gameplay.Behaviours
         private readonly List<Collision> collisions = new();
         private bool inFade = false;
 
-        public CameraFader(IntPtr value) : base(value) { }
-
-        public CameraFader() : base(ClassInjector.DerivedConstructorPointer<CameraFader>()) => ClassInjector.DerivedConstructorBody(this);
-
         protected void OnCollisionEnter(Collision other)
         {
             MelonLogger.Msg(other.transform.name + " " + other.transform.gameObject.layer);

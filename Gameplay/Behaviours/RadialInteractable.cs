@@ -13,9 +13,6 @@ namespace HPVR.Gameplay.Behaviours
     [RegisterTypeInIl2Cpp]
     internal class RadialInteractable : MonoBehaviour
     {
-        public RadialInteractable(IntPtr value) : base(value) { }
-
-        public RadialInteractable() : base(ClassInjector.DerivedConstructorPointer<RadialInteractable>()) => ClassInjector.DerivedConstructorBody(this);
 
         private static Canvas? radialCanvas;
         private Interactable? interactable = null;

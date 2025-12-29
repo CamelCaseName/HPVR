@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using MelonLoader;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
 using UnityEngine;
 using Valve.VR;
 
@@ -36,6 +39,55 @@ namespace HPVR.utils
                 var child = canvas.transform.GetChild(i);
                 child.localPosition += moveBy;
             }
+        }
+
+        private static Dictionary<int, IntPtr> Allocations = new();
+
+        public static void FreeIl2CppArray<T>(this T[] incoming) where T : struct
+        {
+            var t = typeof(T);
+            if (!t.IsLayoutSequential)
+            {
+                throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
+            }
+            if (Allocations.TryGetValue(incoming.GetHashCode(), out IntPtr pointer))
+            {
+                Marshal.FreeHGlobal(pointer);
+            }
+            else
+            {
+                //throw new InvalidDataException($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
+                MelonLogger.Msg($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
+            }
+        }
+
+        public unsafe static Il2CppSystem.Array AllocIl2cppArray<T>(this T[] incoming) where T : struct
+        {
+            var t = typeof(T);
+            if (!t.IsLayoutSequential)
+            {
+                throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
+            }
+
+            var size = Marshal.SizeOf(incoming);
+            var pointer = Marshal.AllocHGlobal(size);
+
+            GCHandle gC = GCHandle.Alloc(incoming, GCHandleType.Pinned);
+
+            Memmove((void*)pointer, (void*)gC.AddrOfPinnedObject(), (nuint)size);
+
+            gC.Free();
+
+            //keep track
+            Allocations.Add(incoming.GetHashCode(), pointer);
+            return new Il2CppSystem.Array(pointer);
+        }
+
+        private unsafe static void Memmove(void* dest, void* src, nuint len)
+        {
+            _ = Unsafe.ReadUnaligned<byte>(dest);
+            _ = Unsafe.ReadUnaligned<byte>(src);
+            System.Buffer.MemoryCopy(dest, src, len, len);
         }
     }
 }
