@@ -84,7 +84,7 @@ namespace HPVR.utils
             var array = new Il2CppStructArray<byte>(DataSize);
             var handle = IL2CPP.il2cpp_gchandle_new(array.Pointer, true);
 
-            Memmove((void*)(array.Pointer + 8), (void*)pinnedArr, (nuint)(ArrayObjSize + DataSize));
+            Memmove((void*)(array.Pointer + ArrayObjSize), (void*)(pinnedArr + deArrayObjSize), (nuint)DataSize);
 
             IL2CPP.il2cpp_gchandle_free(handle);
             gC.Free();
