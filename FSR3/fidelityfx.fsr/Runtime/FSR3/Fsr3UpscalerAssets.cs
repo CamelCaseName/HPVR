@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using Il2CppEekCharacterEngine;
+using Il2CppInterop.Runtime;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.Rendering.HighDefinition;
 using Object = UnityEngine.Object;
 
 namespace FidelityFX.FSR3
@@ -58,19 +57,21 @@ namespace FidelityFX.FSR3
             };
         }
 
-        private static ComputeShader FindComputeShader(string name)
+        private static Il2CppSystem.Collections.Generic.List<ComputeShader> computeShaders = new();
+
+        internal static ComputeShader FindComputeShader(string name)
         {
             if (assetBundle == null)
             {
-                MelonLogger.Msg($"[HPVR] loading assetbundle from {Application.streamingAssetsPath}/fsrshaders");
+                MelonLogger.Msg($"Loading assetbundle from {Application.streamingAssetsPath}/fsrshaders");
                 assetBundle = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/fsrshaders");
                 if (assetBundle == null)
                 {
-                    MelonLogger.Error("[HPVR] No assetbundle present!");
+                    MelonLogger.Error("No assetbundle present!");
                     throw new FileNotFoundException($"Assetbundle at {Application.streamingAssetsPath}/fsrshaders was missing");
                 }
             }
-            MelonLogger.Msg("[HPVR] Loading fsr shader " + name + " from asset bundle...");
+            MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
 
             //string[] allAssetNames = assetBundle.GetAllAssetNames();
             //for (int i = 0; i < allAssetNames.Length; i++)
@@ -100,8 +101,16 @@ namespace FidelityFX.FSR3
             //assets / fsrshaders / ffx_fsr3upscaler_shading_change_pass.compute
             //assets / fsrshaders / ffx_fsr3upscaler_shading_change_pyramid_pass.compute
             //assets / fsrshaders / ffx_fsr3upscaler_tcr_autogen_pass.compute
+            var shader = assetBundle.LoadAsset("assets/fsrshaders/" + name + ".compute", Il2CppType.Of<ComputeShader>()).Cast<ComputeShader>();
 
-            return assetBundle.LoadAsset("assets/fsrshaders/" + name + ".compute").Cast<ComputeShader>();
+            //MelonLogger.Msg("Compute shader null? " + (shader is null).ToString());
+            //MelonLogger.Msg($"Compute shader {shader?.name}");
+            //MelonLogger.Msg("Compute shader " + shader?.name);
+            //MelonLogger.Msg("Compute shader " + string.Join("|", shader.shaderKeywords.ToArray()));
+            //shader object here is all fine
+            computeShaders.Add(shader);
+            GameObject.DontDestroyOnLoad(shader);
+            return shader;
         }
     }
 

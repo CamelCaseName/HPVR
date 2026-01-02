@@ -21,6 +21,7 @@
 using FidelityFX;
 using FidelityFX.FSR3;
 using HPVR.UI;
+using Il2CppInterop.Runtime.Attributes;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
@@ -38,6 +39,7 @@ namespace HPVR.FSR3
     [RegisterTypeInIl2Cpp(true)]
     public class Fsr3UpscalerImageEffect : MonoBehaviour
     {
+        [HideFromIl2Cpp]
         public IFsr3UpscalerCallbacks Callbacks { get; set; } = new Fsr3UpscalerCallbacksBase();
 
         //[Tooltip("Standard scaling ratio presets.")]
@@ -73,7 +75,8 @@ namespace HPVR.FSR3
         //[Tooltip("Automatically generate a reactive mask based on the difference between opaque-only render output and the final render output including alpha transparencies.")]
         public bool autoGenerateReactiveMask = true;
         //[Tooltip("Parameters to control the process of auto-generating a reactive mask.")]
-         private readonly GenerateReactiveParameters generateReactiveParameters = new();
+        private readonly GenerateReactiveParameters generateReactiveParameters = new();
+        [HideFromIl2Cpp]
         public GenerateReactiveParameters GenerateReactiveParams => generateReactiveParameters;
 
         [Serializable]
@@ -95,7 +98,8 @@ namespace HPVR.FSR3
         //[Tooltip("(Experimental) Automatically generate and use Reactive mask and Transparency & composition mask internally.")]
         public bool autoGenerateTransparencyAndComposition = false;
         //[Tooltip("Parameters to control the process of auto-generating transparency and composition masks.")]
-         private readonly GenerateTcrParameters generateTransparencyAndCompositionParameters = new();
+        private readonly GenerateTcrParameters generateTransparencyAndCompositionParameters = new();
+        [HideFromIl2Cpp]
         public GenerateTcrParameters GenerateTcrParams => generateTransparencyAndCompositionParameters;
 
         [Serializable]
@@ -115,8 +119,8 @@ namespace HPVR.FSR3
             public float autoReactiveMax = 0.9f;
         }
 
-        
-        private readonly Fsr3UpscalerAssets? assets = Fsr3UpscalerAssets.Create();
+
+        internal static Fsr3UpscalerAssets? assets;
 
         private Fsr3UpscalerContext? _context;
         private Vector2Int _maxRenderSize;
@@ -126,7 +130,7 @@ namespace HPVR.FSR3
         private readonly Fsr3Upscaler.DispatchDescription _dispatchDescription = new();
         private readonly Fsr3Upscaler.GenerateReactiveDescription _genReactiveDescription = new();
 
-        private Fsr3UpscalerImageEffectHelper? _helper;
+        internal Fsr3UpscalerImageEffectHelper? _helper;
 
         private Camera? _renderCamera;
         private RenderTexture? _originalRenderTarget;
@@ -143,7 +147,13 @@ namespace HPVR.FSR3
 
         private Material? _copyWithDepthMaterial;
 
-        private void OnEnable()
+        private bool initialized = false;
+
+        protected void OnEnable()
+        {
+        }
+
+        internal void Init()
         {
             // Set up the original camera to output all of the required FSR3 input resources at the desired resolution
             _renderCamera = GetComponent<Camera>();
@@ -156,6 +166,8 @@ namespace HPVR.FSR3
             _displaySize = GetDisplaySize();
             Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
             _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
+
+            assets = Fsr3UpscalerAssets.Create();
 
             if (!SystemInfo.supportsComputeShaders)
             {
@@ -183,22 +195,25 @@ namespace HPVR.FSR3
 
             CreateFsrContext();
             CreateCommandBuffers();
+            MelonLogger.Msg("FSR enabled");
+            MelonLogger.Msg("after context test " + _context?._generateReactivePass?.ComputeShader?.name);
+            MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass.name);
         }
 
         private void OnDisable()
         {
-            DestroyCommandBuffers();
-            DestroyFsrContext();
+            //DestroyCommandBuffers();
+            //DestroyFsrContext();
 
-            if (_copyWithDepthMaterial != null)
-            {
-                Destroy(_copyWithDepthMaterial);
-                _copyWithDepthMaterial = null!;
-            }
+            //if (_copyWithDepthMaterial != null)
+            //{
+            //    Destroy(_copyWithDepthMaterial);
+            //    _copyWithDepthMaterial = null!;
+            //}
 
-            // Restore the camera's original state
-            _renderCamera.depthTextureMode = _originalDepthTextureMode;
-            _renderCamera.targetTexture = _originalRenderTarget;
+            //// Restore the camera's original state
+            //_renderCamera.depthTextureMode = _originalDepthTextureMode;
+            //_renderCamera.targetTexture = _originalRenderTarget;
         }
 
         private void CreateFsrContext()
@@ -222,11 +237,13 @@ namespace HPVR.FSR3
 
             _context = Fsr3Upscaler.CreateContext(_displaySize, _maxRenderSize, assets.shaders, flags);
 
-            _prevDisplaySize = _displaySize;
+            _prevDisplaySize = _context._contextDescription.MaxRenderSize;
             _prevQualityMode = qualityMode;
             _prevAutoExposure = enableAutoExposure;
 
             ApplyMipmapBias();
+            MelonLogger.Msg("created context");
+            MelonLogger.Msg("context test? " + _context?._generateReactivePass?.ComputeShader?.name);
         }
 
         private void DestroyFsrContext()
@@ -245,6 +262,7 @@ namespace HPVR.FSR3
             _dispatchCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Dispatch" };
             _opaqueInputCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Opaque Input" };
             _renderCamera.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, _opaqueInputCommandBuffer);
+            MelonLogger.Msg("Added command buffers");
         }
 
         private void DestroyCommandBuffers()
@@ -281,14 +299,46 @@ namespace HPVR.FSR3
 
         protected void Update()
         {
-            // Monitor for any changes in parameters that require a reset of the FSR3 Upscaler context
-            var displaySize = GetDisplaySize();
-            if (displaySize.x != _prevDisplaySize.x || displaySize.y != _prevDisplaySize.y || qualityMode != _prevQualityMode || enableAutoExposure != _prevAutoExposure)
+            if (!initialized)
             {
-                // Force all resources to be destroyed and recreated with the new settings
-                OnDisable();
-                OnEnable();
+                Init();
+                initialized = true;
             }
+
+            // Monitor for any changes in parameters that require a reset of the FSR3 Upscaler context
+            //var displaySize = GetDisplaySize();
+            //MelonLogger.Msg("sizes:");
+            //MelonLogger.Msg($"{displaySize.x}|{displaySize.y}");
+            //MelonLogger.Msg($"{_prevDisplaySize.x}|{_prevDisplaySize.y}");
+            //if (displaySize.x != _prevDisplaySize.x || displaySize.y != _prevDisplaySize.y || qualityMode != _prevQualityMode || enableAutoExposure != _prevAutoExposure)
+            //{
+            //    // Force all resources to be destroyed and recreated with the new settings
+            //    OnDisable();
+            //    OnEnable();
+            //}
+
+            //is called
+            //MelonLogger.Msg("fsr update");
+            //if (assets?.shaders?.autoGenReactivePass is not null && _context?._generateReactivePass?.ComputeShader is not null)
+            //{
+            //    try
+            //    {
+            //        //MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass?.name);
+            //        // MelonLogger.Msg("update loop pass test" + _context?._generateReactivePass?.ComputeShader?.name);
+            //    }
+            //    catch (Exception e)
+            //    {
+            //        MelonLogger.Error(e);
+            //        MelonLogger.Msg("creating new");
+            //        var shader = Fsr3UpscalerAssets.FindComputeShader("ffx_fsr3upscaler_autogen_reactive_pass");
+            //        MelonLogger.Msg("check new " + shader.name);
+            //        assets.shaders.autoGenReactivePass = shader;
+            //        _context._contextDescription.Shaders.autoGenReactivePass = shader;
+            //        MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass?.name);
+            //        _context._generateReactivePass = new Fsr3UpscalerGenerateReactivePass(_context._contextDescription, _context._resources, _context._generateReactiveConstantsBuffer);
+            //        MelonLogger.Msg("second test" + _context?._generateReactivePass?.ComputeShader?.name);
+            //    }
+            //}
         }
 
         public void ResetHistory()
@@ -301,34 +351,52 @@ namespace HPVR.FSR3
         {
             // Remember the original camera viewport before we modify it in OnPreCull
             _originalRect = _renderCamera.rect;
+
+            //is called
+            //MelonLogger.Msg("FSR late update");
         }
 
-        protected void OnPreCull()
+        internal void OnPreCull()
         {
+            if (!initialized || _opaqueInputCommandBuffer is null || _renderCamera is null)
+            {
+                return;
+            }
+
             if (_helper == null || !_helper.enabled)
             {
+                MelonLogger.Msg("helper is null??");
                 // Render to a smaller portion of the screen by manipulating the camera's viewport rect
                 _renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
                 _renderCamera.rect = new Rect(0, 0, _originalRect.width * _maxRenderSize.x / _renderCamera.pixelWidth, _originalRect.height * _maxRenderSize.y / _renderCamera.pixelHeight);
             }
 
+            //MelonLogger.Msg("FSR on pre cull1");
             // Set up the opaque-only command buffer to make a copy of the camera color buffer right before transparent drawing starts 
             _opaqueInputCommandBuffer.Clear();
+            //MelonLogger.Msg("FSR on pre cull2");
             if (autoGenerateReactiveMask || autoGenerateTransparencyAndComposition)
             {
                 var scaledRenderSize = GetScaledRenderSize();
                 _colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, GetDefaultFormat());
+                //MelonLogger.Msg("FSR on pre cull3");
                 _opaqueInputCommandBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _colorOpaqueOnly);
+                //MelonLogger.Msg("FSR on pre cull4");
             }
 
             if (autoGenerateReactiveMask)
             {
+                //MelonLogger.Msg("FSR on pre cull5");
                 SetupAutoReactiveDescription();
             }
 
+            //MelonLogger.Msg("FSR on pre cull6");
             SetupDispatchDescription();
 
+            //MelonLogger.Msg("FSR on pre cull7");
             ApplyJitter();
+
+            //MelonLogger.Msg("FSR ran on pre cull");
         }
 
         private void SetupDispatchDescription()
@@ -426,8 +494,15 @@ namespace HPVR.FSR3
             _renderCamera.useJitteredProjectionMatrixForTransparentRendering = true;
         }
 
-        protected void OnRenderImage(RenderTexture src, RenderTexture dest)
+        internal void OnRenderImage(RenderTexture dest)
         {
+            if (!initialized)
+            {
+                return;
+            }
+
+            //MelonLogger.Msg("on render image");
+
             // Restore the camera's viewport rect so we can output at full resolution
             _renderCamera.rect = _originalRect;
             _renderCamera.ResetProjectionMatrix();

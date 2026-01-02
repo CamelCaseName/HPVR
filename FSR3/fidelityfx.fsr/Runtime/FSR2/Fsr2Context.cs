@@ -247,8 +247,8 @@ namespace FidelityFX.FSR2
             SetupSpdConstants(dispatchParams, out var dispatchThreadGroupCount);
 
             // Initialize constant buffers data
-            commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2cppArray());
-            commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2CppArray());
+            commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2CppArray());
 
             // Auto reactive
             if (dispatchParams.EnableAutoReactive)
@@ -279,7 +279,7 @@ namespace FidelityFX.FSR2
                 SetupRcasConstants(dispatchParams);
                 //maybe convert to structarray and cast that to normal array, but also having registeres the array in il2cpp
                 //or just get the pointer and set the data of an array to that in fixed context
-                commandBuffer.SetBufferData(_rcasConstantsBuffer,_rcasConstantsArray.AllocIl2cppArray());
+                commandBuffer.SetBufferData(_rcasConstantsBuffer,_rcasConstantsArray.AllocIl2CppArray());
 
                 // Dispatch RCAS
                 const int threadGroupWorkRegionDimRcas = 16;
@@ -314,7 +314,7 @@ namespace FidelityFX.FSR2
             GenReactiveConsts.threshold = dispatchParams.CutoffThreshold;
             GenReactiveConsts.binaryValue = dispatchParams.BinaryValue;
             GenReactiveConsts.flags = (uint)dispatchParams.Flags;
-            commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2CppArray());
 
             ((Fsr2GenerateReactivePass)_generateReactivePass).ScheduleDispatch(commandBuffer, dispatchParams, dispatchSrcX, dispatchSrcY);
         }
@@ -331,7 +331,7 @@ namespace FidelityFX.FSR2
             TcrAutoGenConsts.autoTcScale = dispatchParams.AutoTcScale;
             TcrAutoGenConsts.autoReactiveScale = dispatchParams.AutoReactiveScale;
             TcrAutoGenConsts.autoReactiveMax = dispatchParams.AutoReactiveMax;
-            commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2CppArray());
 
             _tcrAutogeneratePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
         }

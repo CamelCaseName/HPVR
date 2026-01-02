@@ -14,6 +14,7 @@ using Il2CppEekUI;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
+using SteamVR_Melon.Util;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -257,11 +258,21 @@ namespace HPVR
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
                 MelonLogger.Msg("Adding UNITYFSR3 Component");
-                //todo fix hooks
 
-                Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
-                Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
+                var fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
+                var fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
                 SteamVRCamera.instance.ForceLast();
+                MelonLogger.Msg("Added UNITYFSR3");
+
+                //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScaler.OnPreCull);
+                //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScalerHelper.OnPreCull);
+                UnityHooks.OnBeforeRender += fsrScalerHelper.OnPreCull;
+                UnityHooks.OnBeforeRender += fsrScaler.OnPreCull;
+
+                SteamVRRender.OnPreRender += () => fsrScaler.OnRenderImage(SteamVRCamera.instance.camera.activeTexture);
+
+                fsrScaler._helper = fsrScalerHelper;
+                //fsrScaler.OnEnable();
             }
             GraphicsController.Singleton.VolumetricFogQuality.Set(0);
             GraphicsController.Singleton.ShadowQuality.Set(1);

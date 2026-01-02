@@ -1,4 +1,5 @@
-﻿using HPVR.Gameplay.Behaviours;
+﻿using HPVR.FSR3;
+using HPVR.Gameplay.Behaviours;
 using HPVR.utils;
 using Il2Cpp;
 using Il2CppEekCharacterEngine;
@@ -115,10 +116,6 @@ namespace HPVR.VR
             //update offset depending on unity version
             PluginImporter.UpdateOffsetForUnityVersion();
             MelonXR.Initialize();
-
-            //do positions before rendering 
-            UnityHooks.OnBeforeRender += HandleControllerMovement;
-            UnityHooks.OnBeforeRender += UpdateHMDPositions;
         }
 
         static public void SyncPlayerAndHMD()
@@ -151,6 +148,8 @@ namespace HPVR.VR
 
         public static void Update()
         {
+            HandleControllerMovement();
+            UpdateHMDPositions();
         }
 
         private static void FinalizeSteamVRSetup()

@@ -1,4 +1,7 @@
-﻿using MelonLoader;
+﻿using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using MelonLoader;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -45,23 +48,23 @@ namespace HPVR.utils
 
         public static void FreeIl2CppArray<T>(this T[] incoming) where T : struct
         {
-            var t = typeof(T);
-            if (!t.IsLayoutSequential)
-            {
-                throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
-            }
-            if (Allocations.TryGetValue(incoming.GetHashCode(), out IntPtr pointer))
-            {
-                Marshal.FreeHGlobal(pointer);
-            }
-            else
-            {
-                //throw new InvalidDataException($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
-                MelonLogger.Msg($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
-            }
+            //var t = typeof(T);
+            //if (!t.IsLayoutSequential)
+            //{
+            //    throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
+            //}
+            //if (Allocations.TryGetValue(incoming.GetHashCode(), out IntPtr pointer))
+            //{
+            //    Marshal.FreeHGlobal(pointer);
+            //}
+            //else
+            //{
+            //    //throw new InvalidDataException($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
+            //    MelonLogger.Msg($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
+            //}
         }
 
-        public unsafe static Il2CppSystem.Array AllocIl2cppArray<T>(this T[] incoming) where T : struct
+        public unsafe static Il2CppSystem.Array AllocIl2CppArray<T>(this T[] incoming) where T : struct
         {
             var t = typeof(T);
             if (!t.IsLayoutSequential)
@@ -69,18 +72,24 @@ namespace HPVR.utils
                 throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
             }
 
-            var size = Marshal.SizeOf(incoming);
-            var pointer = Marshal.AllocHGlobal(size);
+            var DataSize = Unsafe.SizeOf<T>();
+            DataSize *= incoming.Length;
+            int ArrayObjSize = Unsafe.SizeOf<T[]>();
 
+            //array in c# memory is 4 byte lenght, 4 byte padding and then the data
             GCHandle gC = GCHandle.Alloc(incoming, GCHandleType.Pinned);
+            IntPtr pinnedArr = gC.AddrOfPinnedObject();
 
-            Memmove((void*)pointer, (void*)gC.AddrOfPinnedObject(), (nuint)size);
+            //we create the array for bytes, but then copy in the real data. this should be fine?
+            var array = new Il2CppStructArray<byte>(DataSize);
+            var handle = IL2CPP.il2cpp_gchandle_new(array.Pointer, true);
 
+            Memmove((void*)(array.Pointer + 8), (void*)pinnedArr, (nuint)(ArrayObjSize + DataSize));
+
+            IL2CPP.il2cpp_gchandle_free(handle);
             gC.Free();
 
-            //keep track
-            Allocations.Add(incoming.GetHashCode(), pointer);
-            return new Il2CppSystem.Array(pointer);
+            return array.Cast<Il2CppSystem.Array>();
         }
 
         private unsafe static void Memmove(void* dest, void* src, nuint len)
@@ -89,5 +98,33 @@ namespace HPVR.utils
             _ = Unsafe.ReadUnaligned<byte>(src);
             System.Buffer.MemoryCopy(dest, src, len, len);
         }
+
+        public static void SetHandlerAtFront(this Action action, Delegate @delegate)
+        {
+            FieldInfo invocationList = typeof(MulticastDelegate).GetField("_invocationList", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            FieldInfo invocationCount = typeof(MulticastDelegate).GetField("_invocationCount", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            Delegate[] subscribers = action.GetInvocationList();
+
+            Delegate currentDelegate = action;
+            for (int i = 0; i < subscribers.Length; i++)
+            {
+                currentDelegate = Delegate.RemoveAll(currentDelegate, subscribers[i])!;
+            }
+
+            Delegate[] newSubscriptions = new Delegate[subscribers.Length + 1];
+            newSubscriptions[0] = @delegate!;
+            Array.Copy(subscribers, 0, newSubscriptions, 1, subscribers.Length);
+
+            invocationList.SetValue(action, newSubscriptions);
+            invocationCount.SetValue(action, (IntPtr)newSubscriptions.Length);
+        }
+    }
+
+    internal class RawArrayData
+    {
+        public uint Length; // Array._numComponents padded to IntPtr
+        public uint Padding;
+        public byte Data;
     }
 }

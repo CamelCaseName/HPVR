@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using System;
+using HPVR.FSR3;
+using Il2CppEekCharacterEngine;
+using MelonLoader;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -32,17 +34,17 @@ namespace FidelityFX.FSR3
     /// This loosely matches the FfxPipelineState struct from the original FSR3 codebase, wrapped in an object-oriented blanket.
     /// These classes are responsible for loading compute shaders, managing temporary resources, binding resources to shader kernels and dispatching said shaders.
     /// </summary>
-    internal abstract class Fsr3UpscalerPass: IDisposable
+    internal abstract class Fsr3UpscalerPass : IDisposable
     {
         protected readonly Fsr3Upscaler.ContextDescription ContextDescription;
         protected readonly Fsr3UpscalerResources Resources;
         protected readonly ComputeBuffer Constants;
-        
-        protected ComputeShader ComputeShader;
+
+        internal ComputeShader ComputeShader;
         protected int KernelIndex;
 
         private CustomSampler _sampler;
-        
+
         protected Fsr3UpscalerPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
         {
             ContextDescription = contextDescription;
@@ -56,18 +58,22 @@ namespace FidelityFX.FSR3
 
         public void ScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
         {
+            MelonLogger.Msg("Compute shader null? " + (ComputeShader is null).ToString());
+            MelonLogger.Msg("Compute generic " + ComputeShader?.name);
+            MelonLogger.Msg("Compute generic " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
+
             BeginSample(commandBuffer);
             DoScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchX, dispatchY);
             EndSample(commandBuffer);
         }
 
         protected abstract void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY);
-        
+
         protected void InitComputeShader(string passName, ComputeShader shader)
         {
             InitComputeShader(passName, shader, ContextDescription.Flags);
         }
-        
+
         private void InitComputeShader(string passName, ComputeShader shader, Fsr3Upscaler.InitializationFlags flags)
         {
             ComputeShader = shader ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass '{passName}' could not be loaded! Please ensure it is included in the project correctly.");
@@ -81,7 +87,7 @@ namespace FidelityFX.FSR3
                 useLut = true;
             }
 #endif
-            
+
             // This matches the permutation rules from the CreatePipeline* functions
             if ((flags & Fsr3Upscaler.InitializationFlags.EnableHighDynamicRange) != 0)
             {
@@ -112,6 +118,8 @@ namespace FidelityFX.FSR3
             {
                 ComputeShader.EnableKeyword("FFX_HALF");
             }
+            //MelonLogger.Msg("Initialized Cshader: " + ComputeShader?.name);
+            //MelonLogger.Msg("Flags: " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
         }
 
         [Conditional("ENABLE_PROFILER")]
@@ -126,12 +134,13 @@ namespace FidelityFX.FSR3
             cmd.EndSample(_sampler);
         }
     }
-    
+
     internal class Fsr3UpscalerPrepareInputsPass : Fsr3UpscalerPass
     {
         public Fsr3UpscalerPrepareInputsPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
             : base(contextDescription, resources, constants)
         {
+            ComputeShader = contextDescription.Shaders.prepareInputsPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'prepareInputsPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Prepare Inputs", contextDescription.Shaders.prepareInputsPass);
         }
 
@@ -140,19 +149,19 @@ namespace FidelityFX.FSR3
             ref var color = ref dispatchParams.Color;
             ref var depth = ref dispatchParams.Depth;
             ref var motionVectors = ref dispatchParams.MotionVectors;
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputColor, color.RenderTarget, color.MipLevel, color.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputDepth, depth.RenderTarget, depth.MipLevel, depth.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputMotionVectors, motionVectors.RenderTarget, motionVectors.MipLevel, motionVectors.SubElement);
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavDilatedMotionVectors, Resources.DilatedVelocity);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavDilatedDepth, Resources.DilatedDepth);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavReconstructedPrevNearestDepth, Resources.ReconstructedPrevNearestDepth);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavFarthestDepth, Fsr3ShaderIDs.UavIntermediate);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavCurrentLuma, Resources.Luma[frameIndex]);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
@@ -160,12 +169,13 @@ namespace FidelityFX.FSR3
     internal class Fsr3UpscalerLumaPyramidPass : Fsr3UpscalerPass
     {
         private readonly ComputeBuffer _spdConstants;
-        
+
         public Fsr3UpscalerLumaPyramidPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants, ComputeBuffer spdConstants)
             : base(contextDescription, resources, constants)
         {
             _spdConstants = spdConstants;
-            
+
+            ComputeShader = contextDescription.Shaders.lumaPyramidPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'lumaPyramidPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Compute Luminance Pyramid", contextDescription.Shaders.lumaPyramidPass);
         }
 
@@ -185,7 +195,7 @@ namespace FidelityFX.FSR3
 
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbSpd, _spdConstants, 0, Marshal.SizeOf<Fsr3Upscaler.SpdConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
@@ -193,24 +203,25 @@ namespace FidelityFX.FSR3
     internal class Fsr3UpscalerShadingChangePyramidPass : Fsr3UpscalerPass
     {
         private readonly ComputeBuffer _spdConstants;
-        
+
         public Fsr3UpscalerShadingChangePyramidPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants, ComputeBuffer spdConstants)
             : base(contextDescription, resources, constants)
         {
             _spdConstants = spdConstants;
-            
+
+            ComputeShader = contextDescription.Shaders.shadingChangePyramidPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'shadingChangePyramidPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Compute Shading Change Pyramid", contextDescription.Shaders.shadingChangePyramidPass);
         }
 
         protected override void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
         {
             ref var exposure = ref dispatchParams.Exposure;
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvCurrentLuma, Resources.Luma[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvPreviousLuma, Resources.Luma[frameIndex ^ 1]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedMotionVectors, Resources.DilatedVelocity);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdAtomicCount, Resources.SpdAtomicCounter);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdMip0, Resources.SpdMips, 0);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdMip1, Resources.SpdMips, 1);
@@ -218,28 +229,29 @@ namespace FidelityFX.FSR3
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdMip3, Resources.SpdMips, 3);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdMip4, Resources.SpdMips, 4);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavSpdMip5, Resources.SpdMips, 5);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbSpd, _spdConstants, 0, Marshal.SizeOf<Fsr3Upscaler.SpdConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
-    
+
     internal class Fsr3UpscalerShadingChangePass : Fsr3UpscalerPass
     {
         public Fsr3UpscalerShadingChangePass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
             : base(contextDescription, resources, constants)
         {
+            ComputeShader = contextDescription.Shaders.shadingChangePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'shadingChangePass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Compute Shading Change", contextDescription.Shaders.shadingChangePass);
         }
 
         protected override void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
         {
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvSpdMips, Resources.SpdMips);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
@@ -249,6 +261,7 @@ namespace FidelityFX.FSR3
         public Fsr3UpscalerPrepareReactivityPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
             : base(contextDescription, resources, constants)
         {
+            ComputeShader = contextDescription.Shaders.prepareReactivityPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'prepareReactivityPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Prepare Reactivity", contextDescription.Shaders.prepareReactivityPass);
         }
 
@@ -268,10 +281,10 @@ namespace FidelityFX.FSR3
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvCurrentLuma, Resources.Luma[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
 
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavAccumulation, Resources.Accumulation[frameIndex]); 
+            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavAccumulation, Resources.Accumulation[frameIndex]);
 
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
@@ -281,13 +294,14 @@ namespace FidelityFX.FSR3
         public Fsr3UpscalerLumaInstabilityPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
             : base(contextDescription, resources, constants)
         {
+            ComputeShader = contextDescription.Shaders.lumaInstabilityPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'lumaInstabilityPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Compute Luminance Instability", contextDescription.Shaders.lumaInstabilityPass);
         }
 
         protected override void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
         {
             ref var exposure = ref dispatchParams.Exposure;
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedReactiveMasks, Fsr3ShaderIDs.UavDilatedReactiveMasks);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedMotionVectors, Resources.DilatedVelocity);
@@ -298,24 +312,25 @@ namespace FidelityFX.FSR3
 
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavLumaHistory, Resources.LumaHistory[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavLumaInstability, Fsr3ShaderIDs.UavIntermediate);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
-    
+
     internal class Fsr3UpscalerAccumulatePass : Fsr3UpscalerPass
     {
         private const string SharpeningKeyword = "FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING";
-    
+
 #if UNITY_2021_2_OR_NEWER
         private readonly LocalKeyword _sharpeningKeyword;
 #endif
-        
+
         public Fsr3UpscalerAccumulatePass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
             : base(contextDescription, resources, constants)
         {
+            ComputeShader = contextDescription.Shaders.accumulatePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'accumulatePass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Accumulate", contextDescription.Shaders.accumulatePass);
 #if UNITY_2021_2_OR_NEWER
             _sharpeningKeyword = new LocalKeyword(ComputeShader, SharpeningKeyword);
@@ -343,10 +358,10 @@ namespace FidelityFX.FSR3
             ref var color = ref dispatchParams.Color;
             ref var exposure = ref dispatchParams.Exposure;
             ref var output = ref dispatchParams.Output;
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedReactiveMasks, Fsr3ShaderIDs.UavDilatedReactiveMasks);
-            
+
             if ((ContextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableDisplayResolutionMotionVectors) == 0)
             {
                 commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedMotionVectors, Resources.DilatedVelocity);
@@ -363,12 +378,12 @@ namespace FidelityFX.FSR3
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvCurrentLuma, Resources.Luma[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvLumaInstability, Fsr3ShaderIDs.UavIntermediate);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputColor, color.RenderTarget, color.MipLevel, color.SubElement);
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavInternalUpscaled, Resources.InternalUpscaled[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavUpscaledOutput, output.RenderTarget, output.MipLevel, output.SubElement);
 
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
@@ -381,7 +396,8 @@ namespace FidelityFX.FSR3
             : base(contextDescription, resources, constants)
         {
             _rcasConstants = rcasConstants;
-            
+
+            ComputeShader = contextDescription.Shaders.sharpenPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'sharpenPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("RCAS Sharpening", contextDescription.Shaders.sharpenPass);
         }
 
@@ -390,7 +406,7 @@ namespace FidelityFX.FSR3
             ref var exposure = ref dispatchParams.Exposure;
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvRcasInput, Resources.InternalUpscaled[frameIndex]);
-            
+
             ref var output = ref dispatchParams.Output;
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavUpscaledOutput, output.RenderTarget, output.MipLevel, output.SubElement);
 
@@ -409,8 +425,17 @@ namespace FidelityFX.FSR3
             : base(contextDescription, resources, null)
         {
             _generateReactiveConstants = generateReactiveConstants;
+
+            ComputeShader = contextDescription.Shaders.autoGenReactivePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'autoGenReactivePass' could not be loaded! Please ensure it is included in the project correctly.");
             
-            InitComputeShader("Auto-Generate Reactive Mask", contextDescription.Shaders.autoGenReactivePass);
+            //its fine here
+            //MelonLogger.Msg("initialized shader ");
+            //MelonLogger.Msg("generate mask " + ComputeShader?.name);
+            //MelonLogger.Msg("Flags " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
+            
+            InitComputeShader("Auto-Generate Reactive Mask", ComputeShader);
+            ComputeShader = Fsr3UpscalerImageEffect.assets?.shaders?.autoGenReactivePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'autoGenReactivePass' could not be loaded! Please ensure it is included in the project correctly.");
+
         }
 
         protected override void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
@@ -419,21 +444,30 @@ namespace FidelityFX.FSR3
 
         public void ScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.GenerateReactiveDescription dispatchParams, int dispatchX, int dispatchY)
         {
+            //MelonLogger.Msg("begin dispatch");
             BeginSample(commandBuffer);
-            
+
             ref var opaqueOnly = ref dispatchParams.ColorOpaqueOnly;
             ref var color = ref dispatchParams.ColorPreUpscale;
             ref var reactive = ref dispatchParams.OutReactive;
-            
+            //MelonLogger.Msg("Compute shader null? " + (contextDescription.Shaders.autoGenReactivePass is null).ToString());
+            //MelonLogger.Msg("Compute shader " + contextDescription.Shaders.autoGenReactivePass?.name);
+            //MelonLogger.Msg("Compute shader " + string.Join("|", contextDescription.Shaders.autoGenReactivePass.shaderKeywords.ToArray()));
+
+            //MelonLogger.Msg("Compute shader null? " + (ComputeShader is null).ToString());
+            //MelonLogger.Msg("Compute shader " + ComputeShader?.name);
+            //MelonLogger.Msg("Compute shader " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvOpaqueOnly, opaqueOnly.RenderTarget, opaqueOnly.MipLevel, opaqueOnly.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputColor, color.RenderTarget, color.MipLevel, color.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavAutoReactive, reactive.RenderTarget, reactive.MipLevel, reactive.SubElement);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbGenReactive, _generateReactiveConstants, 0, Marshal.SizeOf<Fsr3Upscaler.GenerateReactiveConstants>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
-            
+
             EndSample(commandBuffer);
+            //MelonLogger.Msg("end dispatch");
         }
     }
 
@@ -445,7 +479,8 @@ namespace FidelityFX.FSR3
             : base(contextDescription, resources, constants)
         {
             _tcrAutogenerateConstants = tcrAutogenerateConstants;
-            
+
+            ComputeShader = contextDescription.Shaders.tcrAutoGenPass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'tcrAutoGenPass' could not be loaded! Please ensure it is included in the project correctly.");
             InitComputeShader("Auto-Generate Transparency & Composition Mask", contextDescription.Shaders.tcrAutoGenPass);
         }
 
@@ -456,7 +491,7 @@ namespace FidelityFX.FSR3
             ref var opaqueOnly = ref dispatchParams.ColorOpaqueOnly;
             ref var reactive = ref dispatchParams.Reactive;
             ref var tac = ref dispatchParams.TransparencyAndComposition;
-            
+
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvOpaqueOnly, opaqueOnly.RenderTarget, opaqueOnly.MipLevel, opaqueOnly.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputColor, color.RenderTarget, color.MipLevel, color.SubElement);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputMotionVectors, motionVectors.RenderTarget, motionVectors.MipLevel, motionVectors.SubElement);
@@ -469,10 +504,10 @@ namespace FidelityFX.FSR3
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavAutoComposition, Resources.AutoComposition);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavPrevColorPreAlpha, Resources.PrevPreAlpha[frameIndex]);
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavPrevColorPostAlpha, Resources.PrevPostAlpha[frameIndex]);
-            
+
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbGenReactive, _tcrAutogenerateConstants, 0, Marshal.SizeOf<Fsr3Upscaler.GenerateReactiveConstants2>());
-            
+
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }

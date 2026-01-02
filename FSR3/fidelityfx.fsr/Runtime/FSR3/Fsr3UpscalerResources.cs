@@ -19,7 +19,6 @@
 // THE SOFTWARE.
 
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using System;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;

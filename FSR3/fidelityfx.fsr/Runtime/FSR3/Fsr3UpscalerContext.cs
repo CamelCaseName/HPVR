@@ -37,7 +37,7 @@ namespace FidelityFX.FSR3
     {
         private const int MaxQueuedFrames = 16;
         
-        private Fsr3Upscaler.ContextDescription _contextDescription;
+        internal Fsr3Upscaler.ContextDescription _contextDescription;
         private CommandBuffer? _commandBuffer;
         
         private Fsr3UpscalerPass? _prepareInputsPass;
@@ -48,13 +48,13 @@ namespace FidelityFX.FSR3
         private Fsr3UpscalerPass? _lumaInstabilityPass;
         private Fsr3UpscalerPass? _accumulatePass;
         private Fsr3UpscalerPass? _sharpenPass;
-        private Fsr3UpscalerPass? _generateReactivePass;
+        internal Fsr3UpscalerGenerateReactivePass? _generateReactivePass;
         private Fsr3UpscalerPass? _tcrAutogeneratePass;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private Fsr3UpscalerPass _debugViewPass;
 #endif
 
-        private readonly Fsr3UpscalerResources _resources = new();
+        internal readonly Fsr3UpscalerResources _resources = new();
 
         private ComputeBuffer? _upscalerConstantsBuffer;
         private readonly Fsr3Upscaler.UpscalerConstants[] _upscalerConstantsArray = { new() };
@@ -68,7 +68,7 @@ namespace FidelityFX.FSR3
         private readonly Fsr3Upscaler.RcasConstants[] _rcasConstantsArray = new Fsr3Upscaler.RcasConstants[1];
         private ref Fsr3Upscaler.RcasConstants RcasConsts => ref _rcasConstantsArray[0];
 
-        private ComputeBuffer? _generateReactiveConstantsBuffer;
+        internal ComputeBuffer? _generateReactiveConstantsBuffer;
         private readonly Fsr3Upscaler.GenerateReactiveConstants[] _generateReactiveConstantsArray = { new() };
         private ref Fsr3Upscaler.GenerateReactiveConstants GenReactiveConsts => ref _generateReactiveConstantsArray[0];
 
@@ -127,7 +127,7 @@ namespace FidelityFX.FSR3
             DestroyPass(ref _debugViewPass);
 #endif
             DestroyPass(ref _tcrAutogeneratePass);
-            DestroyPass(ref _generateReactivePass);
+            //DestroyPass(ref _generateReactivePass);
             DestroyPass(ref _lumaPyramidPass);
             DestroyPass(ref _sharpenPass);
             DestroyPass(ref _accumulatePass);
@@ -267,8 +267,8 @@ namespace FidelityFX.FSR3
             SetupSpdConstants(dispatchParams, out var dispatchThreadGroupCount);
             
             // Initialize constant buffers data
-            commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2cppArray());
-            commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2CppArray());
+            commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2CppArray());
 
             // Auto reactive
             if (dispatchParams.EnableAutoReactive)
@@ -291,7 +291,7 @@ namespace FidelityFX.FSR3
             {
                 // Compute the constants
                 SetupRcasConstants(dispatchParams);
-                commandBuffer.SetBufferData(_rcasConstantsBuffer, _rcasConstantsArray.AllocIl2cppArray());
+                commandBuffer.SetBufferData(_rcasConstantsBuffer, _rcasConstantsArray.AllocIl2CppArray());
                 
                 // Dispatch RCAS
                 const int threadGroupWorkRegionDimRcas = 16;
@@ -332,7 +332,7 @@ namespace FidelityFX.FSR3
             GenReactiveConsts.threshold = dispatchParams.CutoffThreshold;
             GenReactiveConsts.binaryValue = dispatchParams.BinaryValue;
             GenReactiveConsts.flags = (uint)dispatchParams.Flags;
-            commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2CppArray());
             
             ((Fsr3UpscalerGenerateReactivePass)_generateReactivePass).ScheduleDispatch(commandBuffer, dispatchParams, dispatchSrcX, dispatchSrcY);
         }
@@ -348,7 +348,7 @@ namespace FidelityFX.FSR3
             TcrAutoGenConsts.autoTcScale = dispatchParams.AutoTcScale;
             TcrAutoGenConsts.autoReactiveScale = dispatchParams.AutoReactiveScale;
             TcrAutoGenConsts.autoReactiveMax = dispatchParams.AutoReactiveMax;
-            commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2cppArray());
+            commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2CppArray());
             
             _tcrAutogeneratePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
         }
