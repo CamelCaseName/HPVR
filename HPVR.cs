@@ -41,12 +41,14 @@ namespace HPVR
         readonly int II = LayerMask.NameToLayer("InteractiveItems");
         readonly int IIHighlighted = LayerMask.NameToLayer("InteractiveItemsHighlighted");
         private readonly List<InteractiveItem> Items = new();
-        private bool boundPlayerHands;
         private Canvas? Dialogue;
         private bool DialogueVisible = false;
         private Canvas? interactionCanvas;
         private CharacterBase? DialogueSpeaker = null;
+#if !VR_DISABLED
         private bool updatedCameraCull = false;
+        private bool boundPlayerHands;
+#endif
         private Fsr3UpscalerImageEffect? fsrScaler;
         private bool GameMainLateStarted = false;
         static HPVR()
@@ -109,6 +111,7 @@ namespace HPVR
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
+            MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
             inGameMain = sceneName == "GameMain";
             inMainMenu = sceneName == "MainMenu";
             inLoadingScreen = sceneName == "LoadingScreen";
@@ -121,10 +124,9 @@ namespace HPVR
             //VRSystem.SetUpSteamVRUnity();
 
             //UIManager.Initialize();
-#endif
-            MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
-            updatedCameraCull = false;
 
+            updatedCameraCull = false;
+#endif
             MelonLogger.Msg("Available Layers:");
             MelonLogger.Msg(LayerMask.LayerToName(0));
             for (int i = 0; i < 32; i++)
@@ -585,6 +587,7 @@ namespace HPVR
 
         private void BindPlayerHandsToVRHands()
         {
+#if !VR_DISABLED
             if (PlayerCharacter.Player is null || Player.instance.leftHand is null || Player.instance.rightHand is null)
             {
                 return;
@@ -594,6 +597,7 @@ namespace HPVR
             PlayerCharacter.Player.FinalIK.BodyIK.solver.rightHandEffector.target = Player.instance.rightHand.transform;
 
             boundPlayerHands = true;
+#endif
         }
 
         private void CreateMainMenuBoundary()
@@ -713,9 +717,11 @@ namespace HPVR
 
         private void UpdateCameraCulling()
         {
+#if !VR_DISABLED
             SteamVRCamera.instance.camera.cullingMask &= ~LayerMask.GetMask("InvisibleToMainCamera");
 
             updatedCameraCull = true;
+#endif
         }
 
         private void SetUpDialogueCanvas()

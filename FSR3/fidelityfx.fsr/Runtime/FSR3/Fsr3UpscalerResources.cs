@@ -31,19 +31,21 @@ namespace FidelityFX.FSR3
     /// </summary>
     internal class Fsr3UpscalerResources
     {
-        public Texture2D? LanczosLut;
-        public Texture2D? DefaultExposure;
-        public Texture2D? DefaultReactive;
-        
-        public RenderTexture? SpdAtomicCounter;
-        public RenderTexture? SpdMips;
-        public RenderTexture? DilatedVelocity;
-        public RenderTexture? DilatedDepth;
-        public RenderTexture? ReconstructedPrevNearestDepth;
-        public RenderTexture? FrameInfo;
-        public RenderTexture? AutoReactive;
-        public RenderTexture? AutoComposition;
-        
+#nullable disable
+        public Texture2D LanczosLut;
+        public Texture2D DefaultExposure;
+        public Texture2D DefaultReactive;
+
+        public RenderTexture SpdAtomicCounter;
+        public RenderTexture SpdMips;
+        public RenderTexture DilatedVelocity;
+        public RenderTexture DilatedDepth;
+        public RenderTexture ReconstructedPrevNearestDepth;
+        public RenderTexture FrameInfo;
+        public RenderTexture AutoReactive;
+        public RenderTexture AutoComposition;
+#nullable restore
+
         public readonly RenderTexture[] Accumulation = new RenderTexture[2];
         public readonly RenderTexture[] Luma = new RenderTexture[2];
         public readonly RenderTexture[] InternalUpscaled = new RenderTexture[2];
@@ -65,59 +67,59 @@ namespace FidelityFX.FSR3
 
             Vector2Int maxRenderSize = contextDescription.MaxRenderSize;
             Vector2Int maxRenderSizeDiv2 = maxRenderSize / 2;
-            
+
             // Resource FSR3UPSCALER_LanczosLutData: FFX_RESOURCE_USAGE_READ_ONLY, FFX_SURFACE_FORMAT_R16_SNORM, FFX_RESOURCE_FLAGS_NONE
             // R16_SNorm textures are not supported by Unity on most platforms, strangely enough. So instead we use R32_SFloat and upload pre-normalized float data.
             LanczosLut = new Texture2D(lanczos2LutWidth, 1, GraphicsFormat.R32_SFloat, TextureCreationFlags.None) { name = "FSR3UPSCALER_LanczosLutData" };
             LanczosLut.SetPixelData(new Il2CppStructArray<float>(lanczos2Weights), 0);
             LanczosLut.Apply();
-            
+
             // Resource FSR3UPSCALER_DefaultReactivityMask: FFX_RESOURCE_USAGE_READ_ONLY, FFX_SURFACE_FORMAT_R8_UNORM, FFX_RESOURCE_FLAGS_NONE
             DefaultReactive = new Texture2D(1, 1, GraphicsFormat.R8_UNorm, TextureCreationFlags.None) { name = "FSR3UPSCALER_DefaultReactivityMask" };
             DefaultReactive.SetPixel(0, 0, Color.clear);
             DefaultReactive.Apply();
-            
+
             // Resource FSR3UPSCALER_DefaultExposure: FFX_RESOURCE_USAGE_READ_ONLY, FFX_SURFACE_FORMAT_R32G32_FLOAT, FFX_RESOURCE_FLAGS_NONE
             DefaultExposure = new Texture2D(1, 1, GraphicsFormat.R32G32_SFloat, TextureCreationFlags.None) { name = "FSR3UPSCALER_DefaultExposure" };
             DefaultExposure.SetPixel(0, 0, Color.clear);
             DefaultExposure.Apply();
-            
+
             // Resource FSR3UPSCALER_SpdAtomicCounter: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R32_UINT, FFX_RESOURCE_FLAGS_ALIASABLE
             // Despite what the original FSR3 codebase says, this resource really isn't aliasable. Resetting this counter to 0 every frame breaks auto-exposure on MacOS Metal.
             SpdAtomicCounter = new RenderTexture(1, 1, 0, GraphicsFormat.R32_UInt) { name = "FSR3UPSCALER_SpdAtomicCounter", enableRandomWrite = true };
             SpdAtomicCounter.Create();
-            
+
             // Resource FSR3UPSCALER_SpdMips: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16G16_FLOAT, FFX_RESOURCE_FLAGS_ALIASABLE
             // This is a rather special case: it's an aliasable resource, but because we require a mipmap chain and bind specific mip levels per shader, we can't easily use temporary RTs for this.
             int mipCount = 1 + Mathf.FloorToInt(Mathf.Log(Math.Max(maxRenderSizeDiv2.x, maxRenderSizeDiv2.y), 2.0f));
             SpdMips = new RenderTexture(maxRenderSizeDiv2.x, maxRenderSizeDiv2.y, 0, GraphicsFormat.R16G16_SFloat, mipCount) { name = "FSR3UPSCALER_SpdMips", enableRandomWrite = true, useMipMap = true, autoGenerateMips = false };
             SpdMips.Create();
-            
+
             // Resource FSR3UPSCALER_DilatedVelocity: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16G16_FLOAT, FFX_RESOURCE_FLAGS_NONE
             DilatedVelocity = new RenderTexture(maxRenderSize.x, maxRenderSize.y, 0, GraphicsFormat.R16G16_SFloat) { name = "FSR3UPSCALER_DilatedVelocity", enableRandomWrite = true };
             DilatedVelocity.Create();
-            
+
             // Resource FSR3UPSCALER_DilatedDepth: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R32_FLOAT, FFX_RESOURCE_FLAGS_NONE
             DilatedDepth = new RenderTexture(maxRenderSize.x, maxRenderSize.y, 0, GraphicsFormat.R32_SFloat) { name = "FSR3UPSCALER_DilatedDepth", enableRandomWrite = true };
             DilatedDepth.Create();
-            
+
             // Resource FSR3UPSCALER_ReconstructedPrevNearestDepth: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R32_UINT, FFX_RESOURCE_FLAGS_NONE
             ReconstructedPrevNearestDepth = new RenderTexture(maxRenderSize.x, maxRenderSize.y, 0, GraphicsFormat.R32_UInt) { name = "FSR3UPSCALER_ReconstructedPrevNearestDepth", enableRandomWrite = true };
             ReconstructedPrevNearestDepth.Create();
-            
+
             // Resource FSR3UPSCALER_FrameInfo: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R32G32B32A32_FLOAT, FFX_RESOURCE_FLAGS_NONE
             FrameInfo = new RenderTexture(1, 1, 0, GraphicsFormat.R32G32B32A32_SFloat) { name = "FSR3UPSCALER_FrameInfo", enableRandomWrite = true };
             FrameInfo.Create();
 
             // Resources FSR3UPSCALER_Accumulation1/2: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R8_UNORM, FFX_RESOURCE_FLAGS_NONE
             CreateDoubleBufferedResource(Accumulation, "FSR3UPSCALER_Accumulation", maxRenderSize, GraphicsFormat.R8_UNorm);
-            
+
             // Resources FSR3UPSCALER_Luma1/2: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16_FLOAT, FFX_RESOURCE_FLAGS_NONE
             CreateDoubleBufferedResource(Luma, "FSR3UPSCALER_Luma", maxRenderSize, GraphicsFormat.R16_SFloat);
-            
+
             // Resources FSR3UPSCALER_InternalUpscaled1/2: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT, FFX_RESOURCE_FLAGS_NONE
             CreateDoubleBufferedResource(InternalUpscaled, "FSR3UPSCALER_InternalUpscaled", contextDescription.MaxUpscaleSize, GraphicsFormat.R16G16B16A16_SFloat);
-            
+
             // Resources FSR3UPSCALER_LumaHistory1/2: FFX_RESOURCE_USAGE_RENDERTARGET | FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT, FFX_RESOURCE_FLAGS_NONE
             CreateDoubleBufferedResource(LumaHistory, "FSR3UPSCALER_LumaHistory", maxRenderSize, GraphicsFormat.R16G16B16A16_SFloat);
         }
@@ -138,7 +140,7 @@ namespace FidelityFX.FSR3
             // Resources FSR3UPSCALER_PrevPostAlpha0/1: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R11G11B10_FLOAT, FFX_RESOURCE_FLAGS_NONE
             CreateDoubleBufferedResource(PrevPostAlpha, "FSR3UPSCALER_PrevPostAlpha", contextDescription.MaxRenderSize, GraphicsFormat.B10G11R11_UFloatPack32);
         }
-        
+
         // Set up shared aliasable resources, i.e. temporary render textures
         // These do not need to persist between frames, but they do need to be available between passes
         public static void CreateAliasableResources(CommandBuffer commandBuffer, Fsr3Upscaler.ContextDescription contextDescription, Fsr3Upscaler.DispatchDescription dispatchParams)
@@ -146,19 +148,19 @@ namespace FidelityFX.FSR3
             Vector2Int maxUpscaleSize = contextDescription.MaxUpscaleSize;
             Vector2Int maxRenderSize = contextDescription.MaxRenderSize;
             Vector2Int maxRenderSizeDiv2 = maxRenderSize / 2;
-            
+
             // FSR3UPSCALER_IntermediateFp16x1: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16_FLOAT, FFX_RESOURCE_FLAGS_ALIASABLE
             commandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavIntermediate, maxRenderSize.x, maxRenderSize.y, 0, default, GraphicsFormat.R16_SFloat, 1, true);
-            
+
             // FSR3UPSCALER_ShadingChange: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R8_UNORM, FFX_RESOURCE_FLAGS_ALIASABLE
             commandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavShadingChange, maxRenderSizeDiv2.x, maxRenderSizeDiv2.y, 0, default, GraphicsFormat.R8_UNorm, 1, true);
-            
+
             // FSR3UPSCALER_NewLocks: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R8_UNORM, FFX_RESOURCE_FLAGS_ALIASABLE
             commandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavNewLocks, maxUpscaleSize.x, maxUpscaleSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true);
-            
+
             // FSR3UPSCALER_FarthestDepthMip1: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R16_FLOAT, FFX_RESOURCE_FLAGS_ALIASABLE
             commandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavFarthestDepthMip1, maxRenderSizeDiv2.x, maxRenderSizeDiv2.y, 0, default, GraphicsFormat.R16_SFloat, 1, true);
-            
+
             // FSR3UPSCALER_DilatedReactiveMasks: FFX_RESOURCE_USAGE_UAV, FFX_SURFACE_FORMAT_R8G8B8A8_UNORM, FFX_RESOURCE_FLAGS_ALIASABLE
             commandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavDilatedReactiveMasks, maxRenderSize.x, maxRenderSize.y, 0, default, GraphicsFormat.R8G8B8A8_UNorm, 1, true);
         }
@@ -185,19 +187,19 @@ namespace FidelityFX.FSR3
         public void Destroy()
         {
             DestroyTcrAutogenResources();
-            
+
             DestroyResource(LumaHistory);
             DestroyResource(InternalUpscaled);
             DestroyResource(Luma);
             DestroyResource(Accumulation);
-            
+
             DestroyResource(ref FrameInfo);
             DestroyResource(ref ReconstructedPrevNearestDepth);
             DestroyResource(ref DilatedDepth);
             DestroyResource(ref DilatedVelocity);
             DestroyResource(ref SpdMips);
             DestroyResource(ref SpdAtomicCounter);
-            
+
             DestroyResource(ref DefaultReactive);
             DestroyResource(ref DefaultExposure);
             DestroyResource(ref LanczosLut);
@@ -210,7 +212,7 @@ namespace FidelityFX.FSR3
             DestroyResource(ref AutoComposition);
             DestroyResource(ref AutoReactive);
         }
-        
+
         private static void DestroyResource(ref Texture2D resource)
         {
             if (resource == null)
@@ -226,7 +228,7 @@ namespace FidelityFX.FSR3
 #else
             UnityEngine.Object.Destroy(resource);
 #endif
-            resource = null;
+            resource = null!;
         }
 
         private static void DestroyResource(ref RenderTexture resource)
@@ -237,7 +239,7 @@ namespace FidelityFX.FSR3
             }
 
             resource.Release();
-            resource = null;
+            resource = null!;
         }
 
         private static void DestroyResource(RenderTexture[] resource)

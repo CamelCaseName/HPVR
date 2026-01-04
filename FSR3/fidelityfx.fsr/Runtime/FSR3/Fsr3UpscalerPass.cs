@@ -40,10 +40,10 @@ namespace FidelityFX.FSR3
         protected readonly Fsr3UpscalerResources Resources;
         protected readonly ComputeBuffer Constants;
 
-        internal ComputeShader ComputeShader;
+        internal ComputeShader ComputeShader = null!;
         protected int KernelIndex;
 
-        private CustomSampler _sampler;
+        private CustomSampler _sampler = null!;
 
         protected Fsr3UpscalerPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
         {
@@ -422,7 +422,7 @@ namespace FidelityFX.FSR3
         private readonly ComputeBuffer _generateReactiveConstants;
 
         public Fsr3UpscalerGenerateReactivePass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer generateReactiveConstants)
-            : base(contextDescription, resources, null)
+            : base(contextDescription, resources, null!)
         {
             _generateReactiveConstants = generateReactiveConstants;
 

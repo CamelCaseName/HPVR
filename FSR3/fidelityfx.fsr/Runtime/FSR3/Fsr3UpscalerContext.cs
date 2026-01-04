@@ -36,46 +36,48 @@ namespace FidelityFX.FSR3
     public class Fsr3UpscalerContext
     {
         private const int MaxQueuedFrames = 16;
-        
+
         internal Fsr3Upscaler.ContextDescription _contextDescription;
         private CommandBuffer? _commandBuffer;
-        
-        private Fsr3UpscalerPass? _prepareInputsPass;
-        private Fsr3UpscalerPass? _lumaPyramidPass;
-        private Fsr3UpscalerPass? _shadingChangePyramidPass;
-        private Fsr3UpscalerPass? _shadingChangePass;
-        private Fsr3UpscalerPass? _prepareReactivityPass;
-        private Fsr3UpscalerPass? _lumaInstabilityPass;
-        private Fsr3UpscalerPass? _accumulatePass;
-        private Fsr3UpscalerPass? _sharpenPass;
-        internal Fsr3UpscalerGenerateReactivePass? _generateReactivePass;
-        private Fsr3UpscalerPass? _tcrAutogeneratePass;
+
+#nullable disable
+        private Fsr3UpscalerPass _prepareInputsPass;
+        private Fsr3UpscalerPass _lumaPyramidPass;
+        private Fsr3UpscalerPass _shadingChangePyramidPass;
+        private Fsr3UpscalerPass _shadingChangePass;
+        private Fsr3UpscalerPass _prepareReactivityPass;
+        private Fsr3UpscalerPass _lumaInstabilityPass;
+        private Fsr3UpscalerPass _accumulatePass;
+        private Fsr3UpscalerPass _sharpenPass;
+        internal Fsr3UpscalerGenerateReactivePass _generateReactivePass;
+        private Fsr3UpscalerPass _tcrAutogeneratePass;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private Fsr3UpscalerPass _debugViewPass;
 #endif
 
         internal readonly Fsr3UpscalerResources _resources = new();
 
-        private ComputeBuffer? _upscalerConstantsBuffer;
+        private ComputeBuffer _upscalerConstantsBuffer;
         private readonly Fsr3Upscaler.UpscalerConstants[] _upscalerConstantsArray = { new() };
         private ref Fsr3Upscaler.UpscalerConstants UpscalerConsts => ref _upscalerConstantsArray[0];
 
-        private ComputeBuffer? _spdConstantsBuffer;
+        private ComputeBuffer _spdConstantsBuffer;
         private readonly Fsr3Upscaler.SpdConstants[] _spdConstantsArray = { new() };
         private ref Fsr3Upscaler.SpdConstants SpdConsts => ref _spdConstantsArray[0];
-    
-        private ComputeBuffer? _rcasConstantsBuffer;
+
+        private ComputeBuffer _rcasConstantsBuffer;
         private readonly Fsr3Upscaler.RcasConstants[] _rcasConstantsArray = new Fsr3Upscaler.RcasConstants[1];
         private ref Fsr3Upscaler.RcasConstants RcasConsts => ref _rcasConstantsArray[0];
 
-        internal ComputeBuffer? _generateReactiveConstantsBuffer;
+        internal ComputeBuffer _generateReactiveConstantsBuffer;
         private readonly Fsr3Upscaler.GenerateReactiveConstants[] _generateReactiveConstantsArray = { new() };
         private ref Fsr3Upscaler.GenerateReactiveConstants GenReactiveConsts => ref _generateReactiveConstantsArray[0];
 
-        private ComputeBuffer? _tcrAutogenerateConstantsBuffer;
+        private ComputeBuffer _tcrAutogenerateConstantsBuffer;
         private readonly Fsr3Upscaler.GenerateReactiveConstants2[] _tcrAutogenerateConstantsArray = { new() };
         private ref Fsr3Upscaler.GenerateReactiveConstants2 TcrAutoGenConsts => ref _tcrAutogenerateConstantsArray[0];
 
+#nullable restore
         private bool _firstExecution;
         private int _resourceFrameIndex;
         private Vector2 _previousJitterOffset;
@@ -96,10 +98,10 @@ namespace FidelityFX.FSR3
             // Set defaults
             _firstExecution = true;
             _resourceFrameIndex = 0;
-            
+
             UpscalerConsts.maxUpscaleSize = _contextDescription.MaxUpscaleSize;
             UpscalerConsts.velocityFactor = 1.0f;
-            
+
             _resources.Create(_contextDescription);
             CreatePasses();
         }
@@ -120,7 +122,7 @@ namespace FidelityFX.FSR3
             _debugViewPass = new Fsr3UpscalerDebugViewPass(_contextDescription, _resources, _upscalerConstantsBuffer);
 #endif
         }
-        
+
         public void Destroy()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -136,9 +138,9 @@ namespace FidelityFX.FSR3
             DestroyPass(ref _shadingChangePyramidPass);
             DestroyPass(ref _lumaInstabilityPass);
             DestroyPass(ref _prepareInputsPass);
-            
+
             _resources.Destroy();
-            
+
             DestroyConstantBuffer(ref _tcrAutogenerateConstantsBuffer);
             DestroyConstantBuffer(ref _generateReactiveConstantsBuffer);
             DestroyConstantBuffer(ref _rcasConstantsBuffer);
@@ -154,11 +156,16 @@ namespace FidelityFX.FSR3
 
         public void Dispatch(Fsr3Upscaler.DispatchDescription dispatchParams)
         {
+            if(_commandBuffer is null)
+            {
+                return;
+            }
+
             _commandBuffer.Clear();
             Dispatch(dispatchParams, _commandBuffer);
             Graphics.ExecuteCommandBuffer(_commandBuffer);
         }
-        
+
         public void Dispatch(Fsr3Upscaler.DispatchDescription dispatchParams, CommandBuffer commandBuffer)
         {
             if ((_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableDebugChecking) != 0)
@@ -182,7 +189,7 @@ namespace FidelityFX.FSR3
                 commandBuffer.SetRenderTarget(_resources.Luma[1]);
                 commandBuffer.ClearRenderTarget(false, true, Color.clear);
             }
-            
+
             int frameIndex = _resourceFrameIndex % 2;
             bool resetAccumulation = dispatchParams.Reset || _firstExecution;
             _firstExecution = false;
@@ -216,7 +223,7 @@ namespace FidelityFX.FSR3
                 // Destroy the auto-TCR resources if we don't use the feature 
                 _resources.DestroyTcrAutogenResources();
             }
-            
+
             if (!dispatchParams.Reactive.IsValid)
             {
                 dispatchParams.Reactive = new ResourceView(_resources.DefaultReactive);
@@ -228,9 +235,9 @@ namespace FidelityFX.FSR3
             }
 
             Fsr3UpscalerResources.CreateAliasableResources(commandBuffer, _contextDescription, dispatchParams);
-            
+
             SetupConstants(dispatchParams, resetAccumulation);
-            
+
             // Reactive mask bias
             const int threadGroupWorkRegionDim = 8;
             int dispatchSrcX = (UpscalerConsts.renderSize.x + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
@@ -245,10 +252,10 @@ namespace FidelityFX.FSR3
             {
                 commandBuffer.SetRenderTarget(_resources.Accumulation[frameIndex ^ 1]);
                 commandBuffer.ClearRenderTarget(false, true, Color.clear);
-                
+
                 commandBuffer.SetRenderTarget(_resources.SpdMips);
                 commandBuffer.ClearRenderTarget(false, true, Color.clear);
-                
+
                 // Auto exposure always used to track luma changes in locking logic
                 commandBuffer.SetRenderTarget(_resources.FrameInfo);
                 commandBuffer.ClearRenderTarget(false, true, new Color(0f, 1f, 0f, 0f));
@@ -257,15 +264,15 @@ namespace FidelityFX.FSR3
                 commandBuffer.SetRenderTarget(_resources.SpdAtomicCounter);
                 commandBuffer.ClearRenderTarget(false, true, Color.clear);
             }
-            
+
             // FSR3: need to clear here since we need the content of this surface for frame interpolation, so clearing in the lock pass is not an option
             bool depthInverted = (_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableDepthInverted) == Fsr3Upscaler.InitializationFlags.EnableDepthInverted;
             commandBuffer.SetRenderTarget(_resources.ReconstructedPrevNearestDepth);
             commandBuffer.ClearRenderTarget(false, true, depthInverted ? Color.clear : Color.white);
-            
+
             // Auto exposure
             SetupSpdConstants(dispatchParams, out var dispatchThreadGroupCount);
-            
+
             // Initialize constant buffers data
             commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2CppArray());
             commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2CppArray());
@@ -277,14 +284,14 @@ namespace FidelityFX.FSR3
                 dispatchParams.Reactive = new ResourceView(_resources.AutoReactive);
                 dispatchParams.TransparencyAndComposition = new ResourceView(_resources.AutoComposition);
             }
-            
+
             _prepareInputsPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
             _lumaPyramidPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchThreadGroupCount.x, dispatchThreadGroupCount.y);
             _shadingChangePyramidPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchThreadGroupCount.x, dispatchThreadGroupCount.y);
             _shadingChangePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchShadingChangePassX, dispatchShadingChangePassY);
             _prepareReactivityPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
             _lumaInstabilityPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
-            
+
             _accumulatePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchDstX, dispatchDstY);
 
             if (dispatchParams.EnableSharpening)
@@ -292,14 +299,14 @@ namespace FidelityFX.FSR3
                 // Compute the constants
                 SetupRcasConstants(dispatchParams);
                 commandBuffer.SetBufferData(_rcasConstantsBuffer, _rcasConstantsArray.AllocIl2CppArray());
-                
+
                 // Dispatch RCAS
                 const int threadGroupWorkRegionDimRcas = 16;
                 int threadGroupsX = (UpscalerConsts.upscaleSize.x + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
                 int threadGroupsY = (UpscalerConsts.upscaleSize.y + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
                 _sharpenPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, threadGroupsX, threadGroupsY);
             }
-            
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if ((dispatchParams.Flags & Fsr3Upscaler.DispatchFlags.DrawDebugView) != 0)
             {
@@ -310,12 +317,16 @@ namespace FidelityFX.FSR3
             _resourceFrameIndex = (_resourceFrameIndex + 1) % MaxQueuedFrames;
 
             Fsr3UpscalerResources.DestroyAliasableResources(commandBuffer);
-            
+
             commandBuffer.DisableShaderKeyword("UNITY_FSR_TEXTURE2D_X_ARRAY");
         }
 
         public void GenerateReactiveMask(Fsr3Upscaler.GenerateReactiveDescription dispatchParams)
         {
+            if (_commandBuffer is null)
+            {
+                return;
+            }
             _commandBuffer.Clear();
             GenerateReactiveMask(dispatchParams, _commandBuffer);
             Graphics.ExecuteCommandBuffer(_commandBuffer);
@@ -334,7 +345,7 @@ namespace FidelityFX.FSR3
             GenReactiveConsts.binaryValue = dispatchParams.BinaryValue;
             GenReactiveConsts.flags = (uint)dispatchParams.Flags;
             commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2CppArray());
-            
+
             ((Fsr3UpscalerGenerateReactivePass)_generateReactivePass).ScheduleDispatch(commandBuffer, dispatchParams, dispatchSrcX, dispatchSrcY);
         }
 
@@ -350,7 +361,7 @@ namespace FidelityFX.FSR3
             TcrAutoGenConsts.autoReactiveScale = dispatchParams.AutoReactiveScale;
             TcrAutoGenConsts.autoReactiveMax = dispatchParams.AutoReactiveMax;
             commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2CppArray());
-            
+
             _tcrAutogeneratePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
         }
 
@@ -384,10 +395,10 @@ namespace FidelityFX.FSR3
             {
                 constants.upscaleSize = dispatchParams.UpscaleSize;
             }
-            
+
             // To be updated if resource is larger than the actual image size
             constants.downscaleFactor = new Vector2((float)constants.renderSize.x / constants.upscaleSize.x, (float)constants.renderSize.y / constants.upscaleSize.y);
-            
+
             // Calculate pre-exposure relevant factors
             constants.deltaPreExposure = 1.0f;
             _previousFramePreExposure = _preExposure;
@@ -397,11 +408,11 @@ namespace FidelityFX.FSR3
             {
                 constants.deltaPreExposure = _preExposure / _previousFramePreExposure;
             }
-            
+
             // Motion vector data
             Vector2Int motionVectorsTargetSize = (_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableDisplayResolutionMotionVectors) != 0 ? constants.upscaleSize : constants.renderSize;
             constants.motionVectorScale = dispatchParams.MotionVectorScale / motionVectorsTargetSize;
-            
+
             // Compute jitter cancellation
             if ((_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableMotionVectorsJitterCancellation) != 0)
             {
@@ -426,7 +437,7 @@ namespace FidelityFX.FSR3
                     constants.jitterPhaseCount--;
                 }
             }
-            
+
             // Convert delta time to seconds and clamp to [0, 1]
             constants.deltaTime = Mathf.Clamp01(dispatchParams.FrameTimeDelta);
 
@@ -441,7 +452,7 @@ namespace FidelityFX.FSR3
 
             constants.velocityFactor = dispatchParams.VelocityFactor;
         }
-        
+
         private Vector4 SetupDeviceDepthToViewSpaceDepthParams(Fsr3Upscaler.DispatchDescription dispatchParams)
         {
             bool inverted = (_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableDepthInverted) != 0;
@@ -462,7 +473,7 @@ namespace FidelityFX.FSR3
 
             Vector4 matrixElemC = new(q, -1.0f - Mathf.Epsilon, q, 0.0f + Mathf.Epsilon);
             Vector4 matrixElemE = new(q * min, -min - Mathf.Epsilon, q * min, max);
-            
+
             // Revert x and y coords
             float aspect = (float)dispatchParams.RenderSize.x / dispatchParams.RenderSize.y;
             float cotHalfFovY = Mathf.Cos(0.5f * dispatchParams.CameraFovAngleVertical) / Mathf.Sin(0.5f * dispatchParams.CameraFovAngleVertical);
@@ -521,22 +532,22 @@ namespace FidelityFX.FSR3
             {
                 MelonLogger.Error("Color resource is null");
             }
-            
+
             if (!dispatchParams.Depth.IsValid)
             {
                 MelonLogger.Error("Depth resource is null");
             }
-            
+
             if (!dispatchParams.MotionVectors.IsValid)
             {
                 MelonLogger.Error("MotionVectors resource is null");
             }
-            
+
             if (dispatchParams.Exposure.IsValid && (_contextDescription.Flags & Fsr3Upscaler.InitializationFlags.EnableAutoExposure) != 0)
             {
                 MelonLogger.Warning("Exposure resource provided, however auto exposure flag is present");
             }
-            
+
             if (!dispatchParams.Output.IsValid)
             {
                 MelonLogger.Error("Output resource is null");
@@ -599,7 +610,7 @@ namespace FidelityFX.FSR3
                         MelonLogger.Warning("EnableDepthInfinite and EnableDepthInverted present, yet CameraNear != float.MaxValue");
                     }
                 }
-                
+
                 if (dispatchParams.CameraFar < 0.075f)
                 {
                     MelonLogger.Warning("EnableDepthInverted present, CameraFar value is very low which may result in depth separation artefacting");
@@ -641,7 +652,7 @@ namespace FidelityFX.FSR3
         /// The FSR3 C++ codebase uses floats bitwise converted to ints to pass sharpness parameters to the RCAS shader.
         /// This is not possible in C# without enabling unsafe code compilation, so to avoid that we instead use a table of precomputed values.
         /// </summary>
-        private static readonly Fsr3Upscaler.RcasConstants[] RcasConfigs = new []
+        private static readonly Fsr3Upscaler.RcasConstants[] RcasConfigs = new[]
         {
             new Fsr3Upscaler.RcasConstants(1048576000u, 872428544u),
             new Fsr3Upscaler.RcasConstants(1049178080u, 877212745u),
@@ -665,12 +676,12 @@ namespace FidelityFX.FSR3
             new Fsr3Upscaler.RcasConstants(1064229695u, 997604214u),
             new Fsr3Upscaler.RcasConstants(1065353216u, 1006648320),
         };
-        
-        private static ComputeBuffer CreateConstantBuffer<TConstants>() where TConstants: struct
+
+        private static ComputeBuffer CreateConstantBuffer<TConstants>() where TConstants : struct
         {
             return new ComputeBuffer(1, Marshal.SizeOf<TConstants>(), ComputeBufferType.Constant);
         }
-        
+
         private static void DestroyConstantBuffer(ref ComputeBuffer bufferRef)
         {
             if (bufferRef == null)
@@ -679,7 +690,7 @@ namespace FidelityFX.FSR3
             }
 
             bufferRef.Release();
-            bufferRef = null;
+            bufferRef = null!;
         }
 
         private static void DestroyPass(ref Fsr3UpscalerPass pass)
@@ -690,7 +701,7 @@ namespace FidelityFX.FSR3
             }
 
             pass.Dispose();
-            pass = null;
+            pass = null!;
         }
     }
 }

@@ -55,6 +55,11 @@ namespace HPVR.FSR3
             {
                 return;
             }
+            if (_renderCamera is null)
+            {
+                MelonLogger.Error("rendercamera was null!");
+                return;
+            }
 
             var originalRect = _renderCamera.rect;
             float upscaleRatio = Fsr3Upscaler.GetUpscaleRatioFromQualityMode(_imageEffect.qualityMode);

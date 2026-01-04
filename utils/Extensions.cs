@@ -120,11 +120,4 @@ namespace HPVR.utils
             invocationCount.SetValue(action, (IntPtr)newSubscriptions.Length);
         }
     }
-
-    internal class RawArrayData
-    {
-        public uint Length; // Array._numComponents padded to IntPtr
-        public uint Padding;
-        public byte Data;
-    }
 }
