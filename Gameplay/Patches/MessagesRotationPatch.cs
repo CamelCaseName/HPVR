@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace HPVR.Gameplay.Patches
 {
-    [HarmonyPatch(typeof(MessageHandler), nameof(MessageHandler.OnDisplayMessage))]
+    //[HarmonyPatch(typeof(MessageHandler), nameof(MessageHandler.OnDisplayMessage))]
     internal class MessageRotationPatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]

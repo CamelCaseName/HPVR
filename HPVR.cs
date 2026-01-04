@@ -1,4 +1,6 @@
-﻿using HPVR.FSR3;
+﻿#define VR_DISABLED 
+
+using HPVR.FSR3;
 using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
 using HPVR.utils;
@@ -15,6 +17,7 @@ using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Util;
+using SteamXRMelon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -83,7 +86,9 @@ namespace HPVR
         {
             try
             {
+#if !VR_DISABLED
                 VRSystem.StartVR();
+#endif
             }
             catch (NotSupportedException ex)
             {
@@ -109,10 +114,11 @@ namespace HPVR
 
             VRSystem.Gravity = inMainMenu || inGameMain;
 
-            VRSystem.SetUpSteamVRUnity();
+#if !VR_DISABLED
+            //VRSystem.SetUpSteamVRUnity();
 
-            UIManager.Initialize();
-
+            //UIManager.Initialize();
+#endif
             MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
             updatedCameraCull = false;
 
@@ -131,6 +137,7 @@ namespace HPVR
             {
                 SetUpPostProcessing();
 
+#if !VR_DISABLED
                 playerChar = PlayerCharacter.Player.transform;
                 //MelonLogger.Msg((counter++).ToString());
 
@@ -146,16 +153,18 @@ namespace HPVR
                 Player.instance.rightHand.useFingerJointHover = false;
                 //MelonLogger.Msg((counter++).ToString());
 
-                PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
                 //MelonLogger.Msg((counter++).ToString());
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
                 cinemachineBrain.enabled = false;
                 //MelonLogger.Msg((counter++).ToString());
+#endif
+                PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
             }
             else if (inMainMenu)
             {
                 SetUpGraphicsSettings();
 
+#if !VR_DISABLED
                 //MelonLogger.Msg((counter++).ToString());
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
@@ -178,7 +187,10 @@ namespace HPVR
 
                 UIManager.UpdateUIPos = false;
                 //MelonLogger.Msg((counter++).ToString());
+#endif
             }
+
+#if !VR_DISABLED
             else if (Player.instance is not null)
             {
                 if (Player.instance.leftHand is not null)
@@ -236,7 +248,7 @@ namespace HPVR
                     //MelonLogger.Msg((counter++).ToString());
                 }
             }
-
+#endif
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
         }
 
@@ -257,31 +269,46 @@ namespace HPVR
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
-                MelonLogger.Msg("Adding UNITYFSR3 Component");
-
-                var fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
-                var fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
-                SteamVRCamera.instance.ForceLast();
-                MelonLogger.Msg("Added UNITYFSR3");
-
-                //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScaler.OnPreCull);
-                //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScalerHelper.OnPreCull);
-                UnityHooks.OnBeforeRender += fsrScalerHelper.OnPreCull;
-                UnityHooks.OnBeforeRender += fsrScaler.OnPreCull;
-
-                SteamVRRender.OnPreRender += () => fsrScaler.OnRenderImage(SteamVRCamera.instance.camera.activeTexture);
-
-                fsrScaler._helper = fsrScalerHelper;
-                //fsrScaler.OnEnable();
+                SetUpFSR3();
             }
             GraphicsController.Singleton.VolumetricFogQuality.Set(0);
             GraphicsController.Singleton.ShadowQuality.Set(1);
-            //GraphicsController.Singleton.transform.FindDeepChild("Apply").GetComponent<Button>().onClick.Invoke();
             GraphicsController.Singleton.ApplySettings();
+            GraphicsController.Singleton.transform.FindDeepChild("Apply").GetComponent<Button>().onClick.Invoke();
             if (GraphicsController.Singleton.IsShowing)
             {
                 GraphicsController.Singleton.Toggle();
             }
+        }
+
+        private static void SetUpFSR3()
+        {
+            MelonLogger.Msg("Adding UNITYFSR3 Component");
+
+            var fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
+            var fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
+
+#if !VR_DISABLED
+            //SteamVRCamera.instance.ForceLast();
+#endif
+            MelonLogger.Msg("Added UNITYFSR3");
+
+            //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScaler.OnPreCull);
+            //UnityHooks.OnBeforeRender.SetHandlerAtFront(fsrScalerHelper.OnPreCull);
+            UnityHooks.OnBeforeRender += fsrScalerHelper.OnPreCull;
+            UnityHooks.OnBeforeRender += fsrScaler.OnPreCull;
+
+            //create a custom fullscreen pass on the custompass global volume
+            //this gives us access to the rendercontext before the frame is pushed so we can do postprocessing
+            var customVolume = new GameObject("customVolume");
+            var pass = customVolume.AddComponent<CustomPassVolume>();
+            pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
+            pass.isGlobal = true;
+            pass.AddPassOfType<FsrHDRP>();
+
+            FsrHDRP.onRender += (ctx) => fsrScaler.OnRenderImage(ctx.cameraColorBuffer);
+
+            fsrScaler._helper = fsrScalerHelper;
         }
 
         private static void SetUpPostProcessing()
@@ -319,10 +346,16 @@ namespace HPVR
                     vol.active = false;
                 }
             }
+
+            if (!HDDynamicResolutionPlatformCapabilities.DLSSDetected)
+            {
+                SetUpFSR3();
+            }
         }
 
         public override void OnUpdate()
         {
+#if !VR_DISABLED
             if (SteamVRCamera.instance?.transform is null)
             {
                 return;
@@ -362,6 +395,7 @@ namespace HPVR
             {
                 TryEndDisclaimerScreen();
             }
+#endif
         }
 
         public void UpdateDialogueResponses()
@@ -612,6 +646,7 @@ namespace HPVR
         {
             MelonLogger.Msg("late start");
 
+#if !VR_DISABLED
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();
 
@@ -663,6 +698,7 @@ namespace HPVR
 
             //this one might crash so we do it last
             SetUpInGameCanvas();
+#endif
         }
 
         private void UpdateCameraCulling()

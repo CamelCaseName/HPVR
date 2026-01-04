@@ -58,9 +58,9 @@ namespace FidelityFX.FSR3
 
         public void ScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
         {
-            MelonLogger.Msg("Compute shader null? " + (ComputeShader is null).ToString());
-            MelonLogger.Msg("Compute generic " + ComputeShader?.name);
-            MelonLogger.Msg("Compute generic " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
+            //MelonLogger.Msg("Compute shader null? " + (ComputeShader is null).ToString());
+            //MelonLogger.Msg("Compute generic " + ComputeShader?.name);
+            //MelonLogger.Msg("Compute generic " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
 
             BeginSample(commandBuffer);
             DoScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchX, dispatchY);

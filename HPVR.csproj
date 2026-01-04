@@ -454,10 +454,6 @@
     <ProjectReference Include="..\SteamXR_Melon\SteamXR_Melon.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="FSR3\" />
-  </ItemGroup>
-
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="copy .\bin\x64\Debug\net6.0\HPVR.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\HPVR.dll&quot; /y &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\HouseParty_Data\StreamingAssets\SteamVR\OpenVRSettings.asset&quot;" />
   </Target>

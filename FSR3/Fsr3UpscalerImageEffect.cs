@@ -501,7 +501,7 @@ namespace HPVR.FSR3
                 return;
             }
 
-            //MelonLogger.Msg("on render image");
+            MelonLogger.Msg("on render image");
 
             // Restore the camera's viewport rect so we can output at full resolution
             _renderCamera.rect = _originalRect;
@@ -526,12 +526,14 @@ namespace HPVR.FSR3
             // Output the upscaled image
             if (_originalRenderTarget != null)
             {
+                MelonLogger.Msg("render to camera");
                 // Output to the camera target texture, passing through depth as well
                 _dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
                 _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, _originalRenderTarget, _copyWithDepthMaterial);
             }
             else
             {
+                MelonLogger.Msg("render global buffer");
                 // Output directly to the backbuffer
                 _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, dest);
             }
@@ -548,7 +550,7 @@ namespace HPVR.FSR3
             }
 
             // Shut up the Unity warning about not writing to the destination texture 
-            RenderTexture.active = dest;
+            //RenderTexture.active = dest;
         }
 
         private RenderTextureFormat GetDefaultFormat()

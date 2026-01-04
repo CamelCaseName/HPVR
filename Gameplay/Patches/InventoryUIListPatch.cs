@@ -7,7 +7,7 @@ using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Patches
 {
-    [HarmonyPatch(typeof(InventoryUI), nameof(InventoryUI.PopulateList))]
+    //[HarmonyPatch(typeof(InventoryUI), nameof(InventoryUI.PopulateList))]
     internal class InventoryUIListPatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]
