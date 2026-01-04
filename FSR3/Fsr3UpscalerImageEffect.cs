@@ -372,7 +372,7 @@ namespace HPVR.FSR3
 
             if (_helper == null || !_helper.enabled)
             {
-                MelonLogger.Msg("helper is null??");
+                MelonLogger.Msg("helper is null??  enabled: " + _helper?.enabled);
                 // Render to a smaller portion of the screen by manipulating the camera's viewport rect
                 _renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
                 _renderCamera.rect = new Rect(0, 0, _originalRect.width * _maxRenderSize.x / _renderCamera.pixelWidth, _originalRect.height * _maxRenderSize.y / _renderCamera.pixelHeight);

@@ -107,8 +107,8 @@ namespace HPVR.VR
             RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
             //UnityEngine.Rendering.TextureXR.maxViews = 2;
             //do steamvr before melonxr
-            SteamVR.enabled = true;
-            if (SteamVR.instance is null)
+            SteamVR.Enabled = true;
+            if (SteamVR.Instance is null)
             {
                 SteamVR.SafeDispose();
                 throw new NotSupportedException("VR Headset was not connected before starting the game");
