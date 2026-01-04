@@ -1,4 +1,4 @@
-﻿//#define VR_DISABLED 
+﻿#define VR_DISABLED 
 
 using HPVR.FSR3;
 using HPVR.Gameplay.Behaviours;
@@ -51,7 +51,7 @@ namespace HPVR
 #endif
         private Fsr3UpscalerImageEffect? fsrScaler;
         private bool GameMainLateStarted = false;
-        private static readonly bool FSR_Enabled = false;
+        private static readonly bool FSR_Enabled = true;
         static HPVR()
         {
             //MelonLogger.Msg("Static init");
@@ -99,6 +99,10 @@ namespace HPVR
 #if !VR_DISABLED
                 //also turns on the unityhooks
                 VRSystem.StartVR();
+#else
+                RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
+                RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
+                UnityHooks.Init();
 #endif
             }
             catch (NotSupportedException ex)
@@ -131,6 +135,8 @@ namespace HPVR
             {
                 if (fsrScaler != null)
                 {
+                    UnityHooks.ResetOnPreCull();
+
                     Object.DestroyImmediate(fsrScaler._helper);
                     Object.DestroyImmediate(fsrScaler);
                 }
@@ -144,6 +150,8 @@ namespace HPVR
             UIManager.Initialize();
 
             updatedCameraCull = false;
+#else
+            MelonLogger.Msg("VR SYSTEM DISABLED IN THIS BUILD");
 #endif
             MelonLogger.Msg("Available Layers:");
             MelonLogger.Msg(LayerMask.LayerToName(0));
@@ -292,6 +300,7 @@ namespace HPVR
             {
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
+                GraphicsController.Singleton.AntiAliasing.Set(0);
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
                 SetUpFSR3();
             }
@@ -318,8 +327,8 @@ namespace HPVR
 #endif
             MelonLogger.Msg("Added UNITYFSR3");
 
-            UnityHooks.OnPreCull.SetHandlerAtFront(fsrScalerHelper.OnPreCull);
-            UnityHooks.OnPreCull.SetHandlerAtFront(fsrScaler.OnPreCull);
+            UnityHooks.OnPreCull += fsrScalerHelper.OnPreCull;
+            UnityHooks.OnPreCull += fsrScaler.OnPreCull;
 
             //create a custom fullscreen pass on the custompass global volume
             //this gives us access to the rendercontext before the frame is pushed so we can do postprocessing
@@ -329,7 +338,8 @@ namespace HPVR
             pass.isGlobal = true;
             pass.AddPassOfType<FsrHDRP>();
 
-            FsrHDRP.onRender += (ctx) => fsrScaler.OnRenderImage(null!, ctx.cameraColorBuffer);
+            //todo what fucking teture to render into here
+            FsrHDRP.onRender += () => fsrScaler.OnRenderImage(null!, FsrHDRP.context!.cameraColorBuffer);
 
             fsrScaler._helper = fsrScalerHelper;
         }
@@ -421,14 +431,17 @@ namespace HPVR
             if (FSR_Enabled && ((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
             {
                 //MelonLogger.Msg(Camera.main.name);
+                //todo set up camera to render into full screen rendertexture
                 fsrScaler.Init(Camera.main);
             }
         }
 
         public static void EarlyUpdate()
         {
+#if !VR_DISABLED
             VRSystem.Update();
             UIManager.Update();
+#endif
         }
 
         public void UpdateDialogueResponses()

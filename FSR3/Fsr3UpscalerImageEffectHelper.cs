@@ -65,6 +65,7 @@ namespace HPVR.FSR3
             float upscaleRatio = Fsr3Upscaler.GetUpscaleRatioFromQualityMode(_imageEffect.qualityMode);
 
             // Render to a smaller portion of the screen by manipulating the camera's viewport rect
+            //MelonLogger.Msg($"[HPVR] set camera from {_renderCamera.rect.width}:{_renderCamera.rect.height} rect to {originalRect.width / upscaleRatio}:{originalRect.height / upscaleRatio}");
             _renderCamera.aspect = (float)_renderCamera.pixelWidth / _renderCamera.pixelHeight;
             _renderCamera.rect = new Rect(0, 0, originalRect.width / upscaleRatio, originalRect.height / upscaleRatio);
         }

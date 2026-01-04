@@ -1,5 +1,6 @@
 ﻿using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppRootMotion.FinalIK;
 using MelonLoader;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -101,6 +102,12 @@ namespace HPVR.utils
 
         public static void SetHandlerAtFront(this Action action, Delegate @delegate)
         {
+            if(action is null)
+            {
+                action = (Action)@delegate;
+                return;
+            }
+
             FieldInfo invocationList = typeof(MulticastDelegate).GetField("_invocationList", BindingFlags.NonPublic | BindingFlags.Instance)!;
             FieldInfo invocationCount = typeof(MulticastDelegate).GetField("_invocationCount", BindingFlags.NonPublic | BindingFlags.Instance)!;
 

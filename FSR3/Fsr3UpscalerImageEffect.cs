@@ -119,7 +119,6 @@ namespace HPVR.FSR3
             public float autoReactiveMax = 0.9f;
         }
 
-
         internal static Fsr3UpscalerAssets? assets;
 
         private Fsr3UpscalerContext? _context;
@@ -146,6 +145,7 @@ namespace HPVR.FSR3
         private RenderTexture? _colorOpaqueOnly;
 
         private Material? _copyWithDepthMaterial;
+        //private RTHandle blitBuffer;
 
         public bool Initialized { get; private set; } = false;
 
@@ -164,6 +164,7 @@ namespace HPVR.FSR3
                 //we dont care about other cameras :D
                 _renderCamera = camera;
                 _originalRenderTarget = _renderCamera.targetTexture;
+                //MelonLogger.Msg("orig render target is null? " + (_originalRenderTarget is null));
                 _originalDepthTextureMode = _renderCamera.depthTextureMode;
                 _renderCamera.targetTexture = null;     // Clear the camera's target texture so we can fully control how the output gets written
                 _renderCamera.depthTextureMode = _originalDepthTextureMode | DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
@@ -198,6 +199,8 @@ namespace HPVR.FSR3
 
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
                 _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
+
+                //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
 
                 CreateFsrContext();
                 CreateCommandBuffers();
@@ -532,6 +535,7 @@ namespace HPVR.FSR3
             //MelonLogger.Msg("on render image");
 
             // Restore the camera's viewport rect so we can output at full resolution
+            //MelonLogger.Msg($"restoring camera from {_renderCamera.rect.width}:{_renderCamera.rect.height} rect to {_originalRect.width}:{_originalRect.height}");
             _renderCamera.rect = _originalRect;
             _renderCamera.ResetProjectionMatrix();
 
@@ -561,10 +565,14 @@ namespace HPVR.FSR3
             }
             else
             {
-                //todo find out why we render here and not to the camera
+                //this is fine, we should jsut copy what we have here into the full screen buffer
                 //MelonLogger.Msg("render global buffer");
                 // Output directly to the backbuffer
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, dest);
+                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, dest);
+                //todo fix??
+                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
+                //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
+                //CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, FsrHDRP.context!.propertyBlock);
             }
 
             _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);
