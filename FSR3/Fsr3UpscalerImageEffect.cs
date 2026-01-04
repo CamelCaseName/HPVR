@@ -542,7 +542,6 @@ namespace HPVR.FSR3
                 // The auto-reactive mask pass is executed separately from the main FSR3 Upscaler passes
                 var scaledRenderSize = GetScaledRenderSize();
                 _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true);
-                //todo the command buffer here is sometimes null?
                 _context?.GenerateReactiveMask(_genReactiveDescription, _dispatchCommandBuffer);
                 _dispatchDescription.Reactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
             }
