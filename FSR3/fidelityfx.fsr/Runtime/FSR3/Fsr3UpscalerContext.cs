@@ -86,7 +86,7 @@ namespace FidelityFX.FSR3
         {
             _contextDescription = contextDescription;
             _commandBuffer = new CommandBuffer { name = "FSR3 Upscaler" };
-            
+
             _upscalerConstantsBuffer = CreateConstantBuffer<Fsr3Upscaler.UpscalerConstants>();
             _spdConstantsBuffer = CreateConstantBuffer<Fsr3Upscaler.SpdConstants>();
             _rcasConstantsBuffer = CreateConstantBuffer<Fsr3Upscaler.RcasConstants>();
@@ -323,6 +323,7 @@ namespace FidelityFX.FSR3
 
         public void GenerateReactiveMask(Fsr3Upscaler.GenerateReactiveDescription dispatchParams, CommandBuffer commandBuffer)
         {
+            //todo we get a threadgroup less than zero somewhere from some shader....
             const int threadGroupWorkRegionDim = 8;
             int dispatchSrcX = (dispatchParams.RenderSize.x + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
             int dispatchSrcY = (dispatchParams.RenderSize.y + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;

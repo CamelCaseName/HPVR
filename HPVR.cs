@@ -47,6 +47,8 @@ namespace HPVR
         private Canvas? interactionCanvas;
         private CharacterBase? DialogueSpeaker = null;
         private bool updatedCameraCull = false;
+        private Fsr3UpscalerImageEffect? fsrScaler;
+        private bool GameMainLateStarted = false;
         static HPVR()
         {
             //MelonLogger.Msg("Static init");
@@ -111,6 +113,7 @@ namespace HPVR
             inMainMenu = sceneName == "MainMenu";
             inLoadingScreen = sceneName == "LoadingScreen";
             inDisclaimer = sceneName == "Disclaimer";
+            GameMainLateStarted = false;
 
             VRSystem.Gravity = inMainMenu || inGameMain;
 
@@ -252,7 +255,7 @@ namespace HPVR
             MelonLogger.Msg("[HPVR] scene preparation done for " + sceneName);
         }
 
-        private static void SetUpGraphicsSettings()
+        private void SetUpGraphicsSettings()
         {
             GraphicsController.Singleton.Toggle();
             GraphicsController.Singleton.AntiAliasing.Set(1);
@@ -260,6 +263,7 @@ namespace HPVR
             GraphicsController.Singleton.Bloom.Set(false);
             GraphicsController.Singleton.MotionBlur.Set(false);
             GraphicsController.Singleton.ScreenSpaceReflections.Set(false);
+            fsrScaler = null;
             if (HDDynamicResolutionPlatformCapabilities.DLSSDetected)
             {
                 GraphicsController.Singleton.NVIDIADLSS.Set(2);
@@ -281,11 +285,11 @@ namespace HPVR
             }
         }
 
-        private static void SetUpFSR3()
+        private void SetUpFSR3()
         {
             MelonLogger.Msg("Adding UNITYFSR3 Component");
 
-            var fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
+            fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
             var fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
 
 #if !VR_DISABLED
@@ -306,12 +310,12 @@ namespace HPVR
             pass.isGlobal = true;
             pass.AddPassOfType<FsrHDRP>();
 
-            FsrHDRP.onRender += (ctx) => fsrScaler.OnRenderImage(ctx.cameraColorBuffer);
+            FsrHDRP.onRender += (ctx) => fsrScaler.OnRenderImage(null!, ctx.cameraColorBuffer);
 
             fsrScaler._helper = fsrScalerHelper;
         }
 
-        private static void SetUpPostProcessing()
+        private void SetUpPostProcessing()
         {
             var volume = GameMenu.Singleton._globalVolume.GetComponent<Volume>().profile;
             foreach (var vol in volume.components)
@@ -347,6 +351,7 @@ namespace HPVR
                 }
             }
 
+            fsrScaler = null;
             if (!HDDynamicResolutionPlatformCapabilities.DLSSDetected)
             {
                 SetUpFSR3();
@@ -396,6 +401,11 @@ namespace HPVR
                 TryEndDisclaimerScreen();
             }
 #endif
+            if (((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
+            {
+                //MelonLogger.Msg(Camera.main.name);
+                fsrScaler.Init(Camera.main);
+            }
         }
 
         public void UpdateDialogueResponses()
@@ -645,7 +655,7 @@ namespace HPVR
         private void GameMainLateStart()
         {
             MelonLogger.Msg("late start");
-
+            GameMainLateStarted = true;
 #if !VR_DISABLED
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();

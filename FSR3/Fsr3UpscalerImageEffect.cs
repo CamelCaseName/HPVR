@@ -147,57 +147,65 @@ namespace HPVR.FSR3
 
         private Material? _copyWithDepthMaterial;
 
-        private bool initialized = false;
+        public bool Initialized { get; private set; } = false;
 
         protected void OnEnable()
         {
+            Initialized = false;
         }
 
-        internal void Init()
+        internal void Init(Camera camera)
         {
-            // Set up the original camera to output all of the required FSR3 input resources at the desired resolution
-            _renderCamera = GetComponent<Camera>();
-            _originalRenderTarget = _renderCamera.targetTexture;
-            _originalDepthTextureMode = _renderCamera.depthTextureMode;
-            _renderCamera.targetTexture = null;     // Clear the camera's target texture so we can fully control how the output gets written
-            _renderCamera.depthTextureMode = _originalDepthTextureMode | DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
-
-            // Determine the desired rendering and display resolutions
-            _displaySize = GetDisplaySize();
-            Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
-            _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
-
-            assets = Fsr3UpscalerAssets.Create();
-
-            if (!SystemInfo.supportsComputeShaders)
+            if (!Initialized)
             {
-                MelonLogger.Error("FSR3 Upscaler requires compute shader support!");
-                enabled = false;
-                return;
+                MelonLogger.Msg("FSR init running");
+                // Set up the original camera to output all of the required FSR3 input resources at the desired resolution
+                //_renderCamera = GetComponent<Camera>();
+                //we dont care about other cameras :D
+                _renderCamera = camera;
+                _originalRenderTarget = _renderCamera.targetTexture;
+                _originalDepthTextureMode = _renderCamera.depthTextureMode;
+                _renderCamera.targetTexture = null;     // Clear the camera's target texture so we can fully control how the output gets written
+                _renderCamera.depthTextureMode = _originalDepthTextureMode | DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
+
+                // Determine the desired rendering and display resolutions
+                _displaySize = GetDisplaySize();
+                Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
+                _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
+
+                assets = Fsr3UpscalerAssets.Create();
+
+                if (!SystemInfo.supportsComputeShaders)
+                {
+                    MelonLogger.Error("FSR3 Upscaler requires compute shader support!");
+                    enabled = false;
+                    return;
+                }
+
+                if (assets == null)
+                {
+                    MelonLogger.Error($"FSR3 Upscaler assets are not assigned! Please ensure an {nameof(Fsr3UpscalerAssets)} asset is assigned to the Assets property of this component.");
+                    enabled = false;
+                    return;
+                }
+
+                if (_maxRenderSize.x == 0 || _maxRenderSize.y == 0)
+                {
+                    MelonLogger.Error($"FSR3 Upscaler render size is invalid: {_maxRenderSize.x}x{_maxRenderSize.y}. Please check your screen resolution and camera viewport parameters.");
+                    enabled = false;
+                    return;
+                }
+
+                _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
+                _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
+
+                CreateFsrContext();
+                CreateCommandBuffers();
+                MelonLogger.Msg("FSR enabled");
+                MelonLogger.Msg("after context test " + _context?._generateReactivePass?.ComputeShader?.name);
+                MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass.name);
+                Initialized = true;
             }
-
-            if (assets == null)
-            {
-                MelonLogger.Error($"FSR3 Upscaler assets are not assigned! Please ensure an {nameof(Fsr3UpscalerAssets)} asset is assigned to the Assets property of this component.");
-                enabled = false;
-                return;
-            }
-
-            if (_maxRenderSize.x == 0 || _maxRenderSize.y == 0)
-            {
-                MelonLogger.Error($"FSR3 Upscaler render size is invalid: {_maxRenderSize.x}x{_maxRenderSize.y}. Please check your screen resolution and camera viewport parameters.");
-                enabled = false;
-                return;
-            }
-
-            _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
-            _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
-
-            CreateFsrContext();
-            CreateCommandBuffers();
-            MelonLogger.Msg("FSR enabled");
-            MelonLogger.Msg("after context test " + _context?._generateReactivePass?.ComputeShader?.name);
-            MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass.name);
         }
 
         private void OnDisable()
@@ -259,6 +267,7 @@ namespace HPVR.FSR3
 
         private void CreateCommandBuffers()
         {
+            //todo this command buffer has no temporary render texture on SetComputeTextureParam
             _dispatchCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Dispatch" };
             _opaqueInputCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Opaque Input" };
             _renderCamera.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, _opaqueInputCommandBuffer);
@@ -299,12 +308,7 @@ namespace HPVR.FSR3
 
         protected void Update()
         {
-            if (!initialized)
-            {
-                Init();
-                initialized = true;
-            }
-
+            //todo re-enable
             // Monitor for any changes in parameters that require a reset of the FSR3 Upscaler context
             //var displaySize = GetDisplaySize();
             //MelonLogger.Msg("sizes:");
@@ -349,16 +353,19 @@ namespace HPVR.FSR3
 
         protected void LateUpdate()
         {
-            // Remember the original camera viewport before we modify it in OnPreCull
-            _originalRect = _renderCamera.rect;
+            if (Initialized)
+            {
+                // Remember the original camera viewport before we modify it in OnPreCull
+                _originalRect = _renderCamera.rect;
 
-            //is called
-            //MelonLogger.Msg("FSR late update");
+                //is called
+                //MelonLogger.Msg("FSR late update");
+            }
         }
 
         internal void OnPreCull()
         {
-            if (!initialized || _opaqueInputCommandBuffer is null || _renderCamera is null)
+            if (!Initialized || _opaqueInputCommandBuffer is null || _renderCamera is null)
             {
                 return;
             }
@@ -494,14 +501,14 @@ namespace HPVR.FSR3
             _renderCamera.useJitteredProjectionMatrixForTransparentRendering = true;
         }
 
-        internal void OnRenderImage(RenderTexture dest)
+        internal void OnRenderImage(RenderTexture scr, RenderTexture dest)
         {
-            if (!initialized)
+            if (!Initialized)
             {
                 return;
             }
 
-            MelonLogger.Msg("on render image");
+            //MelonLogger.Msg("on render image");
 
             // Restore the camera's viewport rect so we can output at full resolution
             _renderCamera.rect = _originalRect;
@@ -514,6 +521,7 @@ namespace HPVR.FSR3
                 // The auto-reactive mask pass is executed separately from the main FSR3 Upscaler passes
                 var scaledRenderSize = GetScaledRenderSize();
                 _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true);
+                //todo the command buffer here is sometimes null?
                 _context.GenerateReactiveMask(_genReactiveDescription, _dispatchCommandBuffer);
                 _dispatchDescription.Reactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
             }

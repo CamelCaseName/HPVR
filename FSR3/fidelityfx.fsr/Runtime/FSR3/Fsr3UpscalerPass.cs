@@ -427,12 +427,12 @@ namespace FidelityFX.FSR3
             _generateReactiveConstants = generateReactiveConstants;
 
             ComputeShader = contextDescription.Shaders.autoGenReactivePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'autoGenReactivePass' could not be loaded! Please ensure it is included in the project correctly.");
-            
+
             //its fine here
             //MelonLogger.Msg("initialized shader ");
             //MelonLogger.Msg("generate mask " + ComputeShader?.name);
             //MelonLogger.Msg("Flags " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
-            
+
             InitComputeShader("Auto-Generate Reactive Mask", ComputeShader);
             ComputeShader = Fsr3UpscalerImageEffect.assets?.shaders?.autoGenReactivePass ?? throw new InvalidDataException($"Shader for FSR3 Upscaler pass 'autoGenReactivePass' could not be loaded! Please ensure it is included in the project correctly.");
 
