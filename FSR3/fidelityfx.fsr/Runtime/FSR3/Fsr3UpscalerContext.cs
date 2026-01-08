@@ -238,6 +238,9 @@ namespace FidelityFX.FSR3
 
             SetupConstants(dispatchParams, resetAccumulation);
 
+            //the sizes are correct here
+            //MelonLogger.Msg($"{UpscalerConsts.renderSize.x}:{UpscalerConsts.renderSize.y}  -  {UpscalerConsts.upscaleSize.x}:{UpscalerConsts.upscaleSize.y}");
+
             // Reactive mask bias
             const int threadGroupWorkRegionDim = 8;
             int dispatchSrcX = (UpscalerConsts.renderSize.x + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
@@ -285,6 +288,12 @@ namespace FidelityFX.FSR3
                 dispatchParams.TransparencyAndComposition = new ResourceView(_resources.AutoComposition);
             }
 
+            //these are all fine
+            //MelonLogger.Msg($"thread group size: dispatchSRC {dispatchSrcX}:{dispatchSrcY}");
+            //MelonLogger.Msg($"thread group size: dispatchThreadGroupCount {dispatchThreadGroupCount.x}:{dispatchThreadGroupCount.y}");
+            //MelonLogger.Msg($"thread group size: dispatchDst {dispatchDstX}:{dispatchDstY}");
+            //MelonLogger.Msg($"thread group size: dispatchShadingChangePass {dispatchShadingChangePassX}:{dispatchShadingChangePassY}");
+
             _prepareInputsPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
             _lumaPyramidPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchThreadGroupCount.x, dispatchThreadGroupCount.y);
             _shadingChangePyramidPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchThreadGroupCount.x, dispatchThreadGroupCount.y);
@@ -302,17 +311,11 @@ namespace FidelityFX.FSR3
 
                 // Dispatch RCAS
                 const int threadGroupWorkRegionDimRcas = 16;
-                int threadGroupsX = (UpscalerConsts.upscaleSize.x + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
-                int threadGroupsY = (UpscalerConsts.upscaleSize.y + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
+                int threadGroupsX = (dispatchParams.UpscaleSize.x + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
+                int threadGroupsY = (dispatchParams.UpscaleSize.y + threadGroupWorkRegionDimRcas - 1) / threadGroupWorkRegionDimRcas;
+                //MelonLogger.Msg($"thread group size: threadGroups {threadGroupsX}:{threadGroupsY}");
                 _sharpenPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, threadGroupsX, threadGroupsY);
             }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if ((dispatchParams.Flags & Fsr3Upscaler.DispatchFlags.DrawDebugView) != 0)
-            {
-                _debugViewPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchDstX, dispatchDstY);
-            }
-#endif
 
             _resourceFrameIndex = (_resourceFrameIndex + 1) % MaxQueuedFrames;
 
@@ -334,18 +337,17 @@ namespace FidelityFX.FSR3
 
         public void GenerateReactiveMask(Fsr3Upscaler.GenerateReactiveDescription dispatchParams, CommandBuffer commandBuffer)
         {
-            //todo we get a threadgroup less than zero somewhere from some shader....
             const int threadGroupWorkRegionDim = 8;
             int dispatchSrcX = (dispatchParams.RenderSize.x + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
             int dispatchSrcY = (dispatchParams.RenderSize.y + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
 
-            _generateReactiveConstantsArray.FreeIl2CppArray();
             GenReactiveConsts.scale = dispatchParams.Scale;
             GenReactiveConsts.threshold = dispatchParams.CutoffThreshold;
             GenReactiveConsts.binaryValue = dispatchParams.BinaryValue;
             GenReactiveConsts.flags = (uint)dispatchParams.Flags;
             commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2CppArray());
 
+            //MelonLogger.Msg($"thread group size: dispatchSRC reactive {dispatchSrcX}:{dispatchSrcY}");
             ((Fsr3UpscalerGenerateReactivePass)_generateReactivePass).ScheduleDispatch(commandBuffer, dispatchParams, dispatchSrcX, dispatchSrcY);
         }
 
@@ -355,19 +357,18 @@ namespace FidelityFX.FSR3
             int dispatchSrcX = (dispatchParams.RenderSize.x + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
             int dispatchSrcY = (dispatchParams.RenderSize.y + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
 
-            _tcrAutogenerateConstantsArray.FreeIl2CppArray();
             TcrAutoGenConsts.autoTcThreshold = dispatchParams.AutoTcThreshold;
             TcrAutoGenConsts.autoTcScale = dispatchParams.AutoTcScale;
             TcrAutoGenConsts.autoReactiveScale = dispatchParams.AutoReactiveScale;
             TcrAutoGenConsts.autoReactiveMax = dispatchParams.AutoReactiveMax;
             commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2CppArray());
 
+            //MelonLogger.Msg($"thread group size: dispatchSRC transparent {dispatchSrcX}:{dispatchSrcY}");
             _tcrAutogeneratePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
         }
 
         private void SetupConstants(Fsr3Upscaler.DispatchDescription dispatchParams, bool resetAccumulation)
         {
-            _upscalerConstantsArray.FreeIl2CppArray();
             ref Fsr3Upscaler.UpscalerConstants constants = ref UpscalerConsts;
 
             constants.previousFrameJitterOffset = constants.jitterOffset;
@@ -489,7 +490,6 @@ namespace FidelityFX.FSR3
         private void SetupRcasConstants(Fsr3Upscaler.DispatchDescription dispatchParams)
         {
             int sharpnessIndex = Mathf.RoundToInt(Mathf.Clamp01(dispatchParams.Sharpness) * (RcasConfigs.Length - 1));
-            _rcasConstantsArray.FreeIl2CppArray();
             RcasConsts = RcasConfigs[sharpnessIndex];
         }
 
@@ -499,7 +499,6 @@ namespace FidelityFX.FSR3
             SpdSetup(rectInfo, out dispatchThreadGroupCount, out var workGroupOffset, out var numWorkGroupsAndMips);
 
             // Downsample
-            _spdConstantsArray.FreeIl2CppArray();
             ref Fsr3Upscaler.SpdConstants spdConstants = ref SpdConsts;
             spdConstants.numWorkGroups = (uint)numWorkGroupsAndMips.x;
             spdConstants.mips = (uint)numWorkGroupsAndMips.y;

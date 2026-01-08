@@ -327,19 +327,23 @@ namespace HPVR
 #endif
             MelonLogger.Msg("Added UNITYFSR3");
 
-            UnityHooks.OnPreCull += fsrScalerHelper.OnPreCull;
-            UnityHooks.OnPreCull += fsrScaler.OnPreCull;
-
             //create a custom fullscreen pass on the custompass global volume
             //this gives us access to the rendercontext before the frame is pushed so we can do postprocessing
-            var customVolume = new GameObject("customVolume");
+            var customVolume = new GameObject("FSR_PrePostProcessVolume");
             var pass = customVolume.AddComponent<CustomPassVolume>();
             pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
             pass.isGlobal = true;
-            pass.AddPassOfType<FsrHDRP>();
+            pass.AddPassOfType<FsrPrePostProcess>();
 
-            //todo what fucking teture to render into here
-            FsrHDRP.onRender += () => fsrScaler.OnRenderImage(null!, FsrHDRP.context!.cameraColorBuffer);
+            var customVolume2 = new GameObject("FSR_PreRefractionVolume");
+            var pass2 = customVolume.AddComponent<CustomPassVolume>();
+            pass2.injectionPoint = CustomPassInjectionPoint.BeforePreRefraction;
+            pass2.isGlobal = true;
+            pass2.AddPassOfType<FsrPreRefraction>();
+
+            UnityHooks.OnPreCull += () => fsrScalerHelper.OnPreCull();
+            FsrPreRefraction.OnExecute += () => fsrScaler.OnPreCull();
+            FsrPrePostProcess.OnExecute += () => fsrScaler.OnRenderImage(null!, FsrPrePostProcess.Context!.cameraColorBuffer);
 
             fsrScaler._helper = fsrScalerHelper;
         }

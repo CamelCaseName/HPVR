@@ -21,12 +21,14 @@
 using FidelityFX;
 using FidelityFX.FSR3;
 using HPVR.UI;
+using HPVR.utils;
 using Il2CppInterop.Runtime.Attributes;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace HPVR.FSR3
 {
@@ -132,6 +134,7 @@ namespace HPVR.FSR3
         internal Fsr3UpscalerImageEffectHelper? _helper;
 
         private Camera? _renderCamera;
+        private HDAdditionalCameraData? HDdata;
         private RenderTexture? _originalRenderTarget;
         private DepthTextureMode _originalDepthTextureMode;
         private Rect _originalRect;
@@ -145,7 +148,11 @@ namespace HPVR.FSR3
         private RenderTexture? _colorOpaqueOnly;
 
         private Material? _copyWithDepthMaterial;
+        private Material? _copyWithoutDepth;
+
         //private RTHandle blitBuffer;
+
+        int i = 1;
 
         public bool Initialized { get; private set; } = false;
 
@@ -199,8 +206,16 @@ namespace HPVR.FSR3
 
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
                 _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
+                _copyWithoutDepth = new Material(Shader.Find("Hidden/BlitCopy"));
 
                 //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
+
+                //seems to work?
+                HDdata ??= _renderCamera.GetComponent<HDAdditionalCameraData>();
+                HDdata.customRenderingSettings = true;
+                var mask = HDdata.renderingPathCustomFrameSettingsOverrideMask;
+                mask.mask[(uint)FrameSettingsField.MotionVectors] = true;
+                HDdata.renderingPathCustomFrameSettingsOverrideMask = mask;
 
                 CreateFsrContext();
                 CreateCommandBuffers();
@@ -388,10 +403,26 @@ namespace HPVR.FSR3
             if (autoGenerateReactiveMask || autoGenerateTransparencyAndComposition)
             {
                 var scaledRenderSize = GetScaledRenderSize();
-                _colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, GetDefaultFormat());
+                MelonLogger.Msg($"{scaledRenderSize.x}:{scaledRenderSize.y}  --   {Camera.main.pixelWidth}:{Camera.main.pixelHeight}");
+                //_colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, GetDefaultFormat());
+                _colorOpaqueOnly = RenderTexture.GetTemporary(1920, 1080, 0, GetDefaultFormat());
                 //MelonLogger.Msg("FSR on pre cull3");
-                _opaqueInputCommandBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _colorOpaqueOnly);
+
+                //im pretty sure the issue lies in the camera buffer being 1080p, and the opaque buffer being 360p...
+                //the image is present in the camera buffer at the bottom left instead of top left...
+                //maybe we can set a temporary camera target texture in the helper, then copy from that here?
+                //Graphics.CopyTexture(FsrPreTransparent.Context!.cameraColorBuffer, 0, 0,  _colorOpaqueOnly, 0, 0);
+                //_opaqueInputCommandBuffer.Blit(FsrPreTransparent.Context!.cameraColorBuffer, _colorOpaqueOnly, new Vector2(0.3f, 0.3f), new(0, 0));
+                //_opaqueInputCommandBuffer.Blit(FsrPreTransparent.Context!.cameraColorBuffer, _colorOpaqueOnly, _copyWithoutDepth, 0);
+                //_opaqueInputCommandBuffer.CopyTexture(FsrPreTransparent.Context!.cameraColorBuffer, _colorOpaqueOnly);
+
                 //MelonLogger.Msg("FSR on pre cull4");
+
+                //we have the render in here, but at the small scale, at the bottom left. maybe blit doesnt work then?
+                string path = "render" + (++i).ToString() + ".png";
+                Extensions.SaveRT(FsrPreRefraction.Context!.cameraColorBuffer, path);
+                path = "copyrender" + (i).ToString() + ".png";
+                Extensions.SaveRT(_colorOpaqueOnly, path);
             }
 
             if (autoGenerateReactiveMask)
@@ -532,6 +563,10 @@ namespace HPVR.FSR3
                 return;
             }
 
+            //camera buffer is already upscaled here?
+            //string path = "onRender" + (i++).ToString() + ".png";
+            //SaveRT(FsrPrePostProcess.Context!.cameraColorBuffer, path);
+
             //MelonLogger.Msg("on render image");
 
             // Restore the camera's viewport rect so we can output at full resolution
@@ -553,6 +588,8 @@ namespace HPVR.FSR3
             // The backbuffer is not set up to allow random-write access, so we need a temporary render texture for FSR3 to output to
             _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, default, GetDefaultFormat(), default, 1, true);
 
+            //todo remove debug flag
+            _context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
             _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
 
             // Output the upscaled image
@@ -569,8 +606,13 @@ namespace HPVR.FSR3
                 //MelonLogger.Msg("render global buffer");
                 // Output directly to the backbuffer
                 //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, dest);
-                //todo fix??
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
+                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
+                //MelonLogger.Msg($"camera: {Camera.main.pixelWidth}:{Camera.main.pixelHeight}"); // camera size is back to normal here, but we get no output on the screen
+                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer);
+                //MelonLogger.Msg($"camera: {FsrHDRP.context!.cameraColorBuffer.rt.width}:{FsrHDRP.context!.cameraColorBuffer.rt.height}"); //buffer size is correct here
+
+                //string path = "render" + (i++).ToString() + ".png";
+                //SaveRT(FsrPrePostProcess.Context!.cameraColorBuffer.rt, path);
                 //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
                 //CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, FsrHDRP.context!.propertyBlock);
             }
@@ -585,9 +627,6 @@ namespace HPVR.FSR3
                 RenderTexture.ReleaseTemporary(_colorOpaqueOnly);
                 _colorOpaqueOnly = null!;
             }
-
-            // Shut up the Unity warning about not writing to the destination texture 
-            //RenderTexture.active = dest;
         }
 
         private RenderTextureFormat GetDefaultFormat()

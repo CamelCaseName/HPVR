@@ -1,7 +1,5 @@
 ﻿using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Il2CppRootMotion.FinalIK;
-using MelonLoader;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -45,24 +43,14 @@ namespace HPVR.utils
             }
         }
 
-        private static Dictionary<int, IntPtr> Allocations = new();
-
-        public static void FreeIl2CppArray<T>(this T[] incoming) where T : struct
+        public static void SaveRT(RenderTexture rt, string name)
         {
-            //var t = typeof(T);
-            //if (!t.IsLayoutSequential)
-            //{
-            //    throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
-            //}
-            //if (Allocations.TryGetValue(incoming.GetHashCode(), out IntPtr pointer))
-            //{
-            //    Marshal.FreeHGlobal(pointer);
-            //}
-            //else
-            //{
-            //    //throw new InvalidDataException($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
-            //    MelonLogger.Msg($" the given Array of type {t.Name} was already freed or its hashcode changed before freeing!");
-            //}
+            RenderTexture.active = rt;
+            Texture2D tex = new(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            RenderTexture.active = null;
+            var bytes = tex.EncodeToPNG();
+            System.IO.File.WriteAllBytes("./image/" + name, bytes);
         }
 
         public unsafe static Il2CppSystem.Array AllocIl2CppArray<T>(this T[] incoming) where T : struct
@@ -102,7 +90,7 @@ namespace HPVR.utils
 
         public static void SetHandlerAtFront(this Action action, Delegate @delegate)
         {
-            if(action is null)
+            if (action is null)
             {
                 action = (Action)@delegate;
                 return;
