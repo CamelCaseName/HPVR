@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Valve.VR;
 
 namespace HPVR.utils
@@ -45,10 +46,11 @@ namespace HPVR.utils
 
         public static void SaveRT(RenderTexture rt, string name)
         {
+            var old = RenderTexture.active;
             RenderTexture.active = rt;
             Texture2D tex = new(rt.width, rt.height, TextureFormat.RGB24, false);
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            RenderTexture.active = null;
+            RenderTexture.active = old;
             var bytes = tex.EncodeToPNG();
             System.IO.File.WriteAllBytes("./image/" + name, bytes);
         }

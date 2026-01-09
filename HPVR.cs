@@ -20,6 +20,7 @@ using SteamVR_Melon.Util;
 using SteamXRMelon;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.UI;
@@ -157,7 +158,7 @@ namespace HPVR
             MelonLogger.Msg(LayerMask.LayerToName(0));
             for (int i = 0; i < 32; i++)
             {
-                MelonLogger.Msg(LayerMask.LayerToName(1 << i));
+                MelonLogger.Msg(LayerMask.LayerToName(i));
             }
 
             UIManager.UpdateUIPos = true;
