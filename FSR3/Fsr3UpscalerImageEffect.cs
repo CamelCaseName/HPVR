@@ -24,6 +24,7 @@ using HPVR.UI;
 using HPVR.utils;
 using Il2CppInterop.Runtime.Attributes;
 using Il2CppInterop.Runtime.Injection;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -147,9 +148,14 @@ namespace HPVR.FSR3
         private CommandBuffer? _dispatchCommandBuffer;
         private CommandBuffer? _opaqueInputCommandBuffer;
         private RenderTexture? _colorOpaqueOnly;
+        private RenderTexture? _colorOnly;
+        private RenderTexture? _colorOnly2;
+        private RenderTexture? _depth;
+        private RenderTexture? _motion;
 
         private Material? _copyWithDepthMaterial;
         private Material? _copyWithoutDepth;
+        private Material? _copyDepth;
 
         //private RTHandle blitBuffer;
 
@@ -208,6 +214,7 @@ namespace HPVR.FSR3
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
                 _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
                 _copyWithoutDepth = new Material(Shader.Find("Hidden/BlitCopy"));
+                _copyDepth = new Material(Shader.Find("Hidden/BlitCopyDepth"));
 
                 //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
 
@@ -407,11 +414,15 @@ namespace HPVR.FSR3
                 //MelonLogger.Msg($"{scaledRenderSize.x}:{scaledRenderSize.y}  --   {Camera.main.pixelWidth}:{Camera.main.pixelHeight}");
                 _colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPreRefraction.Context!.cameraColorBuffer.rt.graphicsFormat); //GraphicsFormat.B10G11R11_UFloatPack32
                 _colorOpaqueOnly.enableRandomWrite = true;
+                _colorOpaqueOnly.name = "FSR_COLOROPAQUEONLY_TEMP";
 
                 var old = RenderTexture.active;
                 RenderTexture.active = FsrPreRefraction.Context!.cameraColorBuffer;
                 //we cannot use the cameras B10G11R11_UFloatPack32 here
-                Texture2D tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false);
+                Texture2D tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false)
+                {
+                    name = "FSR_INTERMEDIATE_COLOROPAQUEONLY"
+                };
                 tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
                 tex.Apply();
 
@@ -419,16 +430,8 @@ namespace HPVR.FSR3
                 RenderTexture.active = _colorOpaqueOnly;
                 Graphics.Blit(tex, _colorOpaqueOnly, _copyWithoutDepth, 0);
                 RenderTexture.active = old;
+                Texture2D.DestroyImmediate(tex);
             }
-
-            if (autoGenerateReactiveMask)
-            {
-                //MelonLogger.Msg("FSR on pre cull5");
-                SetupAutoReactiveDescription();
-            }
-
-            //MelonLogger.Msg("FSR on pre cull6");
-            SetupDispatchDescription();
 
             //MelonLogger.Msg("FSR on pre cull7");
             ApplyJitter();
@@ -445,9 +448,11 @@ namespace HPVR.FSR3
             }
 
             // Set up the main FSR3 Upscaler dispatch parameters
-            _dispatchDescription.Color = new ResourceView(BuiltinRenderTextureType.CameraTarget, RenderTextureSubElement.Color);
-            _dispatchDescription.Depth = new ResourceView(GetDepthTexture(), RenderTextureSubElement.Depth);
-            _dispatchDescription.MotionVectors = new ResourceView(BuiltinRenderTextureType.MotionVectors);
+            Vector2Int scaledRenderSize = BadCopyTextures();
+
+            _dispatchDescription.Color = new ResourceView(_colorOnly2);
+            _dispatchDescription.Depth = new ResourceView(_depth);
+            _dispatchDescription.MotionVectors = new ResourceView(_motion);
             _dispatchDescription.Exposure = ResourceView.Unassigned;
             _dispatchDescription.Reactive = ResourceView.Unassigned;
             _dispatchDescription.TransparencyAndComposition = ResourceView.Unassigned;
@@ -466,8 +471,6 @@ namespace HPVR.FSR3
             {
                 _dispatchDescription.TransparencyAndComposition = new ResourceView(transparencyAndCompositionMask);
             }
-
-            var scaledRenderSize = GetScaledRenderSize();
 
             _dispatchDescription.Output = new ResourceView(Fsr3ShaderIDs.UavUpscaledOutput);
             _dispatchDescription.PreExposure = preExposure;
@@ -505,17 +508,124 @@ namespace HPVR.FSR3
             }
         }
 
+        private Vector2Int BadCopyTextures()
+        {
+            //todo these builtin dont work, so i replaced them by custom copies
+            //###############    color    ############################
+            var scaledRenderSize = GetScaledRenderSize();
+            RenderTexture old = RenderTexture.active;
+            Texture2D tex = null!;
+            MakeColorTex(scaledRenderSize, ref tex);
+
+            //###############    depth    ############################
+            MakeDepthTex(scaledRenderSize, ref tex);
+
+            //###############    motion    ############################
+            MakeMotionTex(scaledRenderSize, ref tex);
+            RenderTexture.active = old;
+            return scaledRenderSize;
+        }
+
+        private void MakeMotionTex(Vector2Int scaledRenderSize, ref Texture2D tex)
+        {
+            //this seems very fine
+            _motion = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPrePostProcess.Context!.cameraMotionVectorsBuffer.rt.graphicsFormat); //GraphicsFormat.R16G16_FLOAT
+            _motion.enableRandomWrite = true;
+            _motion.name = "FSR_MOTION_TEMP";
+
+            RenderTexture.active = FsrPrePostProcess.Context!.cameraMotionVectorsBuffer;
+            tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RG32, false)
+            {
+                name = "FSR_INTERMEDIATE_MOTION"
+            };
+            tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
+            tex.Apply();
+
+            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
+            RenderTexture.active = _motion;
+            Graphics.Blit(tex, _motion);
+            //Extensions.SaveRT(_motion, "_motion" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraMotionVectorsBuffer.rt, "cameramotion" + (++i).ToString() + ".png");
+            Texture2D.DestroyImmediate(tex);
+        }
+
+        private void MakeDepthTex(Vector2Int scaledRenderSize, ref Texture2D tex)
+        {
+            _depth = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, GraphicsFormat.R32_SFloat); //GraphicsFormat.R32_FLOAT
+            _depth.enableRandomWrite = true;
+            _depth.name = "FSR_DEPTH_TEMP";
+
+            RenderTexture.active = FsrPrePostProcess.Context!.cameraDepthBuffer;
+            tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.R16, false)
+            {
+                name = "FSR_INTERMEDIATE_DEPTH"
+            };
+            tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
+            tex.Apply();
+
+            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
+            RenderTexture.active = _depth;
+            Graphics.Blit(tex, _depth, _copyDepth, 0);
+            Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
+            Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png");
+            Texture2D.DestroyImmediate(tex);
+        }
+
+        private void MakeColorTex(Vector2Int scaledRenderSize, ref Texture2D tex)
+        {
+            //this seems to work fine
+            _colorOnly2 = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.graphicsFormat); //GraphicsFormat.B10G11R11_UFloatPack32
+            _colorOnly2.enableRandomWrite = true;
+            _colorOnly2.name = "FSR_COLORONLY_TEMP2";
+
+            RenderTexture.active = FsrPrePostProcess.Context!.cameraColorBuffer;
+            //we cannot use the cameras B10G11R11_UFloatPack32 here
+            tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false)
+            {
+                name = "FSR_INTERMEDIATE_COLORONLY2"
+            };
+            tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
+            tex.Apply();
+
+            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
+            RenderTexture.active = _colorOnly2;
+            Graphics.Blit(tex, _colorOnly2, _copyWithoutDepth, 0);
+            Texture2D.DestroyImmediate(tex);
+        }
+
         private void SetupAutoReactiveDescription()
         {
             // Set up the parameters to auto-generate a reactive mask
             _genReactiveDescription.ColorOpaqueOnly = new ResourceView(_colorOpaqueOnly);
-            _genReactiveDescription.ColorPreUpscale = new ResourceView(BuiltinRenderTextureType.CameraTarget, RenderTextureSubElement.Color);
             _genReactiveDescription.OutReactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
             _genReactiveDescription.RenderSize = GetScaledRenderSize();
             _genReactiveDescription.Scale = generateReactiveParameters.scale;
             _genReactiveDescription.CutoffThreshold = generateReactiveParameters.cutoffThreshold;
             _genReactiveDescription.BinaryValue = generateReactiveParameters.binaryValue;
             _genReactiveDescription.Flags = generateReactiveParameters.flags;
+
+            var scaledRenderSize = GetScaledRenderSize();
+            _colorOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.graphicsFormat); //GraphicsFormat.B10G11R11_UFloatPack32
+            _colorOnly.enableRandomWrite = true;
+            _colorOnly.name = "FSR_COLORONLY_TEMP";
+
+            var old = RenderTexture.active;
+            RenderTexture.active = FsrPrePostProcess.Context!.cameraColorBuffer;
+            //we cannot use the cameras B10G11R11_UFloatPack32 here
+            Texture2D tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false)
+            {
+                name = "FSR_INTERMEDIATE_COLORONLY"
+            };
+            tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
+            tex.Apply();
+
+            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
+            RenderTexture.active = _colorOnly;
+            Graphics.Blit(tex, _colorOnly, _copyWithoutDepth, 0);
+            RenderTexture.active = old;
+            Texture2D.DestroyImmediate(tex);
+
+            _genReactiveDescription.ColorPreUpscale = new ResourceView(_colorOnly);
         }
 
         private void ApplyJitter()
@@ -559,6 +669,16 @@ namespace HPVR.FSR3
                 return;
             }
 
+            //do it here because we then have the current context
+            if (autoGenerateReactiveMask)
+            {
+                //MelonLogger.Msg("FSR on pre cull5");
+                SetupAutoReactiveDescription();
+            }
+
+            //MelonLogger.Msg("FSR on pre cull6");
+            SetupDispatchDescription();
+
             //camera buffer is already upscaled here?
             //string path = "onRender" + (i++).ToString() + ".png";
             //SaveRT(FsrPrePostProcess.Context!.cameraColorBuffer, path);
@@ -576,43 +696,47 @@ namespace HPVR.FSR3
             {
                 // The auto-reactive mask pass is executed separately from the main FSR3 Upscaler passes
                 var scaledRenderSize = GetScaledRenderSize();
-                _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true);
+                _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true); //works
+
                 _context?.GenerateReactiveMask(_genReactiveDescription, _dispatchCommandBuffer);
                 _dispatchDescription.Reactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
             }
 
             // The backbuffer is not set up to allow random-write access, so we need a temporary render texture for FSR3 to output to
-            _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, default, GetDefaultFormat(), default, 1, true);
+            _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1, true);
 
             //todo remove debug flag
             _context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
             _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
+
+            //var path = "oldCOlor" + (++i) + ".png";
+            //Extensions.SaveRT(_colorOpaqueOnly, path);
+            //the color buffer is still correct here, maybe we should test some others?
+            //maybe the camera buffer is fucked?
+            HDUtils.DrawFullScreen(_dispatchCommandBuffer, new(0, 0, _displaySize.x, _displaySize.y), _copyWithDepthMaterial, (RenderTargetIdentifier)Fsr3ShaderIDs.UavUpscaledOutput);
 
             // Output the upscaled image
             if (_originalRenderTarget != null)
             {
                 //MelonLogger.Msg("render to camera");
                 // Output to the camera target texture, passing through depth as well
-                _dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, _originalRenderTarget, _copyWithDepthMaterial);
+                //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
+                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, _originalRenderTarget, _copyWithDepthMaterial);
+                MelonLogger.Error("currently not supported");
             }
             else
             {
                 //this is fine, we should jsut copy what we have here into the full screen buffer
                 //MelonLogger.Msg("render global buffer");
                 // Output directly to the backbuffer
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, dest); //this should be fine?
+                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer); //this should be fine?
                 //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
                 //MelonLogger.Msg($"camera: {Camera.main.pixelWidth}:{Camera.main.pixelHeight}"); // camera size is back to normal here, but we get no output on the screen
                 //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer);
                 //MelonLogger.Msg($"camera: {FsrHDRP.context!.cameraColorBuffer.rt.width}:{FsrHDRP.context!.cameraColorBuffer.rt.height}"); //buffer size is correct here
 
-                string path = "render" + (i++).ToString() + ".png";
-                var tex = new RenderTexture(_displaySize.x, _displaySize.y, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.graphicsFormat, 0);
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, tex, _copyWithDepthMaterial, 0); //this should be fine?
-                Extensions.SaveRT(tex, path);
                 //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
-                //CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, FsrHDRP.context!.propertyBlock);
+                CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, Fsr3ShaderIDs.UavUpscaledOutput, null, 0);
             }
 
             _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);
@@ -625,32 +749,26 @@ namespace HPVR.FSR3
                 RenderTexture.ReleaseTemporary(_colorOpaqueOnly);
                 _colorOpaqueOnly = null!;
             }
-        }
-
-        private RenderTextureFormat GetDefaultFormat()
-        {
-            if (_originalRenderTarget != null)
+            if (_colorOnly != null)
             {
-                return _originalRenderTarget.format;
+                RenderTexture.ReleaseTemporary(_colorOnly);
+                _colorOnly = null!;
             }
-            if (_renderCamera is null)
+            if (_colorOnly2 != null)
             {
-                MelonLogger.Error("rendercamera was null!");
-                return RenderTextureFormat.Default;
+                RenderTexture.ReleaseTemporary(_colorOnly2);
+                _colorOnly2 = null!;
             }
-
-            return _renderCamera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
-        }
-
-        private BuiltinRenderTextureType GetDepthTexture()
-        {
-            if (_renderCamera is null)
+            if (_depth != null)
             {
-                MelonLogger.Error("rendercamera was null!");
-                return BuiltinRenderTextureType.Depth;
+                RenderTexture.ReleaseTemporary(_depth);
+                _depth = null!;
             }
-            RenderingPath renderingPath = _renderCamera.renderingPath;
-            return renderingPath == RenderingPath.Forward || renderingPath == RenderingPath.VertexLit ? BuiltinRenderTextureType.Depth : BuiltinRenderTextureType.CameraTarget;
+            if (_motion != null)
+            {
+                RenderTexture.ReleaseTemporary(_motion);
+                _motion = null!;
+            }
         }
 
         private Vector2Int GetDisplaySize()

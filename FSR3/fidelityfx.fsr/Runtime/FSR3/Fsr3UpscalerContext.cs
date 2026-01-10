@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+using HPVR.FSR3;
 using HPVR.utils;
 using MelonLoader;
 using System;

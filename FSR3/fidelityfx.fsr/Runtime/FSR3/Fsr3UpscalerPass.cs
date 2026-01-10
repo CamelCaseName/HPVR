@@ -458,8 +458,11 @@ namespace FidelityFX.FSR3
             //MelonLogger.Msg("Compute shader " + ComputeShader?.name);
             //MelonLogger.Msg("Compute shader " + string.Join("|", ComputeShader.shaderKeywords.ToArray()));
 
+            //this opque is set correctly in the pipeline
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvOpaqueOnly, opaqueOnly.RenderTarget, opaqueOnly.MipLevel, opaqueOnly.SubElement);
+            //this one is a 16x16 R8G8B8A8_UNORM_SRGB???
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputColor, color.RenderTarget, color.MipLevel, color.SubElement);
+            //this one is correctly sized and parametrized
             commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavAutoReactive, reactive.RenderTarget, reactive.MipLevel, reactive.SubElement);
 
             commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbGenReactive, _generateReactiveConstants, 0, Marshal.SizeOf<Fsr3Upscaler.GenerateReactiveConstants>());

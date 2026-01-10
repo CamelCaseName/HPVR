@@ -121,6 +121,8 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", ".manifest", "fsrshaders");
 
             UnityHooks.EarlyUpdate += EarlyUpdate;
+
+            //Assembly.LoadFile("C:\\Program Files\\Microsoft PIX\\2509.25\\WinPixGpuCapturer.dll");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
