@@ -514,32 +514,4 @@ namespace FidelityFX.FSR3
             commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
         }
     }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    internal class Fsr3UpscalerDebugViewPass : Fsr3UpscalerPass
-    {
-        public Fsr3UpscalerDebugViewPass(Fsr3Upscaler.ContextDescription contextDescription, Fsr3UpscalerResources resources, ComputeBuffer constants)
-            : base(contextDescription, resources, constants)
-        {
-            InitComputeShader("Debug View", contextDescription.Shaders.debugViewPass);
-        }
-
-        protected override void DoScheduleDispatch(CommandBuffer commandBuffer, Fsr3Upscaler.DispatchDescription dispatchParams, int frameIndex, int dispatchX, int dispatchY)
-        {
-            ref var exposure = ref dispatchParams.Exposure;
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedReactiveMasks, Fsr3ShaderIDs.UavDilatedReactiveMasks);
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedMotionVectors, Resources.DilatedVelocity);
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvDilatedDepth, Resources.DilatedDepth);
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInternalUpscaled, Resources.InternalUpscaled[frameIndex]);
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.SrvInputExposure, exposure.RenderTarget, exposure.MipLevel, exposure.SubElement);
-            
-            ref var output = ref dispatchParams.Output;
-            commandBuffer.SetComputeTextureParam(ComputeShader, KernelIndex, Fsr3ShaderIDs.UavUpscaledOutput, output.RenderTarget, output.MipLevel, output.SubElement);
-            
-            commandBuffer.SetComputeConstantBufferParam(ComputeShader, Fsr3ShaderIDs.CbFsr3Upscaler, Constants, 0, Marshal.SizeOf<Fsr3Upscaler.UpscalerConstants>());
-            
-            commandBuffer.DispatchCompute(ComputeShader, KernelIndex, dispatchX, dispatchY, 1);
-        }
-    }
-#endif
 }

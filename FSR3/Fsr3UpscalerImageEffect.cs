@@ -293,7 +293,7 @@ namespace HPVR.FSR3
 
         private void CreateCommandBuffers()
         {
-            //todo this command buffer has no temporary render texture on SetComputeTextureParam
+            //todo this command buffer sometimes has no temporary render texture on SetComputeTextureParam
             _dispatchCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Dispatch" };
             _opaqueInputCommandBuffer = new CommandBuffer { name = "FSR3 Upscaler Opaque Input" };
             _renderCamera?.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, _opaqueInputCommandBuffer);
@@ -566,8 +566,8 @@ namespace HPVR.FSR3
             // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
             RenderTexture.active = _depth;
             Graphics.Blit(tex, _depth, _copyDepth, 0);
-            Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
-            Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png");
             Texture2D.DestroyImmediate(tex);
         }
 
