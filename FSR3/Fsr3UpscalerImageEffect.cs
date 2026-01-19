@@ -156,6 +156,7 @@ namespace HPVR.FSR3
         private Material? _copyWithDepthMaterial;
         private Material? _copyWithoutDepth;
         private Material? _copyDepth;
+        private int _copyPass;
 
         //private RTHandle blitBuffer;
 
@@ -214,7 +215,8 @@ namespace HPVR.FSR3
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
                 _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
                 _copyWithoutDepth = new Material(Shader.Find("Hidden/BlitCopy"));
-                _copyDepth = new Material(Shader.Find("Hidden/BlitCopyDepth"));
+                _copyDepth = new Material(Fsr3UpscalerAssets.FindShader("CustomCopy")); // from https://github.com/alelievr/HDRP-Custom-Passes/blob/master/Assets/CustomPasses/CopyPass/CustomCopy.shader
+                _copyPass = _copyDepth.FindPass("Depth");
 
                 //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
 
@@ -223,6 +225,7 @@ namespace HPVR.FSR3
                 HDdata.customRenderingSettings = true;
                 var mask = HDdata.renderingPathCustomFrameSettingsOverrideMask;
                 mask.mask[(uint)FrameSettingsField.MotionVectors] = true;
+                //mask.mask[(uint)FrameSettingsField.DepthPrepassWithDeferredRendering] = true; //the docs say this only enables object motion vectors and has nothing to do with depth. without we only get camera motion vectors, which is enough for us
                 HDdata.renderingPathCustomFrameSettingsOverrideMask = mask;
 
                 CreateFsrContext();
@@ -410,33 +413,38 @@ namespace HPVR.FSR3
             //MelonLogger.Msg("FSR on pre cull2");
             if (autoGenerateReactiveMask || autoGenerateTransparencyAndComposition)
             {
-                var scaledRenderSize = GetScaledRenderSize();
-                //MelonLogger.Msg($"{scaledRenderSize.x}:{scaledRenderSize.y}  --   {Camera.main.pixelWidth}:{Camera.main.pixelHeight}");
-                _colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPreRefraction.Context!.cameraColorBuffer.rt.graphicsFormat); //GraphicsFormat.B10G11R11_UFloatPack32
-                _colorOpaqueOnly.enableRandomWrite = true;
-                _colorOpaqueOnly.name = "FSR_COLOROPAQUEONLY_TEMP";
-
-                var old = RenderTexture.active;
-                RenderTexture.active = FsrPreRefraction.Context!.cameraColorBuffer;
-                //we cannot use the cameras B10G11R11_UFloatPack32 here
-                Texture2D tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false)
-                {
-                    name = "FSR_INTERMEDIATE_COLOROPAQUEONLY"
-                };
-                tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
-                tex.Apply();
-
-                // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
-                RenderTexture.active = _colorOpaqueOnly;
-                Graphics.Blit(tex, _colorOpaqueOnly, _copyWithoutDepth, 0);
-                RenderTexture.active = old;
-                Texture2D.DestroyImmediate(tex);
+                MakeColorOpaqueTex();
             }
 
             //MelonLogger.Msg("FSR on pre cull7");
             ApplyJitter();
 
             //MelonLogger.Msg("FSR ran on pre cull");
+        }
+
+        private void MakeColorOpaqueTex()
+        {
+            var scaledRenderSize = GetScaledRenderSize();
+            //MelonLogger.Msg($"{scaledRenderSize.x}:{scaledRenderSize.y}  --   {Camera.main.pixelWidth}:{Camera.main.pixelHeight}");
+            _colorOpaqueOnly = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, FsrPreRefraction.Context!.cameraColorBuffer.rt.graphicsFormat); //GraphicsFormat.B10G11R11_UFloatPack32
+            _colorOpaqueOnly.enableRandomWrite = true;
+            _colorOpaqueOnly.name = "FSR_COLOROPAQUEONLY_TEMP";
+
+            var old = RenderTexture.active;
+            RenderTexture.active = FsrPreRefraction.Context!.cameraColorBuffer;
+            //we cannot use the cameras B10G11R11_UFloatPack32 here
+            Texture2D tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RGB9e5Float, false)
+            {
+                name = "FSR_INTERMEDIATE_COLOROPAQUEONLY"
+            };
+            tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
+            tex.Apply();
+
+            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
+            RenderTexture.active = _colorOpaqueOnly;
+            Graphics.Blit(tex, _colorOpaqueOnly, _copyWithoutDepth, 0);
+            RenderTexture.active = old;
+            Texture2D.DestroyImmediate(tex);
         }
 
         private void SetupDispatchDescription()
@@ -543,31 +551,44 @@ namespace HPVR.FSR3
 
             // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
             RenderTexture.active = _motion;
-            Graphics.Blit(tex, _motion);
+            Graphics.Blit(tex, _motion); //copied correctly :)
             //Extensions.SaveRT(_motion, "_motion" + (++i).ToString() + ".png");
-            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraMotionVectorsBuffer.rt, "cameramotion" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraMotionVectorsBuffer.rt, "cameramotion" + (++i).ToString() + ".png"); //we have motion vector graphics here
             Texture2D.DestroyImmediate(tex);
         }
 
         private void MakeDepthTex(Vector2Int scaledRenderSize, ref Texture2D tex)
         {
-            _depth = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, GraphicsFormat.R32_SFloat); //GraphicsFormat.R32_FLOAT
+            //ref https://github.com/alelievr/HDRP-Custom-Passes/blob/master/Assets/CustomPasses/CopyPass/CopyPass.cs
+            //var scale = RTHandles.rtHandleProperties.rtHandleScale;
+            //_copyDepth!.SetVector("_Scale", scale);
+
+            _depth = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 32, GraphicsFormat.R32_SFloat); //GraphicsFormat.R32_FLOAT
             _depth.enableRandomWrite = true;
             _depth.name = "FSR_DEPTH_TEMP";
 
+            //HDAdditionalCameraData.BufferAccess access = new()
+            //{
+            //    bufferAccess = HDAdditionalCameraData.BufferAccessType.Depth
+            //};
+            //FsrPrePostProcess.Context!.hdCamera.m_AdditionalCameraData.requestGraphicsBuffer?.Invoke(ref access);
+            //RenderTexture.active = FsrPrePostProcess.Context!.hdCamera.m_AdditionalCameraData.GetGraphicsBuffer(HDAdditionalCameraData.BufferAccessType.Depth); //returns null
             RenderTexture.active = FsrPrePostProcess.Context!.cameraDepthBuffer;
-            tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.R16, false)
+            tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RFloat, false)
             {
                 name = "FSR_INTERMEDIATE_DEPTH"
             };
             tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
             tex.Apply();
+            Extensions.SaveRT(RenderTexture.active, "_active" + (++i).ToString() + ".png");
 
-            // Copy your texture ref to the render texture (works and we get the image into the opaque texture)
             RenderTexture.active = _depth;
-            Graphics.Blit(tex, _depth, _copyDepth, 0);
-            //Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
-            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png");
+            //Graphics.Blit(FsrPrePostProcess.Context.cameraNormalBuffer, _depth, _copyDepth, _copyPass); // copies something out of the buffer
+            Graphics.Blit(tex, _depth); // copies something out of the buffer
+            Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraNormalBuffer, "_normal" + (++i).ToString() + ".png"); //seems to only have normals in it
+            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png"); //nothing in this depth texture resource, only grey :(
+            //Extensions.SaveRT(Shader.GetGlobalTexture("_CameraDepthTexture").Cast<RenderTexture>(), "cameradepth" + (++i).ToString() + ".png"); //nothing in this depth texture resource :(
             Texture2D.DestroyImmediate(tex);
         }
 

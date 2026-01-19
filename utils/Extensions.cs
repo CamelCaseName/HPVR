@@ -46,9 +46,16 @@ namespace HPVR.utils
 
         public static void SaveRT(RenderTexture rt, string name)
         {
+            if (rt is null)
+            {
+                return;
+            }
             var old = RenderTexture.active;
             RenderTexture.active = rt;
-            Texture2D tex = new(rt.width, rt.height, TextureFormat.RGB24, false);
+            Texture2D tex = new(rt.width, rt.height, TextureFormat.RGB24, false)
+            {
+                name = name
+            };
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             RenderTexture.active = old;
             var bytes = tex.EncodeToPNG();

@@ -58,7 +58,37 @@ namespace FidelityFX.FSR3
         }
 
         private static Il2CppSystem.Collections.Generic.List<ComputeShader> computeShaders = new();
+        
+        internal static Shader FindShader(string name)
+        {
+            if (assetBundle == null)
+            {
+                MelonLogger.Msg($"Loading assetbundle from {Application.streamingAssetsPath}/fsrshaders");
+                assetBundle = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/fsrshaders");
+                if (assetBundle == null)
+                {
+                    MelonLogger.Error("No assetbundle present!");
+                    throw new FileNotFoundException($"Assetbundle at {Application.streamingAssetsPath}/fsrshaders was missing");
+                }
+            }
+            MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
 
+            //string[] allAssetNames = assetBundle.GetAllAssetNames();
+            //for (int i = 0; i < allAssetNames.Length; i++)
+            //{
+            //    MelonLogger.Msg("[HPVR] " + allAssetNames[i]);
+            //}
+
+            var shader = assetBundle.LoadAsset("assets/fsrshaders/" + name + ".shader", Il2CppType.Of<Shader>()).Cast<Shader>();
+
+            //MelonLogger.Msg("Compute shader null? " + (shader is null).ToString());
+            //MelonLogger.Msg($"Compute shader {shader?.name}");
+            //MelonLogger.Msg("Compute shader " + shader?.name);
+            //MelonLogger.Msg("Compute shader " + string.Join("|", shader.shaderKeywords.ToArray()));
+            //shader object here is all fine
+            GameObject.DontDestroyOnLoad(shader);
+            return shader;
+        }
         internal static ComputeShader FindComputeShader(string name)
         {
             if (assetBundle == null)
