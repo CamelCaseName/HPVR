@@ -20,17 +20,14 @@
 
 using FidelityFX;
 using FidelityFX.FSR3;
-using HPVR.UI;
 using HPVR.utils;
 using Il2CppInterop.Runtime.Attributes;
-using Il2CppInterop.Runtime.Injection;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
+using System.Reflection.Metadata;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
-using static UnityEngine.Rendering.HighDefinition.DLSSPass;
 
 namespace HPVR.FSR3
 {
@@ -150,7 +147,9 @@ namespace HPVR.FSR3
         private RenderTexture? _colorOpaqueOnly;
         private RenderTexture? _colorOnly;
         private RenderTexture? _colorOnly2;
+        private RenderTexture? _depthFullSize;
         private RenderTexture? _depth;
+        private RTHandle? _depthHandle;
         private RenderTexture? _motion;
 
         private Material? _copyWithDepthMaterial;
@@ -215,8 +214,15 @@ namespace HPVR.FSR3
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
                 _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
                 _copyWithoutDepth = new Material(Shader.Find("Hidden/BlitCopy"));
-                _copyDepth = new Material(Fsr3UpscalerAssets.FindShader("CustomCopy")); // from https://github.com/alelievr/HDRP-Custom-Passes/blob/master/Assets/CustomPasses/CopyPass/CustomCopy.shader
+                _copyDepth = new Material(Fsr3UpscalerAssets.FindShader("DepthStealer"));
                 _copyPass = _copyDepth.FindPass("Depth");
+                _depthFullSize = new RenderTexture(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.RFloat)
+                {
+                    enableRandomWrite = true,
+                    name = "FSR_DEPTH_FULLSIZE"
+                };
+                _depthHandle = RTHandles.Alloc(_depthFullSize);
+                _copyDepth.SetFloat("_Scale", 25);
 
                 //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
 
@@ -251,6 +257,8 @@ namespace HPVR.FSR3
             //// Restore the camera's original state
             //_renderCamera.depthTextureMode = _originalDepthTextureMode;
             //_renderCamera.targetTexture = _originalRenderTarget;
+
+            RTHandles.Release(_depthHandle);
         }
 
         private void CreateFsrContext()
@@ -518,7 +526,6 @@ namespace HPVR.FSR3
 
         private Vector2Int BadCopyTextures()
         {
-            //todo these builtin dont work, so i replaced them by custom copies
             //###############    color    ############################
             var scaledRenderSize = GetScaledRenderSize();
             RenderTexture old = RenderTexture.active;
@@ -559,36 +566,25 @@ namespace HPVR.FSR3
 
         private void MakeDepthTex(Vector2Int scaledRenderSize, ref Texture2D tex)
         {
-            //ref https://github.com/alelievr/HDRP-Custom-Passes/blob/master/Assets/CustomPasses/CopyPass/CopyPass.cs
-            //var scale = RTHandles.rtHandleProperties.rtHandleScale;
-            //_copyDepth!.SetVector("_Scale", scale);
-
-            _depth = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 32, GraphicsFormat.R32_SFloat); //GraphicsFormat.R32_FLOAT
+            _depth = RenderTexture.GetTemporary(scaledRenderSize.x, scaledRenderSize.y, 0, RenderTextureFormat.RFloat); //GraphicsFormat.R32_FLOAT
             _depth.enableRandomWrite = true;
             _depth.name = "FSR_DEPTH_TEMP";
 
-            //HDAdditionalCameraData.BufferAccess access = new()
-            //{
-            //    bufferAccess = HDAdditionalCameraData.BufferAccessType.Depth
-            //};
-            //FsrPrePostProcess.Context!.hdCamera.m_AdditionalCameraData.requestGraphicsBuffer?.Invoke(ref access);
-            //RenderTexture.active = FsrPrePostProcess.Context!.hdCamera.m_AdditionalCameraData.GetGraphicsBuffer(HDAdditionalCameraData.BufferAccessType.Depth); //returns null
-            RenderTexture.active = FsrPrePostProcess.Context!.cameraDepthBuffer;
+            CoreUtils.SetRenderTarget(FsrPrePostProcess.Context!.cmd, _depthFullSize);
+            HDUtils.DrawFullScreen(FsrPrePostProcess.Context!.cmd, _copyDepth, _depthHandle, shaderPassId: _copyPass);
+
+            RenderTexture.active = _depthFullSize!;
             tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RFloat, false)
             {
                 name = "FSR_INTERMEDIATE_DEPTH"
             };
             tex.ReadPixels(new Rect(0, 0, scaledRenderSize.x, scaledRenderSize.y), 0, 0);
             tex.Apply();
-            Extensions.SaveRT(RenderTexture.active, "_active" + (++i).ToString() + ".png");
+            //Extensions.SaveRT(RenderTexture.active, "_active" + (++i).ToString() + ".png");
 
             RenderTexture.active = _depth;
-            //Graphics.Blit(FsrPrePostProcess.Context.cameraNormalBuffer, _depth, _copyDepth, _copyPass); // copies something out of the buffer
             Graphics.Blit(tex, _depth); // copies something out of the buffer
-            Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
-            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraNormalBuffer, "_normal" + (++i).ToString() + ".png"); //seems to only have normals in it
-            //Extensions.SaveRT(FsrPrePostProcess.Context!.cameraDepthBuffer.rt, "cameradepth" + (++i).ToString() + ".png"); //nothing in this depth texture resource, only grey :(
-            //Extensions.SaveRT(Shader.GetGlobalTexture("_CameraDepthTexture").Cast<RenderTexture>(), "cameradepth" + (++i).ToString() + ".png"); //nothing in this depth texture resource :(
+            //Extensions.SaveRT(_depth, "_depth" + (++i).ToString() + ".png");
             Texture2D.DestroyImmediate(tex);
         }
 

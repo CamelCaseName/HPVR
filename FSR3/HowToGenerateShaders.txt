@@ -1,0 +1,4 @@
+1. Create a Unity project with the same version and build settings as your game. (HDRP only)
+2. Add the shaders as Assets to the project
+3. add to an Assetbundle named fsrshaders
+4. build assetbundle, replace here in Resources

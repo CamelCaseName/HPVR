@@ -1,5 +1,4 @@
-﻿using HPVR.utils;
-using MelonLoader;
+﻿using MelonLoader;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 
@@ -22,8 +21,8 @@ namespace HPVR.FSR3
 
         public override void Execute(CustomPassContext ctx)
         {
-            targetDepthBuffer = TargetBuffer.Camera;
-            targetColorBuffer = TargetBuffer.Camera;
+            targetDepthBuffer = TargetBuffer.Custom;
+            targetColorBuffer = TargetBuffer.Custom;
             Context = ctx;
 
             //GetCameraBuffers(out var color, out var depth); //color is fine, depth is again empty as it is everywhere else...

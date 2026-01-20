@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 2517057782
+CRC: 1748053056
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 16409c09b611a2c4af5183f7ba25b5aa
+    Hash: 9c2463ad3aa2693310367679b0b902a7
   TypeTreeHash:
     serializedVersion: 2
     Hash: 10c35042c122e2a58355f17ed197a696
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 16409c09b611a2c4af5183f7ba25b5aa
+    Hash: 9c2463ad3aa2693310367679b0b902a7
 HashAppended: 0
 ClassTypes:
 - Class: 48
@@ -25,6 +25,7 @@ Assets:
 - Assets/AssetBundles/hpvr_assets.manifest
 - Assets/fsrshaders/ffx_fsr2_autogen_reactive_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_rcas_pass.compute
+- Assets/fsrshaders/DepthStealer.shader
 - Assets/fsrshaders/ffx_fsr3upscaler_autogen_reactive_pass.compute
 - Assets/fsrshaders/ffx_fsr2_tcr_autogen_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_accumulate_pass.compute
@@ -35,7 +36,6 @@ Assets:
 - Assets/AssetBundles/AssetBundles.manifest
 - Assets/fsrshaders/ffx_fsr2_compute_luminance_pyramid_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_shading_change_pyramid_pass.compute
-- Assets/fsrshaders/CustomCopy.shader
 - Assets/fsrshaders/ffx_fsr2_rcas_pass.compute
 - Assets/fsrshaders/ffx_fsr2_depth_clip_pass.compute
 - Assets/AssetBundles/fsrshaders.manifest
