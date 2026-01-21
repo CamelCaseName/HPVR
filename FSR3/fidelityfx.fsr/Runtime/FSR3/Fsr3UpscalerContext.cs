@@ -20,6 +20,7 @@
 
 using HPVR.FSR3;
 using HPVR.utils;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
 using System;
 using System.Runtime.InteropServices;
@@ -157,7 +158,7 @@ namespace FidelityFX.FSR3
 
         public void Dispatch(Fsr3Upscaler.DispatchDescription dispatchParams)
         {
-            if(_commandBuffer is null)
+            if (_commandBuffer is null)
             {
                 return;
             }
@@ -278,8 +279,10 @@ namespace FidelityFX.FSR3
             SetupSpdConstants(dispatchParams, out var dispatchThreadGroupCount);
 
             // Initialize constant buffers data
-            commandBuffer.SetBufferData(_upscalerConstantsBuffer, _upscalerConstantsArray.AllocIl2CppArray());
-            commandBuffer.SetBufferData(_spdConstantsBuffer, _spdConstantsArray.AllocIl2CppArray());
+            var upscalerConstArr = _upscalerConstantsArray.AllocIl2CppArray();
+            _upscalerConstantsBuffer.InternalSetData(upscalerConstArr, 0, 0, upscalerConstArr.Length, 1);
+            var spdConstArr = _spdConstantsArray.AllocIl2CppArray();
+            _spdConstantsBuffer.InternalSetData(spdConstArr, 0, 0, spdConstArr.Length, 1);
 
             // Auto reactive
             if (dispatchParams.EnableAutoReactive)
@@ -308,7 +311,8 @@ namespace FidelityFX.FSR3
             {
                 // Compute the constants
                 SetupRcasConstants(dispatchParams);
-                commandBuffer.SetBufferData(_rcasConstantsBuffer, _rcasConstantsArray.AllocIl2CppArray());
+                var rcasConstArr = _rcasConstantsArray.AllocIl2CppArray();
+                _rcasConstantsBuffer.InternalSetData(rcasConstArr, 0, 0, rcasConstArr.Length, 1);
 
                 // Dispatch RCAS
                 const int threadGroupWorkRegionDimRcas = 16;
@@ -346,7 +350,8 @@ namespace FidelityFX.FSR3
             GenReactiveConsts.threshold = dispatchParams.CutoffThreshold;
             GenReactiveConsts.binaryValue = dispatchParams.BinaryValue;
             GenReactiveConsts.flags = (uint)dispatchParams.Flags;
-            commandBuffer.SetBufferData(_generateReactiveConstantsBuffer, _generateReactiveConstantsArray.AllocIl2CppArray());
+            var arr = _generateReactiveConstantsArray.AllocIl2CppArray();
+            _generateReactiveConstantsBuffer.InternalSetData(arr, 0, 0, arr.Length, 1);
 
             //MelonLogger.Msg($"thread group size: dispatchSRC reactive {dispatchSrcX}:{dispatchSrcY}");
             ((Fsr3UpscalerGenerateReactivePass)_generateReactivePass).ScheduleDispatch(commandBuffer, dispatchParams, dispatchSrcX, dispatchSrcY);
@@ -362,7 +367,8 @@ namespace FidelityFX.FSR3
             TcrAutoGenConsts.autoTcScale = dispatchParams.AutoTcScale;
             TcrAutoGenConsts.autoReactiveScale = dispatchParams.AutoReactiveScale;
             TcrAutoGenConsts.autoReactiveMax = dispatchParams.AutoReactiveMax;
-            commandBuffer.SetBufferData(_tcrAutogenerateConstantsBuffer, _tcrAutogenerateConstantsArray.AllocIl2CppArray());
+            var arr = _tcrAutogenerateConstantsArray.AllocIl2CppArray();
+            _tcrAutogenerateConstantsBuffer.InternalSetData(arr, 0, 0, arr.Length, 1);
 
             //MelonLogger.Msg($"thread group size: dispatchSRC transparent {dispatchSrcX}:{dispatchSrcY}");
             _tcrAutogeneratePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);

@@ -335,8 +335,7 @@ namespace HPVR
             var customVolume = new GameObject("FSR_PrePostProcessVolume");
             var pass = customVolume.AddComponent<CustomPassVolume>();
             pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
-            //even afterpostprocess is not late enough for the CameraDepthStencil to be populated... very strange. it is a little later however
-            //do i need to set material? dunno
+
             pass.isGlobal = true;
             pass.AddPassOfType<FsrPrePostProcess>();
 

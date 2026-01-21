@@ -726,12 +726,6 @@ namespace HPVR.FSR3
             _context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
             _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
 
-            //var path = "oldCOlor" + (++i) + ".png";
-            //Extensions.SaveRT(_colorOpaqueOnly, path);
-            //the color buffer is still correct here, maybe we should test some others?
-            //maybe the camera buffer is fucked?
-            HDUtils.DrawFullScreen(_dispatchCommandBuffer, new(0, 0, _displaySize.x, _displaySize.y), _copyWithDepthMaterial, (RenderTargetIdentifier)Fsr3ShaderIDs.UavUpscaledOutput);
-
             // Output the upscaled image
             if (_originalRenderTarget != null)
             {
@@ -746,14 +740,14 @@ namespace HPVR.FSR3
                 //this is fine, we should jsut copy what we have here into the full screen buffer
                 //MelonLogger.Msg("render global buffer");
                 // Output directly to the backbuffer
-                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer); //this should be fine?
+                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer); //this should be fine?
                 //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
                 //MelonLogger.Msg($"camera: {Camera.main.pixelWidth}:{Camera.main.pixelHeight}"); // camera size is back to normal here, but we get no output on the screen
                 //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer);
                 //MelonLogger.Msg($"camera: {FsrHDRP.context!.cameraColorBuffer.rt.width}:{FsrHDRP.context!.cameraColorBuffer.rt.height}"); //buffer size is correct here
 
                 //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
-                CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, Fsr3ShaderIDs.UavUpscaledOutput, null, 0);
+                //CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, Fsr3ShaderIDs.UavUpscaledOutput, null, 0);
             }
 
             _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);

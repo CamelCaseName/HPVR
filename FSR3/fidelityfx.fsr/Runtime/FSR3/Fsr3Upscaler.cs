@@ -236,6 +236,38 @@ namespace FidelityFX.FSR3
             UseComponentsMax = 1 << 3,
         }
 
+        /*
+         struct UpscalerConstants
+            {
+                int2 renderSize;     
+                int2 previousFrameRenderSize;   
+
+                int2 upscaleSize; 
+                int2 previousFrameUpscaleSize; 
+
+                int2 maxRenderSize;  
+                int2 maxUpscaleSize;  
+
+                float4 deviceToViewDepth;
+
+                float2 jitterOffset;
+                float2 previousFrameJitterOffset;
+
+                float2 motionVectorScale;
+                float2 downscaleFactor;
+
+                float2 motionVectorJitterCancellation;
+                float tanHalfFOV;
+                float jitterPhaseCount;
+
+                float deltaTime;
+                float deltaPreExposure;
+                float viewSpaceToMetersFactor;
+                float frameIndex;
+
+                float velocityFactor;
+            }     
+         */
         [Serializable, StructLayout(LayoutKind.Sequential)]
         internal struct UpscalerConstants
         {
@@ -266,6 +298,26 @@ namespace FidelityFX.FSR3
             public float frameIndex;
 
             public float velocityFactor;
+
+            public override readonly string ToString() => $"\nrenderSize: {renderSize}\n" +
+                $"previousFrameRenderSize:{previousFrameRenderSize}\n" +
+                $"upscaleSize:{upscaleSize}\n" +
+                $"previousFrameUpscaleSize:{previousFrameUpscaleSize}\n" +
+                $"maxRenderSize:{maxRenderSize}\n" +
+                $"maxUpscaleSize:{maxUpscaleSize}\n" +
+                $"deviceToViewDepth:{deviceToViewDepth}\n" +
+                $"jitterOffset:{jitterOffset}\n" +
+                $"previousFrameJitterOffset:{previousFrameJitterOffset}\n" +
+                $"motionVectorScale:{motionVectorScale}\n" +
+                $"downscaleFactor:{downscaleFactor}\n" +
+                $"motionVectorJitterCancellation:{motionVectorJitterCancellation}\n" +
+                $"tanHalfFOV:{tanHalfFOV}\n" +
+                $"jitterPhaseCount:{jitterPhaseCount}\n" +
+                $"deltaTime:{deltaTime}\n" +
+                $"deltaPreExposure:{deltaPreExposure}\n" +
+                $"viewSpaceToMetersFactor:{viewSpaceToMetersFactor}\n" +
+                $"frameIndex:{frameIndex}\n" +
+                $"velocityFactor:{velocityFactor}\n";
         }
 
         [Serializable, StructLayout(LayoutKind.Sequential)]

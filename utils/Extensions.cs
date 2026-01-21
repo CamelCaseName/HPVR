@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using Valve.VR;
 
@@ -70,31 +71,32 @@ namespace HPVR.utils
                 throw new InvalidDataException($"{t.Name} is not a sequential struct. It has to be sequential for this to work");
             }
 
-            var DataSize = Unsafe.SizeOf<T>();
-            DataSize *= incoming.Length;
+            var structSize = Unsafe.SizeOf<T>();
+            var DataSize = structSize * incoming.Length;
             int ArrayObjSize = Unsafe.SizeOf<T[]>();
-
-            //array in c# memory is 4 byte lenght, 4 byte padding and then the data
-            GCHandle gC = GCHandle.Alloc(incoming, GCHandleType.Pinned);
-            IntPtr pinnedArr = gC.AddrOfPinnedObject();
 
             //we create the array for bytes, but then copy in the real data. this should be fine?
             var array = new Il2CppStructArray<byte>(DataSize);
             var handle = IL2CPP.il2cpp_gchandle_new(array.Pointer, true);
+            byte[] byteArray = new byte[structSize];
 
-            Memmove((void*)(array.Pointer + ArrayObjSize), (void*)(pinnedArr + ArrayObjSize), (nuint)DataSize);
+            for (int i = 0; i < incoming.Length; i++)
+            {
+                fixed (T* fixedT = &incoming[0])
+                fixed (byte* pBytes = byteArray)
+                {
+                    // Copy struct data directly to byte array using pointers
+                    Buffer.MemoryCopy(fixedT, pBytes, structSize, structSize);
+                }
+                for (int j = 0; j < byteArray.Length; j++)
+                {
+                    array[i * structSize + j] = byteArray[j];
+                }
+            }
 
             IL2CPP.il2cpp_gchandle_free(handle);
-            gC.Free();
 
             return array.Cast<Il2CppSystem.Array>();
-        }
-
-        private unsafe static void Memmove(void* dest, void* src, nuint len)
-        {
-            _ = Unsafe.ReadUnaligned<byte>(dest);
-            _ = Unsafe.ReadUnaligned<byte>(src);
-            System.Buffer.MemoryCopy(dest, src, len, len);
         }
 
         public static void SetHandlerAtFront(this Action action, Delegate @delegate)
