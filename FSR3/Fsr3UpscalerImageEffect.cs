@@ -20,10 +20,8 @@
 
 using FidelityFX;
 using FidelityFX.FSR3;
-using HPVR.utils;
 using Il2CppInterop.Runtime.Attributes;
 using MelonLoader;
-using System.Reflection.Metadata;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -133,6 +131,7 @@ namespace HPVR.FSR3
         internal Fsr3UpscalerImageEffectHelper? _helper;
 
         private Camera? _renderCamera;
+        //private HDCamera? HDCamera;
         private HDAdditionalCameraData? HDdata;
         private RenderTexture? _originalRenderTarget;
         private DepthTextureMode _originalDepthTextureMode;
@@ -152,10 +151,9 @@ namespace HPVR.FSR3
         private RTHandle? _depthHandle;
         private RenderTexture? _motion;
 
-        private Material? _copyWithDepthMaterial;
         private Material? _copyWithoutDepth;
         private Material? _copyDepth;
-        private int _copyPass;
+        private int _copyDepthPass;
 
         //private RTHandle blitBuffer;
 
@@ -212,10 +210,9 @@ namespace HPVR.FSR3
                 }
 
                 _helper = GetComponent<Fsr3UpscalerImageEffectHelper>();
-                _copyWithDepthMaterial = new Material(Shader.Find("Hidden/BlitCopyWithDepth"));
                 _copyWithoutDepth = new Material(Shader.Find("Hidden/BlitCopy"));
                 _copyDepth = new Material(Fsr3UpscalerAssets.FindShader("DepthStealer"));
-                _copyPass = _copyDepth.FindPass("Depth");
+                _copyDepthPass = _copyDepth.FindPass("Depth");
                 _depthFullSize = new RenderTexture(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.RFloat)
                 {
                     enableRandomWrite = true,
@@ -227,6 +224,7 @@ namespace HPVR.FSR3
                 //blitBuffer = RTHandles.Alloc(Vector2.one, TextureXR.slices, dimension: TextureXR.dimension, colorFormat: GraphicsFormat.R8G8B8A8_UInt, name: "Outline Buffer");
 
                 //seems to work?
+                //HDCamera ??= _renderCamera.GetComponent<HDCamera>();
                 HDdata ??= _renderCamera.GetComponent<HDAdditionalCameraData>();
                 HDdata.customRenderingSettings = true;
                 var mask = HDdata.renderingPathCustomFrameSettingsOverrideMask;
@@ -570,8 +568,12 @@ namespace HPVR.FSR3
             _depth.enableRandomWrite = true;
             _depth.name = "FSR_DEPTH_TEMP";
 
+            // why the fuck is this executed so much later?
             CoreUtils.SetRenderTarget(FsrPrePostProcess.Context!.cmd, _depthFullSize);
-            HDUtils.DrawFullScreen(FsrPrePostProcess.Context!.cmd, _copyDepth, _depthHandle, shaderPassId: _copyPass);
+            HDUtils.DrawFullScreen(FsrPrePostProcess.Context!.cmd, _copyDepth, _depthHandle, shaderPassId: _copyDepthPass);
+            //Graphics.ExecuteCommandBuffer(FsrPrePostProcess.Context!.cmd);
+
+            //depthhandle is empty but we dont care as our shader gets the depth from the global depth buffer here
 
             RenderTexture.active = _depthFullSize!;
             tex = new(scaledRenderSize.x, scaledRenderSize.y, TextureFormat.RFloat, false)
@@ -707,6 +709,23 @@ namespace HPVR.FSR3
             _renderCamera.rect = _originalRect;
             _renderCamera.ResetProjectionMatrix();
 
+            MelonLogger.Msg("###############################################################");
+            if (_renderCamera is not null)
+            {
+                foreach (var property in (typeof(Camera).GetProperties()))
+                {
+                    if (property.CanRead)
+                    {
+                        MelonLogger.Msg($"{property.Name}: {property.GetValue(_renderCamera)?.ToString() ?? "null"}");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Msg("HDCamera was null?");
+            }
+            MelonLogger.Msg("###############################################################");
+
             _dispatchCommandBuffer.Clear();
 
             if (autoGenerateReactiveMask)
@@ -738,22 +757,13 @@ namespace HPVR.FSR3
             else
             {
                 //this is fine, we should jsut copy what we have here into the full screen buffer
-                //MelonLogger.Msg("render global buffer");
-                // Output directly to the backbuffer
-                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer); //this should be fine?
-                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, 0);
-                //MelonLogger.Msg($"camera: {Camera.main.pixelWidth}:{Camera.main.pixelHeight}"); // camera size is back to normal here, but we get no output on the screen
-                //_dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer);
-                //MelonLogger.Msg($"camera: {FsrHDRP.context!.cameraColorBuffer.rt.width}:{FsrHDRP.context!.cameraColorBuffer.rt.height}"); //buffer size is correct here
-
-                //_dispatchCommandBuffer.SetGlobalTexture("_DepthTex", GetDepthTexture(), RenderTextureSubElement.Depth);
-                //CoreUtils.DrawFullScreen(_dispatchCommandBuffer, _copyWithDepthMaterial, Fsr3ShaderIDs.UavUpscaledOutput, null, 0);
+                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, FsrPrePostProcess.Context!.cameraColorBuffer); //works, but is overwritten somehow by other shit
             }
+
+            Graphics.ExecuteCommandBuffer(_dispatchCommandBuffer);
 
             _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);
             _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavAutoReactive);
-
-            Graphics.ExecuteCommandBuffer(_dispatchCommandBuffer);
 
             if (_colorOpaqueOnly != null)
             {

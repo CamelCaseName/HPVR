@@ -21,8 +21,8 @@ namespace HPVR.FSR3
 
         public override void Execute(CustomPassContext ctx)
         {
-            targetDepthBuffer = TargetBuffer.Custom;
-            targetColorBuffer = TargetBuffer.Custom;
+            targetDepthBuffer = TargetBuffer.Camera;
+            targetColorBuffer = TargetBuffer.Camera;
             Context = ctx;
 
             //GetCameraBuffers(out var color, out var depth); //color is fine, depth is again empty as it is everywhere else...

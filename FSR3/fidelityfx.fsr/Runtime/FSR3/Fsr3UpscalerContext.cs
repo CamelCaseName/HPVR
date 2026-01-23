@@ -304,7 +304,6 @@ namespace FidelityFX.FSR3
             _shadingChangePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchShadingChangePassX, dispatchShadingChangePassY);
             _prepareReactivityPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
             _lumaInstabilityPass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchSrcX, dispatchSrcY);
-
             _accumulatePass.ScheduleDispatch(commandBuffer, dispatchParams, frameIndex, dispatchDstX, dispatchDstY);
 
             if (dispatchParams.EnableSharpening)

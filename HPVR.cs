@@ -335,7 +335,6 @@ namespace HPVR
             var customVolume = new GameObject("FSR_PrePostProcessVolume");
             var pass = customVolume.AddComponent<CustomPassVolume>();
             pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
-
             pass.isGlobal = true;
             pass.AddPassOfType<FsrPrePostProcess>();
 
@@ -344,6 +343,15 @@ namespace HPVR
             pass2.injectionPoint = CustomPassInjectionPoint.BeforePreRefraction;
             pass2.isGlobal = true;
             pass2.AddPassOfType<FsrPreRefraction>();
+
+            var volume = GameObject.FindObjectOfType<VolumeProfile>();
+            foreach (var vol in volume?.components ?? new())
+            {
+                if (vol is not null)
+                {
+                    vol.active = false;
+                }
+            }
 
             UnityHooks.OnPreCull += () => fsrScalerHelper.OnPreCull();
             FsrPreRefraction.OnExecute += () => fsrScaler.OnPreCull();
