@@ -305,6 +305,7 @@ namespace HPVR
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.AntiAliasing.Set(0);
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
+                //todo re-enable and make fsr reloadable
                 SetUpFSR3();
             }
 
@@ -444,10 +445,12 @@ namespace HPVR
                 TryEndDisclaimerScreen();
             }
 #endif
+            //todo re-enable
             if (FSR_Enabled && ((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
             {
                 //MelonLogger.Msg(Camera.main.name);
-                //todo set up camera to render into full screen rendertexture
+                Camera.main.forceIntoRenderTexture = true;
+                Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, GraphicsFormat.B10G11R11_UFloatPack32);
                 fsrScaler.Init(Camera.main);
             }
         }

@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 1748053056
+CRC: 3452453651
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 9c2463ad3aa2693310367679b0b902a7
+    Hash: fc422b5c352a056e3fd7ec26d2f81c23
   TypeTreeHash:
     serializedVersion: 2
     Hash: 10c35042c122e2a58355f17ed197a696
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 9c2463ad3aa2693310367679b0b902a7
+    Hash: fc422b5c352a056e3fd7ec26d2f81c23
 HashAppended: 0
 ClassTypes:
 - Class: 48
@@ -20,24 +20,25 @@ ClassTypes:
   Script: {instanceID: 0}
 SerializeReferenceClassIdentifiers: []
 Assets:
-- Assets/fsrshaders/ffx_fsr2_accumulate_pass.compute
-- Assets/fsrshaders/ffx_fsr3upscaler_shading_change_pass.compute
 - Assets/AssetBundles/hpvr_assets.manifest
 - Assets/fsrshaders/ffx_fsr2_autogen_reactive_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_rcas_pass.compute
 - Assets/fsrshaders/DepthStealer.shader
 - Assets/fsrshaders/ffx_fsr3upscaler_autogen_reactive_pass.compute
 - Assets/fsrshaders/ffx_fsr2_tcr_autogen_pass.compute
-- Assets/fsrshaders/ffx_fsr3upscaler_accumulate_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_prepare_inputs_pass.compute
-- Assets/fsrshaders/ffx_fsr3upscaler_luma_pyramid_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_luma_instability_pass.compute
+- Assets/fsrshaders/ffx_fsr2_depth_clip_pass.compute
+- Assets/fsrshaders/ffx_fsr2_accumulate_pass.compute
+- Assets/fsrshaders/ffx_fsr3upscaler_shading_change_pass.compute
+- Assets/fsrshaders/ffx_fsr3upscaler_accumulate_pass.compute
+- Assets/fsrshaders/ffx_fsr3upscaler_luma_pyramid_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_tcr_autogen_pass.compute
 - Assets/AssetBundles/AssetBundles.manifest
 - Assets/fsrshaders/ffx_fsr2_compute_luminance_pyramid_pass.compute
 - Assets/fsrshaders/ffx_fsr3upscaler_shading_change_pyramid_pass.compute
 - Assets/fsrshaders/ffx_fsr2_rcas_pass.compute
-- Assets/fsrshaders/ffx_fsr2_depth_clip_pass.compute
+- Assets/fsrshaders/DepthCopier.shader
 - Assets/AssetBundles/fsrshaders.manifest
 - Assets/fsrshaders/ffx_fsr3upscaler_debug_view_pass.compute
 - Assets/fsrshaders/ffx_fsr2_reconstruct_previous_depth_pass.compute
