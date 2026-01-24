@@ -19,8 +19,6 @@
 // THE SOFTWARE.
 
 using HPVR.FSR3;
-using Il2CppEekCharacterEngine;
-using MelonLoader;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -80,13 +78,7 @@ namespace FidelityFX.FSR3
             KernelIndex = ComputeShader.FindKernel("CS");
             _sampler = CustomSampler.Create(passName);
 
-            bool useLut = false;
-#if UNITY_2022_1_OR_NEWER   // This will also work in 2020.3.43+ and 2021.3.14+ 
-            if (SystemInfo.computeSubGroupSize == 64)
-            {
-                useLut = true;
-            }
-#endif
+            bool useLut = true;
 
             // This matches the permutation rules from the CreatePipeline* functions
             if ((flags & Fsr3Upscaler.InitializationFlags.EnableHighDynamicRange) != 0)

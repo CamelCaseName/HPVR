@@ -18,11 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using HPVR.FSR3;
 using HPVR.utils;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
-using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;

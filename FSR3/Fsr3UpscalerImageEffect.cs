@@ -246,8 +246,9 @@ namespace HPVR.FSR3
             }
         }
 
-        private void OnDisable()
+        protected void OnDisable()
         {
+            MelonLogger.Msg("FSR shutdown");
             DestroyFsrContext();
 
             if (_copyDepth != null)
@@ -381,6 +382,7 @@ namespace HPVR.FSR3
         {
             if (!Initialized || _renderCamera is null)
             {
+                MelonLogger.Msg($"init: {Initialized}  cam: {_renderCamera is null}");
                 return;
             }
 
@@ -539,11 +541,12 @@ namespace HPVR.FSR3
             _renderCamera.useJitteredProjectionMatrixForTransparentRendering = true;
         }
 
-        public void OnRenderImage(RenderTexture scr, RenderTexture dest)
+        public void OnRenderImage()
         {
             //this (vias the execute method on the custompass) is actually called way before the actual commandbuffer is executed -.-
             if (!Initialized)
             {
+                MelonLogger.Msg($"init render: {Initialized}");
                 return;
             }
             if (_renderCamera is null)

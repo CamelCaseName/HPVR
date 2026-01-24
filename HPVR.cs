@@ -51,6 +51,7 @@ namespace HPVR
         private bool boundPlayerHands;
 #endif
         private Fsr3UpscalerImageEffect? fsrScaler;
+        private Fsr3UpscalerImageEffectHelper? fsrScalerHelper;
         private bool GameMainLateStarted = false;
         private static readonly bool FSR_Enabled = true;
         static HPVR()
@@ -141,7 +142,8 @@ namespace HPVR
                     UnityHooks.ResetOnPreCull();
 
                     Object.DestroyImmediate(fsrScaler._helper);
-                    Object.DestroyImmediate(fsrScaler);
+                    if (fsrScaler is not null)
+                        Object.DestroyImmediate(fsrScaler);
                 }
             }
 
@@ -301,11 +303,21 @@ namespace HPVR
             }
             else if (FSR_Enabled)
             {
+                if (fsrScaler is not null)
+                {
+                    Object.DestroyImmediate(fsrScaler);
+                    fsrScaler = null;
+                }
+
+                if (fsrScalerHelper is not null)
+                {
+                    Object.DestroyImmediate(fsrScalerHelper);
+                    fsrScalerHelper = null;
+                }
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.AntiAliasing.Set(0);
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
-                //todo re-enable and make fsr reloadable
                 SetUpFSR3();
             }
 
@@ -323,8 +335,19 @@ namespace HPVR
         {
             MelonLogger.Msg("Adding UNITYFSR3 Component");
 
+            if (fsrScalerHelper is not null)
+            {
+                UnityHooks.OnPreCull -= fsrScalerHelper.OnPreCull;
+            }
+
+            if (fsrScaler is not null)
+            {
+                FsrPreRefraction.OnExecute -= fsrScaler.OnPreCull;
+                FsrPrePostProcess.OnExecute -= fsrScaler.OnRenderImage;
+            }
+
             fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
-            var fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
+            fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
 
 #if !VR_DISABLED
             SteamVRCamera.instance.ForceLast();
@@ -354,9 +377,9 @@ namespace HPVR
                 }
             }
 
-            UnityHooks.OnPreCull += () => fsrScalerHelper.OnPreCull();
-            FsrPreRefraction.OnExecute += () => fsrScaler.OnPreCull();
-            FsrPrePostProcess.OnExecute += () => fsrScaler.OnRenderImage(null!, FsrPrePostProcess.Context!.cameraColorBuffer);
+            UnityHooks.OnPreCull += fsrScalerHelper.OnPreCull;
+            FsrPreRefraction.OnExecute += fsrScaler.OnPreCull;
+            FsrPrePostProcess.OnExecute += fsrScaler.OnRenderImage;
 
             fsrScaler._helper = fsrScalerHelper;
         }
