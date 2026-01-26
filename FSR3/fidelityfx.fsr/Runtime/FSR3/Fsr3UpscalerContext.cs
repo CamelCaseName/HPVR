@@ -615,7 +615,7 @@ namespace FidelityFX.FSR3
 
                 if (dispatchParams.CameraFar < 0.075f)
                 {
-                    MelonLogger.Warning("EnableDepthInverted present, CameraFar value is very low which may result in depth separation artefacting");
+                    //MelonLogger.Warning("EnableDepthInverted present, CameraFar value is very low which may result in depth separation artefacting");
                 }
             }
             else
@@ -635,7 +635,7 @@ namespace FidelityFX.FSR3
 
                 if (dispatchParams.CameraNear < 0.075f)
                 {
-                    MelonLogger.Warning("CameraNear value is very low which may result in depth separation artefacting");
+                    //MelonLogger.Warning("CameraNear value is very low which may result in depth separation artefacting");
                 }
             }
 

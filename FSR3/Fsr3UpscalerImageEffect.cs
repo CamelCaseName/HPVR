@@ -156,6 +156,7 @@ namespace HPVR.FSR3
         //private RTHandle blitBuffer;
 
         int i = 0;
+        internal string scene;
 
         public bool Initialized { get; private set; } = false;
 
@@ -181,7 +182,7 @@ namespace HPVR.FSR3
 
                 // Determine the desired rendering and display resolutions
                 _displaySize = GetDisplaySize();
-                //MelonLogger.Error($"{_maxRenderSize.x}x{_maxRenderSize.y} | {_renderCamera.pixelWidth}x{_renderCamera.pixelHeight}"); //hmm this is 0 here?
+                MelonLogger.Error($"{_maxRenderSize.x}x{_maxRenderSize.y} | {_renderCamera.pixelWidth}x{_renderCamera.pixelHeight}"); //hmm this is 0 here?
                 Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
                 _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
 
@@ -335,29 +336,6 @@ namespace HPVR.FSR3
             //    OnDisable();
             //    OnEnable();
             //}
-
-            //is called
-            //MelonLogger.Msg("fsr update");
-            //if (assets?.shaders?.autoGenReactivePass is not null && _context?._generateReactivePass?.ComputeShader is not null)
-            //{
-            //    try
-            //    {
-            //        //MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass?.name);
-            //        // MelonLogger.Msg("update loop pass test" + _context?._generateReactivePass?.ComputeShader?.name);
-            //    }
-            //    catch (Exception e)
-            //    {
-            //        MelonLogger.Error(e);
-            //        MelonLogger.Msg("creating new");
-            //        var shader = Fsr3UpscalerAssets.FindComputeShader("ffx_fsr3upscaler_autogen_reactive_pass");
-            //        MelonLogger.Msg("check new " + shader.name);
-            //        assets.shaders.autoGenReactivePass = shader;
-            //        _context._contextDescription.Shaders.autoGenReactivePass = shader;
-            //        MelonLogger.Msg("check assets " + assets.shaders.autoGenReactivePass?.name);
-            //        _context._generateReactivePass = new Fsr3UpscalerGenerateReactivePass(_context._contextDescription, _context._resources, _context._generateReactiveConstantsBuffer);
-            //        MelonLogger.Msg("second test" + _context?._generateReactivePass?.ComputeShader?.name);
-            //    }
-            //}
         }
 
         public void ResetHistory()
@@ -393,6 +371,8 @@ namespace HPVR.FSR3
                 _renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
                 _renderCamera.rect = new Rect(0, 0, _originalRect.width * _maxRenderSize.x / _renderCamera.pixelWidth, _originalRect.height * _maxRenderSize.y / _renderCamera.pixelHeight);
             }
+
+            //MelonLogger.Msg(scene + " OnPreCull");
 
             // Set up the opaque-only command buffer to make a copy of the camera color buffer right before transparent drawing starts 
             if (autoGenerateReactiveMask || autoGenerateTransparencyAndComposition)
@@ -458,8 +438,8 @@ namespace HPVR.FSR3
             _dispatchDescription.RenderSize = scaledRenderSize;
             _dispatchDescription.UpscaleSize = _displaySize;
             _dispatchDescription.FrameTimeDelta = Time.unscaledDeltaTime;
-            _dispatchDescription.CameraNear = _renderCamera.nearClipPlane;
-            _dispatchDescription.CameraFar = _renderCamera.farClipPlane;
+            _dispatchDescription.CameraNear = _renderCamera.nearClipPlane; //0.01 in game main
+            _dispatchDescription.CameraFar = _renderCamera.farClipPlane; //5k in game main
             _dispatchDescription.CameraFovAngleVertical = _renderCamera.fieldOfView * Mathf.Deg2Rad;
             _dispatchDescription.ViewSpaceToMetersFactor = 1.0f; // 1 unit is 1 meter in Unity
             _dispatchDescription.VelocityFactor = velocityFactor;
@@ -480,8 +460,10 @@ namespace HPVR.FSR3
 
             if (SystemInfo.usesReversedZBuffer)
             {
+                //MelonLogger.Msg("inverted depth 1");
                 // Swap the near and far clip plane distances as FSR3 expects this when using inverted depth
-                (_dispatchDescription.CameraNear, _dispatchDescription.CameraFar) = (_dispatchDescription.CameraFar, _dispatchDescription.CameraNear);
+                _dispatchDescription.CameraFar = _renderCamera.nearClipPlane; //0.01 in game main
+                _dispatchDescription.CameraNear = _renderCamera.farClipPlane; //5k in game main
             }
         }
 
@@ -554,6 +536,7 @@ namespace HPVR.FSR3
                 MelonLogger.Error("rendercamera was null!");
                 return;
             }
+            //MelonLogger.Msg(scene + " OnRenderImage");
             var scaledRenderSize = GetScaledRenderSize();
 
             //this seems to work fine
@@ -596,13 +579,11 @@ namespace HPVR.FSR3
             _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1, true);
             //outputHandle.SetRenderTexture(new(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default));
 
-            //todo remove debug flag
-            _context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
+            //_context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
             _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
 
             // Output the upscaled image
             //this is fine, we should jsut copy what we have here into the full screen buffer
-            //todo this works, (color is off but who cares) but its overwwritten by sss camera shit shortly later and i dont know why .image is fine in the shader
             _dispatchCommandBuffer.SetRenderTarget(FsrPrePostProcess.Context.cameraColorBuffer);
             _dispatchCommandBuffer.ClearRenderTarget(true, true, Color.clear);
             _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, Display.main.colorBuffer); //works, but is overwritten somehow by other shit

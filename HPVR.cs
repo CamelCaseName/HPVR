@@ -6,14 +6,12 @@ using HPVR.UI;
 using HPVR.utils;
 using HPVR.VR;
 using Il2Cpp;
-using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Events;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekEvents;
 using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
-using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Util;
@@ -23,6 +21,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
@@ -53,7 +52,9 @@ namespace HPVR
         private Fsr3UpscalerImageEffect? fsrScaler;
         private Fsr3UpscalerImageEffectHelper? fsrScalerHelper;
         private bool GameMainLateStarted = false;
+        private bool setupVolumes;
         private static readonly bool FSR_Enabled = true;
+
         static HPVR()
         {
             //MelonLogger.Msg("Static init");
@@ -88,11 +89,6 @@ namespace HPVR
         //todo use hand movement to masturbate
         //todo screenfade can maybe just stay as an override?
         //todo add compatibility for headset + xbox controller
-
-        //todo figure out how and why a)
-        //tracking is now broken
-        //and b)
-        //fsr seems to be running but no performance change? Maybe the camera is still rendering at the normal resolution, and then we render atop of it with fsr?
 
         public override void OnInitializeMelon()
         {
@@ -137,14 +133,7 @@ namespace HPVR
 
             if (FSR_Enabled)
             {
-                if (fsrScaler != null)
-                {
-                    UnityHooks.ResetOnPreCull();
-
-                    Object.DestroyImmediate(fsrScaler._helper);
-                    if (fsrScaler is not null)
-                        Object.DestroyImmediate(fsrScaler);
-                }
+                DestroyFSR();
             }
 
             VRSystem.Gravity = inMainMenu || inGameMain;
@@ -162,7 +151,7 @@ namespace HPVR
             MelonLogger.Msg(LayerMask.LayerToName(0));
             for (int i = 0; i < 32; i++)
             {
-                MelonLogger.Msg(LayerMask.LayerToName(i));
+                MelonLogger.Msg(i.ToString() + ": " + LayerMask.LayerToName(i));
             }
 
             UIManager.UpdateUIPos = true;
@@ -303,17 +292,6 @@ namespace HPVR
             }
             else if (FSR_Enabled)
             {
-                if (fsrScaler is not null)
-                {
-                    Object.DestroyImmediate(fsrScaler);
-                    fsrScaler = null;
-                }
-
-                if (fsrScalerHelper is not null)
-                {
-                    Object.DestroyImmediate(fsrScalerHelper);
-                    fsrScalerHelper = null;
-                }
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
                 GraphicsController.Singleton.AntiAliasing.Set(0);
@@ -335,19 +313,9 @@ namespace HPVR
         {
             MelonLogger.Msg("Adding UNITYFSR3 Component");
 
-            if (fsrScalerHelper is not null)
-            {
-                UnityHooks.OnPreCull -= fsrScalerHelper.OnPreCull;
-            }
-
-            if (fsrScaler is not null)
-            {
-                FsrPreRefraction.OnExecute -= fsrScaler.OnPreCull;
-                FsrPrePostProcess.OnExecute -= fsrScaler.OnRenderImage;
-            }
-
             fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
             fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
+            fsrScaler.scene = SceneManager.GetActiveScene().name;
 
 #if !VR_DISABLED
             SteamVRCamera.instance.ForceLast();
@@ -356,26 +324,32 @@ namespace HPVR
 
             //create a custom fullscreen pass on the custompass global volume
             //this gives us access to the rendercontext before the frame is pushed so we can do postprocessing
-            var customVolume = new GameObject("FSR_PrePostProcessVolume");
-            var pass = customVolume.AddComponent<CustomPassVolume>();
-            pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
-            pass.isGlobal = true;
-            pass.AddPassOfType<FsrPrePostProcess>();
-
-            var customVolume2 = new GameObject("FSR_PreRefractionVolume");
-            var pass2 = customVolume.AddComponent<CustomPassVolume>();
-            pass2.injectionPoint = CustomPassInjectionPoint.BeforePreRefraction;
-            pass2.isGlobal = true;
-            pass2.AddPassOfType<FsrPreRefraction>();
-
-            var volume = GameObject.FindObjectOfType<VolumeProfile>();
-            foreach (var vol in volume?.components ?? new())
+            if (!setupVolumes)
             {
-                if (vol is not null)
-                {
-                    vol.active = false;
-                }
+                var customVolume = new GameObject("FSR_PrePostProcessVolume");
+                var pass = customVolume.AddComponent<CustomPassVolume>();
+                pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
+                pass.isGlobal = true;
+                pass.AddPassOfType<FsrPrePostProcess>();
+                Object.DontDestroyOnLoad(customVolume);
+
+                var customVolume2 = new GameObject("FSR_PreRefractionVolume");
+                var pass2 = customVolume.AddComponent<CustomPassVolume>();
+                pass2.injectionPoint = CustomPassInjectionPoint.BeforePreRefraction;
+                pass2.isGlobal = true;
+                pass2.AddPassOfType<FsrPreRefraction>();
+                Object.DontDestroyOnLoad(customVolume2);
+                setupVolumes = true;
             }
+
+            //var volume = GameObject.FindObjectOfType<VolumeProfile>();
+            //foreach (var vol in volume?.components ?? new())
+            //{
+            //    if (vol is not null)
+            //    {
+            //        vol.active = false;
+            //    }
+            //}
 
             UnityHooks.OnPreCull += fsrScalerHelper.OnPreCull;
             FsrPreRefraction.OnExecute += fsrScaler.OnPreCull;
@@ -384,7 +358,25 @@ namespace HPVR
             fsrScaler._helper = fsrScalerHelper;
         }
 
-        private void SetUpPostProcessing()
+        private void DestroyFSR()
+        {
+            if (fsrScalerHelper is not null)
+            {
+                UnityHooks.OnPreCull -= fsrScalerHelper.OnPreCull;
+                Object.DestroyImmediate(fsrScalerHelper);
+                fsrScalerHelper = null;
+            }
+
+            if (fsrScaler is not null)
+            {
+                FsrPreRefraction.OnExecute -= fsrScaler.OnPreCull;
+                FsrPrePostProcess.OnExecute -= fsrScaler.OnRenderImage;
+                Object.DestroyImmediate(fsrScaler);
+                fsrScaler = null;
+            }
+        }
+
+        private static void SetUpPostProcessing()
         {
             var volume = GameMenu.Singleton._globalVolume.GetComponent<Volume>().profile;
             foreach (var vol in volume.components)
@@ -418,12 +410,6 @@ namespace HPVR
                 {
                     vol.active = false;
                 }
-            }
-
-            fsrScaler = null;
-            if (!HDDynamicResolutionPlatformCapabilities.DLSSDetected && FSR_Enabled)
-            {
-                SetUpFSR3();
             }
         }
 
@@ -468,11 +454,11 @@ namespace HPVR
                 TryEndDisclaimerScreen();
             }
 #endif
-            //todo re-enable
             if (FSR_Enabled && ((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
             {
                 //MelonLogger.Msg(Camera.main.name);
                 Camera.main.forceIntoRenderTexture = true;
+                MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
                 Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, GraphicsFormat.B10G11R11_UFloatPack32);
                 fsrScaler.Init(Camera.main);
             }
@@ -736,6 +722,12 @@ namespace HPVR
         {
             MelonLogger.Msg("late start");
             GameMainLateStarted = true;
+
+            if (!HDDynamicResolutionPlatformCapabilities.DLSSDetected && FSR_Enabled)
+            {
+                SetUpFSR3();
+            }
+
 #if !VR_DISABLED
             CreateHouseBoundaryFixes();
             UpdateInteractiveItems();

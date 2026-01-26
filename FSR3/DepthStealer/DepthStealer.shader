@@ -20,7 +20,8 @@ Shader "FullScreen/DepthStealer"
     //     float  linearDepth; // View space Z coordinate                              : [Near, Far]
     // };
 
-    float _Scale;
+    float _DepthScale;
+    float _TextureScale;
 
     // To sample custom buffers, you have access to these functions:
     // But be careful, on most platforms you can't sample to the bound color buffer. It means that you
@@ -37,9 +38,9 @@ Shader "FullScreen/DepthStealer"
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(varyings);
         float depth = LoadCameraDepth(varyings.positionCS.xy);
-        PositionInputs posInput = GetPositionInput(varyings.positionCS.xy, _ScreenSize.zw, depth, UNITY_MATRIX_I_VP, UNITY_MATRIX_V);
+        PositionInputs posInput = GetPositionInput((varyings.positionCS.xy * _TextureScale), _ScreenSize.zw, depth, UNITY_MATRIX_I_VP, UNITY_MATRIX_V);
 
-        return 1.0f - (posInput.linearDepth / _Scale);
+        return 1.0f - (posInput.linearDepth / _DepthScale);
     }
 
     ENDHLSL

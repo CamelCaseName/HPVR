@@ -5,7 +5,9 @@ using UnityEngine;
 
 namespace HPVR.Gameplay.Patches
 {
+#if !VR_DISABLED
     //[HarmonyPatch(typeof(MessageHandler), nameof(MessageHandler.OnDisplayMessage))]
+#endif
     internal class MessageRotationPatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]

@@ -5,7 +5,9 @@ using Il2CppRootMotion.Dynamics;
 
 namespace HPVR.Gameplay.Patches
 {
+#if !VR_DISABLED
     [HarmonyPatch(typeof(CPuppetMaster), nameof(CPuppetMaster.CUpdate))]
+#endif
     internal class CPuppetMasterPatch
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Called via reflection")]

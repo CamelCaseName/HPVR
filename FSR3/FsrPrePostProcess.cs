@@ -13,7 +13,6 @@ namespace HPVR.FSR3
         //public FsrHDRP() : base(ClassInjector.DerivedConstructorPointer<FsrHDRP>()) => ClassInjector.DerivedConstructorBody(this);
 
         public static event Action? OnExecute;
-        int i = 0;
 
         public static CustomPassContext? Context { get; private set; }
 

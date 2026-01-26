@@ -21,7 +21,6 @@
 using MelonLoader;
 using System.Runtime.InteropServices;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace FidelityFX.FSR3
 {
@@ -37,6 +36,7 @@ namespace FidelityFX.FSR3
         {
             if (SystemInfo.usesReversedZBuffer)
             {
+                //MelonLogger.Msg("inverted depth 2");
                 flags |= InitializationFlags.EnableDepthInverted;
             }
             else
