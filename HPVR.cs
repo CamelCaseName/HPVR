@@ -124,8 +124,8 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", ".manifest", "fsrshaders");
 
             var category = MelonPreferences.CreateCategory("FSR3");
-            quality = category.CreateEntry("qualityMode", Fsr3Upscaler.QualityMode.Balanced, description: "Set Quality mode here: possible values: " + string.Join(',', Enum.GetNames<Fsr3Upscaler.QualityMode>()));
-
+            quality = category.CreateEntry("qualityMode", Fsr3Upscaler.QualityMode.Balanced, description: "Set Quality mode here: possible values: " + string.Join(", ", Enum.GetNames<Fsr3Upscaler.QualityMode>()));
+            
             UnityHooks.EarlyUpdate += EarlyUpdate;
         }
 
@@ -464,10 +464,6 @@ namespace HPVR
                 {
                     secondSetup = true;
                 }
-                //MelonLogger.Msg(Camera.main.name);
-                Camera.main.forceIntoRenderTexture = true;
-                //MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
-                Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, RenderTextureFormat.RGB111110Float, readWrite: RenderTextureReadWrite.sRGB);
                 fsrScaler.Init(Camera.main);
 
                 if (inGameMain)

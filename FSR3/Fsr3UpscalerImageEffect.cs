@@ -123,6 +123,7 @@ namespace HPVR.FSR3
         private Fsr3UpscalerContext? _context;
         private Vector2Int _maxRenderSize;
         private Vector2Int _displaySize;
+        private Vector2Int oldBackBufferSize;
         private bool _resetHistory;
 
         private readonly Fsr3Upscaler.DispatchDescription _dispatchDescription = new();
@@ -153,12 +154,10 @@ namespace HPVR.FSR3
         private Material? _copyDepth;
         private int _copyDepthPass;
 
-        //private RTHandle blitBuffer;
-
-        int i = 0;
-        internal string scene;
+        internal string scene = string.Empty;
 
         public bool Initialized { get; private set; } = false;
+        public bool RescaleHappenedOnce = false;
 
         protected void OnEnable()
         {
@@ -175,6 +174,10 @@ namespace HPVR.FSR3
                 //_renderCamera = GetComponent<Camera>();
                 //we dont care about other cameras :D
                 _renderCamera = camera;
+                //MelonLogger.Msg(Camera.main.name);
+                _renderCamera.forceIntoRenderTexture = true;
+                //MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
+                _renderCamera.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, RenderTextureFormat.RGB111110Float, readWrite: RenderTextureReadWrite.sRGB);
                 //MelonLogger.Error($"{_renderCamera.pixelWidth}x{_renderCamera.pixelHeight} | {_renderCamera.scaledPixelWidth}x{_renderCamera.scaledPixelHeight}");
                 //MelonLogger.Error($"{_renderCamera.rect.width}x{_renderCamera.rect.height}");
                 _originalRenderTarget = _renderCamera.targetTexture;
@@ -185,6 +188,7 @@ namespace HPVR.FSR3
 
                 // Determine the desired rendering and display resolutions
                 _displaySize = GetDisplaySize();
+                oldBackBufferSize = _displaySize;
                 Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
                 _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
                 //MelonLogger.Error($"{_maxRenderSize.x}x{_maxRenderSize.y} | {_renderCamera.pixelWidth}x{_renderCamera.pixelHeight}"); //hmm this is 0 here?
@@ -340,11 +344,16 @@ namespace HPVR.FSR3
             {
                 _prevDisplaySize = displaySize;
                 // Force all resources to be destroyed and recreated with the new settings
-                OnDisable();
-                OnEnable();
-                //todo use the cinemachine cutscene cams here.
-                Init(Camera.main);
+                Restart();
             }
+        }
+
+        private void Restart()
+        {
+            OnDisable();
+            OnEnable();
+            //todo use the cinemachine cutscene cams here.
+            Init(Camera.main);
         }
 
         public void ResetHistory()
@@ -377,8 +386,8 @@ namespace HPVR.FSR3
             {
                 MelonLogger.Msg("helper is null??  enabled: " + _helper?.enabled);
                 // Render to a smaller portion of the screen by manipulating the camera's viewport rect
-                _renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
-                _renderCamera.rect = new Rect(0, 0, _originalRect.width * _maxRenderSize.x / _renderCamera.pixelWidth, _originalRect.height * _maxRenderSize.y / _renderCamera.pixelHeight);
+                //_renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
+                _renderCamera.rect = new Rect(0, 0, _originalRect.width * scaleRatio, _originalRect.height * scaleRatio);
             }
 
             //MelonLogger.Msg(scene + " OnPreCull");
@@ -545,95 +554,118 @@ namespace HPVR.FSR3
                 MelonLogger.Error("rendercamera was null!");
                 return;
             }
-            //MelonLogger.Msg(scene + " OnRenderImage");
-            var scaledRenderSize = GetScaledRenderSize();
-
-            //this seems to work fine
-            CreateTemporaryRTs(scaledRenderSize);
-
-            var _dispatchCommandBuffer = FsrPrePostProcess.Context!.cmd;
-            //MelonLogger.Msg("pre async callback");
-
-            //MelonLogger.Msg("async callback");
-            //do it here because we then have the current context
-            if (autoGenerateReactiveMask)
+            try
             {
-                //MelonLogger.Msg("FSR on pre cull5");
-                SetupAutoReactiveDescription();
+                //MelonLogger.Msg(scene + " OnRenderImage");
+                var scaledRenderSize = GetScaledRenderSize();
+
+                //this seems to work fine
+                CreateTemporaryRTs(scaledRenderSize);
+
+                var _dispatchCommandBuffer = FsrPrePostProcess.Context!.cmd;
+                //MelonLogger.Msg("pre async callback");
+
+                //MelonLogger.Msg("async callback");
+                //do it here because we then have the current context
+                if (autoGenerateReactiveMask)
+                {
+                    //MelonLogger.Msg("FSR on pre cull5");
+                    SetupAutoReactiveDescription();
+                }
+
+                // Set up the main FSR3 Upscaler dispatch parameters
+                CopyTextures();
+
+                // Restore the camera's viewport rect so we can output at full resolution
+                //MelonLogger.Msg($"restoring camera from {_renderCamera.rect.width}:{_renderCamera.rect.height} rect to {_originalRect.width}:{_originalRect.height}");
+                _renderCamera.rect = _originalRect;
+                _renderCamera.ResetProjectionMatrix();
+                //MelonLogger.Msg("post async callback");
+
+                SetupDispatchDescription();
+
+                //_dispatchCommandBuffer.Clear();
+
+                if (autoGenerateReactiveMask)
+                {
+                    // The auto-reactive mask pass is executed separately from the main FSR3 Upscaler passes
+                    _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true); //works
+
+                    _context?.GenerateReactiveMask(_genReactiveDescription, _dispatchCommandBuffer);
+                    _dispatchDescription.Reactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
+                }
+
+                // The backbuffer is not set up to allow random-write access, so we need a temporary render texture for FSR3 to output to
+                _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, 1, true);
+                //outputHandle.SetRenderTexture(new(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default));
+
+                //_context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
+                _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
+
+                // Output the upscaled image
+                //this is fine, we should jsut copy what we have here into the full screen buffer
+                _dispatchCommandBuffer.SetRenderTarget(FsrPrePostProcess.Context.cameraColorBuffer);
+                _dispatchCommandBuffer.ClearRenderTarget(true, true, Color.clear);
+                _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, Display.main.colorBuffer);
+
+                _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);
+                _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavAutoReactive);
             }
-
-            // Set up the main FSR3 Upscaler dispatch parameters
-            CopyTextures();
-
-            // Restore the camera's viewport rect so we can output at full resolution
-            //MelonLogger.Msg($"restoring camera from {_renderCamera.rect.width}:{_renderCamera.rect.height} rect to {_originalRect.width}:{_originalRect.height}");
-            _renderCamera.rect = _originalRect;
-            _renderCamera.ResetProjectionMatrix();
-            //MelonLogger.Msg("post async callback");
-
-            SetupDispatchDescription();
-
-            //_dispatchCommandBuffer.Clear();
-
-            if (autoGenerateReactiveMask)
+            catch (Exception ex)
             {
-                // The auto-reactive mask pass is executed separately from the main FSR3 Upscaler passes
-                _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavAutoReactive, scaledRenderSize.x, scaledRenderSize.y, 0, default, GraphicsFormat.R8_UNorm, 1, true); //works
-
-                _context?.GenerateReactiveMask(_genReactiveDescription, _dispatchCommandBuffer);
-                _dispatchDescription.Reactive = new ResourceView(Fsr3ShaderIDs.UavAutoReactive);
+                //MelonLogger.Warning(ex.Message);
+                MelonLogger.Warning("Computeshaders/-buffers or DepthStealer material were null all of a sudden, restarting FSR3...");
+                Restart();
             }
-
-            // The backbuffer is not set up to allow random-write access, so we need a temporary render texture for FSR3 to output to
-            _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, 1, true);
-            //outputHandle.SetRenderTexture(new(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default));
-
-            //_context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
-            _context?.Dispatch(_dispatchDescription, _dispatchCommandBuffer);
-
-            // Output the upscaled image
-            //this is fine, we should jsut copy what we have here into the full screen buffer
-            _dispatchCommandBuffer.SetRenderTarget(FsrPrePostProcess.Context.cameraColorBuffer);
-            _dispatchCommandBuffer.ClearRenderTarget(true, true, Color.clear);
-            _dispatchCommandBuffer.Blit(Fsr3ShaderIDs.UavUpscaledOutput, Display.main.colorBuffer); //works, but is overwritten somehow by other shit
-
-            //Graphics.ExecuteCommandBuffer(_dispatchCommandBuffer);
-
-            _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput);
-            _dispatchCommandBuffer.ReleaseTemporaryRT(Fsr3ShaderIDs.UavAutoReactive);
-
-            if (_colorOpaqueOnly != null)
+            finally
             {
-                RenderTexture.ReleaseTemporary(_colorOpaqueOnly);
-                _colorOpaqueOnly = null!;
-            }
-            if (_colorOnly != null)
-            {
-                RenderTexture.ReleaseTemporary(_colorOnly);
-                _colorOnly = null!;
-            }
-            if (_colorOnly2 != null)
-            {
-                RenderTexture.ReleaseTemporary(_colorOnly2);
-                _colorOnly2 = null!;
-            }
-            //if (_depth != null)
-            //{
-            //    RenderTexture.ReleaseTemporary(_depth);
-            //    _depth = null!;
-            //}
-            if (_motion != null)
-            {
-                RenderTexture.ReleaseTemporary(_motion);
-                _motion = null!;
-            }
-            //MelonLogger.Msg("post execute");
+                if (_colorOpaqueOnly != null)
+                {
+                    RenderTexture.ReleaseTemporary(_colorOpaqueOnly);
+                    _colorOpaqueOnly = null!;
+                }
+                if (_colorOnly != null)
+                {
+                    RenderTexture.ReleaseTemporary(_colorOnly);
+                    _colorOnly = null!;
+                }
+                if (_colorOnly2 != null)
+                {
+                    RenderTexture.ReleaseTemporary(_colorOnly2);
+                    _colorOnly2 = null!;
+                }
+                //if (_depth != null)
+                //{
+                //    RenderTexture.ReleaseTemporary(_depth);
+                //    _depth = null!;
+                //}
+                if (_motion != null)
+                {
+                    RenderTexture.ReleaseTemporary(_motion);
+                    _motion = null!;
+                }
+                //MelonLogger.Msg("post execute");
 
-            //MelonLogger.Msg($"{FsrPrePostProcess.Context!.cameraColorBuffer.rt.width}x{FsrPrePostProcess.Context!.cameraColorBuffer.rt.height}");
-            //todo this only works for some qualitysettings for whatever reason, gotta debug more
-            if (FsrPrePostProcess.Context!.cameraColorBuffer.rt.width != _displaySize.x && FsrPrePostProcess.Context!.cameraColorBuffer.rt.height != _displaySize.y)
-            {
-                _renderCamera.pixelRect = new(0, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.width, FsrPrePostProcess.Context!.cameraColorBuffer.rt.height);
+                //MelonLogger.Msg($"{FsrPrePostProcess.Context!.cameraColorBuffer.rt.width}x{FsrPrePostProcess.Context!.cameraColorBuffer.rt.height}");
+                //todo this only works for some qualitysettings for whatever reason, gotta debug more
+                if (FsrPrePostProcess.Context!.cameraColorBuffer.rt.width != oldBackBufferSize.x && FsrPrePostProcess.Context!.cameraColorBuffer.rt.height != oldBackBufferSize.y)
+                {
+                    MelonLogger.Warning($"Camera Backbuffer changed from {oldBackBufferSize.x}x{oldBackBufferSize.y} to {FsrPrePostProcess.Context!.cameraColorBuffer.rt.width}x{FsrPrePostProcess.Context!.cameraColorBuffer.rt.height}, adjusting...");
+                    oldBackBufferSize.x = FsrPrePostProcess.Context!.cameraColorBuffer.rt.width;
+                    oldBackBufferSize.y = FsrPrePostProcess.Context!.cameraColorBuffer.rt.height;
+                    //we should be able to change the rect here and not have it overridden
+                    _renderCamera.targetTexture = new RenderTexture(oldBackBufferSize.x, oldBackBufferSize.y, 16, RenderTextureFormat.RGB111110Float, readWrite: RenderTextureReadWrite.sRGB);
+                    if (RescaleHappenedOnce)
+                    {
+                        _renderCamera.pixelRect = new(0, 0, oldBackBufferSize.x, oldBackBufferSize.y);
+                    }
+                    else
+                    {
+                        RescaleHappenedOnce = true;
+                        _renderCamera.pixelRect = new(0, 0, _displaySize.x, _displaySize.y);
+                    }
+                    _renderCamera.aspect = (float)_displaySize.x / _displaySize.y;
+                }
             }
         }
 

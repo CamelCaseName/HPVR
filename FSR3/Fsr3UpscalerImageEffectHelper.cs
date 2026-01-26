@@ -66,7 +66,6 @@ namespace HPVR.FSR3
 
             // Render to a smaller portion of the screen by manipulating the camera's viewport rect
             //MelonLogger.Msg($"set camera from {_renderCamera.rect.width}:{_renderCamera.rect.height} rect to {originalRect.width / upscaleRatio}:{originalRect.height / upscaleRatio}");
-            _renderCamera.aspect = (float)_renderCamera.pixelWidth / _renderCamera.pixelHeight;
             _renderCamera.rect = new Rect(0, 0, originalRect.width / upscaleRatio, originalRect.height / upscaleRatio);
             //MelonLogger.Msg($"camera: {Camera.main.pixelWidth}:{Camera.main.pixelHeight}"); //renders correctly at 1/3 the resolution per side
         }
