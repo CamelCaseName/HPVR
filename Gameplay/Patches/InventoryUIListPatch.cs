@@ -1,6 +1,4 @@
-﻿#define VR_DISABLED
-
-using HarmonyLib;
+﻿using HarmonyLib;
 using HPVR.Gameplay.Behaviours;
 using Il2Cpp;
 using UnityEngine;

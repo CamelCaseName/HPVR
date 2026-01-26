@@ -1,6 +1,4 @@
-﻿#define VR_DISABLED
-
-using HarmonyLib;
+﻿using HarmonyLib;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using UnityEngine;
