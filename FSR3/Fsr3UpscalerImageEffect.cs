@@ -42,7 +42,7 @@ namespace HPVR.FSR3
         public IFsr3UpscalerCallbacks Callbacks { get; set; } = new Fsr3UpscalerCallbacksBase();
 
         //[Tooltip("Standard scaling ratio presets.")]
-        public Fsr3Upscaler.QualityMode qualityMode = Fsr3Upscaler.QualityMode.UltraPerformance;
+        public Fsr3Upscaler.QualityMode qualityMode = Fsr3Upscaler.QualityMode.Balanced;
 
         //[Tooltip("Apply RCAS sharpening to the image after upscaling.")]
         public bool performSharpenPass = true;
@@ -56,7 +56,7 @@ namespace HPVR.FSR3
 
         //[Header("Exposure")]
         //[Tooltip("Allow an exposure value to be computed internally. When set to false, either the provided exposure texture or a default exposure value will be used.")]
-        public bool enableAutoExposure = true;
+        public bool enableAutoExposure = false;
         //[Tooltip("Value by which the input signal will be divided, to get back to the original signal produced by the game.")]
         public float preExposure = 0.5f;
         //[Tooltip("Optional 1x1 texture containing the exposure value for the current frame.")]
@@ -585,7 +585,7 @@ namespace HPVR.FSR3
             }
 
             // The backbuffer is not set up to allow random-write access, so we need a temporary render texture for FSR3 to output to
-            _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1, true);
+            _dispatchCommandBuffer.GetTemporaryRT(Fsr3ShaderIDs.UavUpscaledOutput, _displaySize.x, _displaySize.y, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, 1, true);
             //outputHandle.SetRenderTexture(new(_displaySize.x, _displaySize.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default));
 
             //_context!._contextDescription.Flags |= Fsr3Upscaler.InitializationFlags.EnableDebugChecking;
@@ -630,6 +630,7 @@ namespace HPVR.FSR3
             //MelonLogger.Msg("post execute");
 
             //MelonLogger.Msg($"{FsrPrePostProcess.Context!.cameraColorBuffer.rt.width}x{FsrPrePostProcess.Context!.cameraColorBuffer.rt.height}");
+            //todo this only works for some qualitysettings for whatever reason, gotta debug more
             if (FsrPrePostProcess.Context!.cameraColorBuffer.rt.width != _displaySize.x && FsrPrePostProcess.Context!.cameraColorBuffer.rt.height != _displaySize.y)
             {
                 _renderCamera.pixelRect = new(0, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.width, FsrPrePostProcess.Context!.cameraColorBuffer.rt.height);

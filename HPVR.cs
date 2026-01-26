@@ -1,5 +1,6 @@
 ﻿#define VR_DISABLED 
 
+using FidelityFX.FSR3;
 using HPVR.FSR3;
 using HPVR.Gameplay.Behaviours;
 using HPVR.UI;
@@ -13,6 +14,7 @@ using Il2CppEekEvents;
 using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime;
+using Il2CppRootMotion.FinalIK;
 using MelonLoader;
 using SteamVR_Melon.Util;
 using SteamXRMelon;
@@ -53,6 +55,7 @@ namespace HPVR
         private Fsr3UpscalerImageEffectHelper? fsrScalerHelper;
         private bool GameMainLateStarted = false;
         private bool setupVolumes;
+        private MelonPreferences_Entry<Fsr3Upscaler.QualityMode> quality;
         private static readonly bool FSR_Enabled = true;
 
         static HPVR()
@@ -117,6 +120,9 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", "", "fsrshaders");
             Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", ".manifest", "fsrshaders");
 
+            var category = MelonPreferences.CreateCategory("FSR3");
+            quality = category.CreateEntry("qualityMode", Fsr3Upscaler.QualityMode.Balanced, description: "Set Quality mode here: possible values: " + string.Join(',', Enum.GetNames<Fsr3Upscaler.QualityMode>()));
+            
             UnityHooks.EarlyUpdate += EarlyUpdate;
         }
 
@@ -312,6 +318,7 @@ namespace HPVR
             //MelonLogger.Msg("Adding UNITYFSR3 Component");
 
             fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
+            fsrScaler.qualityMode = quality.Value;
             fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
             fsrScaler.scene = SceneManager.GetActiveScene().name;
 
@@ -449,8 +456,30 @@ namespace HPVR
                 //MelonLogger.Msg(Camera.main.name);
                 Camera.main.forceIntoRenderTexture = true;
                 //MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
-                Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, GraphicsFormat.B10G11R11_UFloatPack32);
+                Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, RenderTextureFormat.RGB111110Float, readWrite: RenderTextureReadWrite.sRGB);
                 fsrScaler.Init(Camera.main);
+
+                if (inGameMain)
+                {
+                    foreach (var comp in GameMenu.Singleton._globalVolume.profile.components)
+                    {
+                        if (comp.GetIl2CppType() == Il2CppType.Of<Exposure>())
+                        {
+                            var exp = comp.Cast<Exposure>();
+                            exp.mode.value = ExposureMode.Automatic;
+                            exp.adaptationMode.value = AdaptationMode.Progressive;
+                            exp.limitMin.value = 1.3f;
+                            exp.limitMax.value = 100;
+                            exp.fixedExposure.value = 1;
+                            exp.compensation.value = 100;
+                        }
+                    }
+                }
+                else if (inMainMenu)
+                {
+                    var overrideVol = GameObject.Find("Exposure Override Volume").GetComponent<Volume>().profile.components[0];
+                    overrideVol.Cast<Exposure>().fixedExposure.value = 3.5f;
+                }
             }
         }
 
