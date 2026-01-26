@@ -58,7 +58,7 @@ namespace HPVR.FSR3
         //[Tooltip("Allow an exposure value to be computed internally. When set to false, either the provided exposure texture or a default exposure value will be used.")]
         public bool enableAutoExposure = true;
         //[Tooltip("Value by which the input signal will be divided, to get back to the original signal produced by the game.")]
-        public float preExposure = 1.0f;
+        public float preExposure = 0.5f;
         //[Tooltip("Optional 1x1 texture containing the exposure value for the current frame.")]
         public Texture exposure = null!;
 
@@ -170,6 +170,7 @@ namespace HPVR.FSR3
             if (!Initialized)
             {
                 MelonLogger.Msg("FSR init running");
+
                 // Set up the original camera to output all of the required FSR3 input resources at the desired resolution
                 //_renderCamera = GetComponent<Camera>();
                 //we dont care about other cameras :D
@@ -260,13 +261,15 @@ namespace HPVR.FSR3
                 _copyDepth = null!;
             }
 
-            //// Restore the camera's original state
-            //_renderCamera.depthTextureMode = _originalDepthTextureMode;
-            //_renderCamera.targetTexture = _originalRenderTarget;
+            // Restore the camera's original state
+            _renderCamera!.depthTextureMode = _originalDepthTextureMode;
+            _renderCamera!.targetTexture = _originalRenderTarget;
 
             RTHandles.Release(_depthFullHandle);
 
             Camera.main.rect = new(0, 0, 1, 1);
+
+            Initialized = false;
         }
 
         private void CreateFsrContext()
@@ -290,13 +293,13 @@ namespace HPVR.FSR3
 
             _context = Fsr3Upscaler.CreateContext(_displaySize, _maxRenderSize, assets!.shaders!, flags);
 
-            _prevDisplaySize = _context._contextDescription.MaxRenderSize;
+            _prevDisplaySize = _displaySize;
             _prevQualityMode = qualityMode;
             _prevAutoExposure = enableAutoExposure;
 
             ApplyMipmapBias();
-            MelonLogger.Msg("created context");
-            MelonLogger.Msg("context test? " + _context?._generateReactivePass?.ComputeShader?.name);
+            //MelonLogger.Msg("created context");
+            //MelonLogger.Msg("context test? " + _context?._generateReactivePass?.ComputeShader?.name);
         }
 
         private void DestroyFsrContext()
@@ -328,18 +331,20 @@ namespace HPVR.FSR3
 
         protected void Update()
         {
-            //todo re-enable
             // Monitor for any changes in parameters that require a reset of the FSR3 Upscaler context
-            //var displaySize = GetDisplaySize();
+            var displaySize = GetDisplaySize();
             //MelonLogger.Msg("sizes:");
             //MelonLogger.Msg($"{displaySize.x}|{displaySize.y}");
             //MelonLogger.Msg($"{_prevDisplaySize.x}|{_prevDisplaySize.y}");
-            //if (displaySize.x != _prevDisplaySize.x || displaySize.y != _prevDisplaySize.y || qualityMode != _prevQualityMode || enableAutoExposure != _prevAutoExposure)
-            //{
-            //    // Force all resources to be destroyed and recreated with the new settings
-            //    OnDisable();
-            //    OnEnable();
-            //}
+            if (displaySize.x != _prevDisplaySize.x || displaySize.y != _prevDisplaySize.y || qualityMode != _prevQualityMode || enableAutoExposure != _prevAutoExposure)
+            {
+                _prevDisplaySize = displaySize;
+                // Force all resources to be destroyed and recreated with the new settings
+                OnDisable();
+                OnEnable();
+                //todo use the cinemachine cutscene cams here.
+                Init(Camera.main);
+            }
         }
 
         public void ResetHistory()
@@ -364,7 +369,7 @@ namespace HPVR.FSR3
         {
             if (!Initialized || _renderCamera is null)
             {
-                MelonLogger.Msg($"init: {Initialized}  cam: {_renderCamera is null}");
+                //MelonLogger.Msg($"init: {Initialized}  cam: {_renderCamera is null}");
                 return;
             }
 
@@ -532,7 +537,7 @@ namespace HPVR.FSR3
             //this (vias the execute method on the custompass) is actually called way before the actual commandbuffer is executed -.-
             if (!Initialized)
             {
-                MelonLogger.Msg($"init render: {Initialized}");
+                //MelonLogger.Msg($"init render: {Initialized}");
                 return;
             }
             if (_renderCamera is null)
@@ -623,6 +628,12 @@ namespace HPVR.FSR3
                 _motion = null!;
             }
             //MelonLogger.Msg("post execute");
+
+            //MelonLogger.Msg($"{FsrPrePostProcess.Context!.cameraColorBuffer.rt.width}x{FsrPrePostProcess.Context!.cameraColorBuffer.rt.height}");
+            if (FsrPrePostProcess.Context!.cameraColorBuffer.rt.width != _displaySize.x && FsrPrePostProcess.Context!.cameraColorBuffer.rt.height != _displaySize.y)
+            {
+                _renderCamera.pixelRect = new(0, 0, FsrPrePostProcess.Context!.cameraColorBuffer.rt.width, FsrPrePostProcess.Context!.cameraColorBuffer.rt.height);
+            }
         }
 
         private void CreateTemporaryRTs(Vector2Int scaledRenderSize)
@@ -648,12 +659,8 @@ namespace HPVR.FSR3
                 MelonLogger.Error("rendercamera was null!");
                 throw new InvalidOperationException("_rendercamera was null");
             }
-            if (_originalRenderTarget != null)
-            {
-                return new Vector2Int(_originalRenderTarget.width, _originalRenderTarget.height);
-            }
-
-            return new Vector2Int(_renderCamera.pixelWidth, _renderCamera.pixelHeight);
+            return new Vector2Int(Display.main.renderingWidth, Display.main.renderingHeight);
+            //return new Vector2Int(Camera.main.pixelWidth, Camera.main.pixelHeight);
         }
 
         private bool UsingDynamicResolution()

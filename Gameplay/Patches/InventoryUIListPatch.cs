@@ -7,7 +7,7 @@ using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Patches
 {
-#if !VR_DISABLED
+#if VR_DISABLED
     //[HarmonyPatch(typeof(InventoryUI), nameof(InventoryUI.PopulateList))]
 #endif
     internal class InventoryUIListPatch

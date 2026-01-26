@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace HPVR.Gameplay.Patches
 {
-#if !VR_DISABLED
+#if VR_DISABLED
     [HarmonyPatch(typeof(InteractionManager), nameof(InteractionManager.FixedUpdate))]
 #endif
     internal static class Patcher

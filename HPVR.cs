@@ -118,8 +118,6 @@ namespace HPVR
             Il2CppHelper.CreateAndSaveToPath(folderPath, "fsrshaders.fsrshaders", ".manifest", "fsrshaders");
 
             UnityHooks.EarlyUpdate += EarlyUpdate;
-
-            //Assembly.LoadFile("C:\\Program Files\\Microsoft PIX\\2509.25\\WinPixGpuCapturer.dll");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -311,7 +309,7 @@ namespace HPVR
 
         private void SetUpFSR3()
         {
-            MelonLogger.Msg("Adding UNITYFSR3 Component");
+            //MelonLogger.Msg("Adding UNITYFSR3 Component");
 
             fsrScaler = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffect>();
             fsrScalerHelper = Camera.main.gameObject.AddComponent<Fsr3UpscalerImageEffectHelper>();
@@ -320,7 +318,6 @@ namespace HPVR
 #if !VR_DISABLED
             SteamVRCamera.instance.ForceLast();
 #endif
-            MelonLogger.Msg("Added UNITYFSR3");
 
             //create a custom fullscreen pass on the custompass global volume
             //this gives us access to the rendercontext before the frame is pushed so we can do postprocessing
@@ -328,7 +325,7 @@ namespace HPVR
             {
                 var customVolume = new GameObject("FSR_PrePostProcessVolume");
                 var pass = customVolume.AddComponent<CustomPassVolume>();
-                pass.injectionPoint = CustomPassInjectionPoint.BeforePostProcess;
+                pass.injectionPoint = CustomPassInjectionPoint.AfterPostProcess;
                 pass.isGlobal = true;
                 pass.AddPassOfType<FsrPrePostProcess>();
                 Object.DontDestroyOnLoad(customVolume);
@@ -342,20 +339,13 @@ namespace HPVR
                 setupVolumes = true;
             }
 
-            //var volume = GameObject.FindObjectOfType<VolumeProfile>();
-            //foreach (var vol in volume?.components ?? new())
-            //{
-            //    if (vol is not null)
-            //    {
-            //        vol.active = false;
-            //    }
-            //}
-
             UnityHooks.OnPreCull += fsrScalerHelper.OnPreCull;
             FsrPreRefraction.OnExecute += fsrScaler.OnPreCull;
             FsrPrePostProcess.OnExecute += fsrScaler.OnRenderImage;
 
             fsrScaler._helper = fsrScalerHelper;
+
+            //MelonLogger.Msg("Added UNITYFSR3");
         }
 
         private void DestroyFSR()

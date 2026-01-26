@@ -71,7 +71,7 @@ namespace FidelityFX.FSR3
                     throw new FileNotFoundException($"Assetbundle at {Application.streamingAssetsPath}/fsrshaders was missing");
                 }
             }
-            MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
+            //MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
 
             //string[] allAssetNames = assetBundle.GetAllAssetNames();
             //for (int i = 0; i < allAssetNames.Length; i++)
@@ -101,7 +101,7 @@ namespace FidelityFX.FSR3
                     throw new FileNotFoundException($"Assetbundle at {Application.streamingAssetsPath}/fsrshaders was missing");
                 }
             }
-            MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
+            //MelonLogger.Msg("Loading fsr shader " + name + " from asset bundle...");
 
             //string[] allAssetNames = assetBundle.GetAllAssetNames();
             //for (int i = 0; i < allAssetNames.Length; i++)

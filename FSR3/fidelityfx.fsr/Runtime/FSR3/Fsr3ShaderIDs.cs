@@ -28,7 +28,7 @@ namespace FidelityFX.FSR3
         private static int ShaderGetIDHook(string s)
         {
             int i = Shader.PropertyToID(s);
-            MelonLogger.Msg($"Shader returned ID {i} for {s}");
+            //MelonLogger.Msg($"Shader returned ID {i} for {s}");
             return i;
         }
 

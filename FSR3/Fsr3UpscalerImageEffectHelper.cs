@@ -43,7 +43,7 @@ namespace HPVR.FSR3
         {
             _renderCamera = GetComponent<Camera>();
             _imageEffect = GetComponent<Fsr3UpscalerImageEffect>();
-            MelonLogger.Msg("FSR Helper enabled");
+            //MelonLogger.Msg("FSR Helper enabled");
         }
 
         internal void OnPreCull()

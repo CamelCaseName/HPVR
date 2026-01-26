@@ -5,7 +5,7 @@ using Il2CppRootMotion.Dynamics;
 
 namespace HPVR.Gameplay.Patches
 {
-#if !VR_DISABLED
+#if VR_DISABLED
     [HarmonyPatch(typeof(CPuppetMaster), nameof(CPuppetMaster.CUpdate))]
 #endif
     internal class CPuppetMasterPatch
