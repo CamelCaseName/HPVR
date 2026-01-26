@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "HPVR": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

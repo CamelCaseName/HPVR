@@ -1,6 +1,4 @@
-﻿#define VR_DISABLED
-
-using HarmonyLib;
+﻿using HarmonyLib;
 using HPVR.UI;
 using Il2CppHouseParty.Interface;
 using UnityEngine;
