@@ -458,7 +458,7 @@ namespace HPVR
             {
                 //MelonLogger.Msg(Camera.main.name);
                 Camera.main.forceIntoRenderTexture = true;
-                MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
+                //MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
                 Camera.main.targetTexture = new RenderTexture(Display.main.renderingWidth, Display.main.renderingHeight, 16, GraphicsFormat.B10G11R11_UFloatPack32);
                 fsrScaler.Init(Camera.main);
             }

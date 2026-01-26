@@ -174,6 +174,8 @@ namespace HPVR.FSR3
                 //_renderCamera = GetComponent<Camera>();
                 //we dont care about other cameras :D
                 _renderCamera = camera;
+                //MelonLogger.Error($"{_renderCamera.pixelWidth}x{_renderCamera.pixelHeight} | {_renderCamera.scaledPixelWidth}x{_renderCamera.scaledPixelHeight}");
+                //MelonLogger.Error($"{_renderCamera.rect.width}x{_renderCamera.rect.height}");
                 _originalRenderTarget = _renderCamera.targetTexture;
                 //MelonLogger.Msg("orig render target is null? " + (_originalRenderTarget is null));
                 _originalDepthTextureMode = _renderCamera.depthTextureMode;
@@ -182,9 +184,9 @@ namespace HPVR.FSR3
 
                 // Determine the desired rendering and display resolutions
                 _displaySize = GetDisplaySize();
-                MelonLogger.Error($"{_maxRenderSize.x}x{_maxRenderSize.y} | {_renderCamera.pixelWidth}x{_renderCamera.pixelHeight}"); //hmm this is 0 here?
                 Fsr3Upscaler.GetRenderResolutionFromQualityMode(out var maxRenderWidth, out var maxRenderHeight, _displaySize.x, _displaySize.y, qualityMode);
                 _maxRenderSize = new Vector2Int(maxRenderWidth, maxRenderHeight);
+                //MelonLogger.Error($"{_maxRenderSize.x}x{_maxRenderSize.y} | {_renderCamera.pixelWidth}x{_renderCamera.pixelHeight}"); //hmm this is 0 here?
 
                 assets = Fsr3UpscalerAssets.Create();
                 scaleRatio = 1 / Fsr3Upscaler.GetUpscaleRatioFromQualityMode(qualityMode);
@@ -263,6 +265,8 @@ namespace HPVR.FSR3
             //_renderCamera.targetTexture = _originalRenderTarget;
 
             RTHandles.Release(_depthFullHandle);
+
+            Camera.main.rect = new(0, 0, 1, 1);
         }
 
         private void CreateFsrContext()
