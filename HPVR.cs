@@ -16,6 +16,7 @@ using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Util;
+using SteamXRMelon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -122,7 +123,7 @@ namespace HPVR
 
             var category = MelonPreferences.CreateCategory("FSR3");
             quality = category.CreateEntry("qualityMode", Fsr3Upscaler.QualityMode.Balanced, description: "Set Quality mode here: possible values: " + string.Join(", ", Enum.GetNames<Fsr3Upscaler.QualityMode>()));
-            
+
             UnityHooks.EarlyUpdate += EarlyUpdate;
         }
 
@@ -294,6 +295,7 @@ namespace HPVR
             GraphicsController.Singleton.ScreenSpaceReflections.Set(false);
             GraphicsController.Singleton.VolumetricFogQuality.Set(0);
             GraphicsController.Singleton.ShadowQuality.Set(1);
+            GraphicsController.Singleton.AntiAliasing.Set(AA);
 #endif
             fsrScaler = null;
             if (HDDynamicResolutionPlatformCapabilities.DLSSDetected)
@@ -304,7 +306,6 @@ namespace HPVR
             {
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
-                GraphicsController.Singleton.AntiAliasing.Set(AA);
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
                 SetUpFSR3();
             }
