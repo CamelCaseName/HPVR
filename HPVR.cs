@@ -1,4 +1,4 @@
-﻿#define VR_DISABLED 
+﻿#define VR_DISABLED
 
 using FidelityFX.FSR3;
 using HPVR.FSR3;
@@ -56,7 +56,10 @@ namespace HPVR
         private bool GameMainLateStarted = false;
         private bool setupVolumes;
         private MelonPreferences_Entry<Fsr3Upscaler.QualityMode> quality;
+        private bool setUpLateStartHook = false;
         private static readonly bool FSR_Enabled = true;
+        private bool secondSetup = false;
+        private int AA = 2; // 0 = none, 1 = fxaa, 2 = smaa
 
         static HPVR()
         {
@@ -122,7 +125,7 @@ namespace HPVR
 
             var category = MelonPreferences.CreateCategory("FSR3");
             quality = category.CreateEntry("qualityMode", Fsr3Upscaler.QualityMode.Balanced, description: "Set Quality mode here: possible values: " + string.Join(',', Enum.GetNames<Fsr3Upscaler.QualityMode>()));
-            
+
             UnityHooks.EarlyUpdate += EarlyUpdate;
         }
 
@@ -164,9 +167,13 @@ namespace HPVR
             //MelonLogger.Msg((counter++).ToString());
             if (inGameMain)
             {
-                SetUpPostProcessing();
-
+                if (!setUpLateStartHook)
+                {
+                    PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
+                    setUpLateStartHook = true;
+                }
 #if !VR_DISABLED
+                SetUpPostProcessing();
                 playerChar = PlayerCharacter.Player.transform;
                 //MelonLogger.Msg((counter++).ToString());
 
@@ -187,12 +194,10 @@ namespace HPVR
                 cinemachineBrain.enabled = false;
                 //MelonLogger.Msg((counter++).ToString());
 #endif
-                PlayerCharacter.add_OnPlayerLateStart(new Action(() => GameMainLateStart()));
             }
             else if (inMainMenu)
             {
                 SetUpGraphicsSettings();
-
 #if !VR_DISABLED
                 //MelonLogger.Msg((counter++).ToString());
                 Player.instance.leftHand.useHoverSphere = false;
@@ -284,11 +289,15 @@ namespace HPVR
         private void SetUpGraphicsSettings()
         {
             GraphicsController.Singleton.Toggle();
+#if !VR_DISABLED
             GraphicsController.Singleton.AntiAliasing.Set(1);
             GraphicsController.Singleton.AmbientOcclusionQuality.Set(0);
             GraphicsController.Singleton.Bloom.Set(false);
             GraphicsController.Singleton.MotionBlur.Set(false);
             GraphicsController.Singleton.ScreenSpaceReflections.Set(false);
+            GraphicsController.Singleton.VolumetricFogQuality.Set(0);
+            GraphicsController.Singleton.ShadowQuality.Set(1);
+#endif
             fsrScaler = null;
             if (HDDynamicResolutionPlatformCapabilities.DLSSDetected)
             {
@@ -298,13 +307,11 @@ namespace HPVR
             {
                 //GraphicsController.Singleton.FSRResolutionScaling.Set(3);
                 MelonLogger.Msg("disabling bultin FSR");
-                GraphicsController.Singleton.AntiAliasing.Set(0);
+                GraphicsController.Singleton.AntiAliasing.Set(AA);
                 GraphicsController.Singleton.FSRResolutionScaling.Set(0);
                 SetUpFSR3();
             }
 
-            GraphicsController.Singleton.VolumetricFogQuality.Set(0);
-            GraphicsController.Singleton.ShadowQuality.Set(1);
             GraphicsController.Singleton.ApplySettings();
             GraphicsController.Singleton.transform.FindDeepChild("Apply").GetComponent<Button>().onClick.Invoke();
             if (GraphicsController.Singleton.IsShowing)
@@ -453,6 +460,10 @@ namespace HPVR
 #endif
             if (FSR_Enabled && ((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
             {
+                if (!secondSetup)
+                {
+                    secondSetup = true;
+                }
                 //MelonLogger.Msg(Camera.main.name);
                 Camera.main.forceIntoRenderTexture = true;
                 //MelonLogger.Msg($"{Display.main.renderingWidth}x{Display.main.renderingHeight}");
@@ -468,7 +479,7 @@ namespace HPVR
                             var exp = comp.Cast<Exposure>();
                             exp.mode.value = ExposureMode.Automatic;
                             exp.adaptationMode.value = AdaptationMode.Progressive;
-                            exp.limitMin.value = 1.3f;
+                            exp.limitMin.value = secondSetup ? 2.3f : 1.3f;
                             exp.limitMax.value = 100;
                             exp.fixedExposure.value = 1;
                             exp.compensation.value = 100;
@@ -478,7 +489,7 @@ namespace HPVR
                 else if (inMainMenu)
                 {
                     var overrideVol = GameObject.Find("Exposure Override Volume").GetComponent<Volume>().profile.components[0];
-                    overrideVol.Cast<Exposure>().fixedExposure.value = 3.5f;
+                    overrideVol.Cast<Exposure>().fixedExposure.value = secondSetup ? 3f : 3.5f;
                 }
             }
         }

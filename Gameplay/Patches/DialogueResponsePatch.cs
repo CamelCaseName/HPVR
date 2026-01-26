@@ -1,9 +1,11 @@
-﻿using HarmonyLib;
+﻿#define VR_DISABLED
+
+using HarmonyLib;
 using Il2CppEekUI;
 
 namespace HPVR.Gameplay.Patches
 {
-#if VR_DISABLED
+#if !VR_DISABLED
     [HarmonyPatch(typeof(DialogueUI._DisplayResponses_d__59), nameof(DialogueUI._DisplayResponses_d__59.MoveNext))]
 #endif
     internal class DialogueResponsePatch

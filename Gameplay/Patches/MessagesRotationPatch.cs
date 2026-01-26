@@ -1,11 +1,13 @@
-﻿using HarmonyLib;
+﻿#define VR_DISABLED
+
+using HarmonyLib;
 using HPVR.UI;
 using Il2CppHouseParty.Interface;
 using UnityEngine;
 
 namespace HPVR.Gameplay.Patches
 {
-#if VR_DISABLED
+#if !VR_DISABLED
     //[HarmonyPatch(typeof(MessageHandler), nameof(MessageHandler.OnDisplayMessage))]
 #endif
     internal class MessageRotationPatch
