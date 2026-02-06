@@ -15,8 +15,9 @@ using Il2CppEekUI;
 using Il2CppHouseParty;
 using Il2CppInterop.Runtime;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using SteamVR_Melon.Util;
-using SteamXRMelon;
+using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -24,7 +25,6 @@ using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Valve.VR;
-using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
 
 namespace HPVR
@@ -55,7 +55,7 @@ namespace HPVR
         private bool setupVolumes;
         private MelonPreferences_Entry<Fsr3Upscaler.QualityMode> quality;
         private bool setUpLateStartHook = false;
-        private static readonly bool FSR_Enabled = true;
+        private static readonly bool FSR_Enabled = false;
         private bool secondSetup = false;
         private int AA = 2; // 0 = none, 1 = fxaa, 2 = smaa
 
@@ -103,7 +103,7 @@ namespace HPVR
                 VRSystem.StartVR();
 #else
                 RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
-                RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
+                RegisterTypeInIl2Cpp.RegisterAssemblywwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww(Assembly.GetAssembly(typeof(MelonXR)));
                 UnityHooks.Init();
 #endif
             }
@@ -130,7 +130,7 @@ namespace HPVR
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
-            inGameMain = sceneName == "GameMain";
+            inGameMain = sceneName == "GameMain" || sceneName == "ForestEnvironment";
             inMainMenu = sceneName == "MainMenu";
             inLoadingScreen = sceneName == "LoadingScreen";
             inDisclaimer = sceneName == "Disclaimer";
@@ -485,6 +485,7 @@ namespace HPVR
                     var overrideVol = GameObject.Find("Exposure Override Volume").GetComponent<Volume>().profile.components[0];
                     overrideVol.Cast<Exposure>().fixedExposure.value = secondSetup ? 3f : 3.5f;
                 }
+                //Todo reset fsr history on cutscene start
             }
         }
 
@@ -793,8 +794,9 @@ namespace HPVR
 
             if (VRSystem.SetUpInput)
             {
-                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
-                SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
+                //todo replace by unity acitons
+                //SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => TrySkipDialogue();
+                //SteamVR_Actions.default_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
             }
 
             //foreach (var ui in UIManager.UIElements)

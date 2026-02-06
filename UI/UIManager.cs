@@ -2,10 +2,10 @@
 using Il2CppSimpleColorPicker.Scripts;
 using Il2CppTMPro;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using UnityEngine;
 using UnityEngine.UI;
 using Valve.VR;
-using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
 
 namespace HPVR.UI

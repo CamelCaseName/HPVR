@@ -30,7 +30,8 @@ namespace HPVR.Gameplay.Behaviours
                 if (!inFade)
                 {
                     inFade = true;
-                    SteamVRFade.View(Color.black, 0.2f);
+                    //todo replace by eek fade
+                    //SteamVRFade.View(Color.black, 0.2f);
                 }
             }
             else if (colliders.Count == 0 && collisions.Count == 0)
@@ -38,7 +39,7 @@ namespace HPVR.Gameplay.Behaviours
                 if (inFade)
                 {
                     inFade = false;
-                    SteamVRFade.View(Color.clear, 0.2f);
+                    //SteamVRFade.View(Color.clear, 0.2f);
                 }
             }
         }

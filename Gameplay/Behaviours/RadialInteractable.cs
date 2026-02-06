@@ -4,9 +4,9 @@ using Il2CppEekEvents.Helper;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using UnityEngine;
 using Valve.VR;
-using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Behaviours
 {
@@ -69,24 +69,25 @@ namespace HPVR.Gameplay.Behaviours
 
             Interactable? lastInteract = null;
             Vector3 point = Vector3.zero;
-            if (hand.handType == SteamVRInputSources.LeftHand)
-            {
-                lastInteract = Laser.LeftLaser.pointingAt;
-                point = Laser.LeftLaser.LastHit.point;
-            }
-            else if (hand.handType == SteamVRInputSources.RightHand)
-            {
-                lastInteract = Laser.RightLaser.pointingAt;
-                point = Laser.RightLaser.LastHit.point;
-            }
-            //MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
+            //todo replace by unity input
+            //if (hand.handType == SteamVRInputSources.LeftHand)
+            //{
+            //    lastInteract = Laser.LeftLaser.pointingAt;
+            //    point = Laser.LeftLaser.LastHit.point;
+            //}
+            //else if (hand.handType == SteamVRInputSources.RightHand)
+            //{
+            //    lastInteract = Laser.RightLaser.pointingAt;
+            //    point = Laser.RightLaser.LastHit.point;
+            //}
+            ////MelonLogger.Msg(hand.name + " hovering over " + gameObject.name);
 
-            if (lastInteract?.name == name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
-            {
-                ToggleRadial(point, interactiveItem);
+            //if (lastInteract?.name == name && hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
+            //{
+            //    ToggleRadial(point, interactiveItem);
 
-                //MelonLogger.Msg("toggled radial on");
-            }
+            //    //MelonLogger.Msg("toggled radial on");
+            //}
         }
 
         public static void ToggleRadial(Vector3 point, InteractiveItem item)

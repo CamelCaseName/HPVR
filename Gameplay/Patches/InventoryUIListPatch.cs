@@ -1,9 +1,8 @@
-﻿using HarmonyLib;
-using HPVR.Gameplay.Behaviours;
+﻿using HPVR.Gameplay.Behaviours;
 using Il2Cpp;
+using SteamVR_Melon.InteractionSystem;
 using UnityEngine;
 using UnityEngine.UI;
-using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Patches
 {

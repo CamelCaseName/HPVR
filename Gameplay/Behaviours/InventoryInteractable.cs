@@ -2,9 +2,9 @@
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using UnityEngine;
 using Valve.VR;
-using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Behaviours
 {
@@ -52,20 +52,21 @@ namespace HPVR.Gameplay.Behaviours
                 return;
             }
 
-            if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
-            {
-                Vector3 point = Vector3.zero;
-                if (hand.handType == SteamVRInputSources.LeftHand)
-                {
-                    point = Laser.LeftLaser.LastHit.point;
-                }
-                else if (hand.handType == SteamVRInputSources.RightHand)
-                {
-                    point = Laser.RightLaser.LastHit.point;
-                }
+            //todo replace by unity input
+            //if (hand.uiInteractAction != null && hand.uiInteractAction.stateUp)
+            //{
+            //    Vector3 point = Vector3.zero;
+            //    if (hand.handType == SteamVRInputSources.LeftHand)
+            //    {
+            //        point = Laser.LeftLaser.LastHit.point;
+            //    }
+            //    else if (hand.handType == SteamVRInputSources.RightHand)
+            //    {
+            //        point = Laser.RightLaser.LastHit.point;
+            //    }
 
-                RadialInteractable.ToggleRadial(point, ItemManager.GetItemByGameObjectName(gameObject.name));
-            }
+            //    RadialInteractable.ToggleRadial(point, ItemManager.GetItemByGameObjectName(gameObject.name));
+            //}
         }
     }
 }

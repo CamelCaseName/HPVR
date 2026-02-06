@@ -63,6 +63,10 @@ namespace HPVR.utils
                     MelonLogger.Msg("saved " + fullName + " to " + path);
                     return path;
                 }
+                else
+                {
+                    MelonLogger.Error("Could not find " + fullName + " in the resources!");
+                }
                 return string.Empty;
             }
             else

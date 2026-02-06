@@ -1,8 +1,7 @@
 ﻿using Il2CppEekCharacterEngine.Interaction;
-using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using UnityEngine;
-using Valve.VR.InteractionSystem;
 
 namespace HPVR.Gameplay.Behaviours
 {

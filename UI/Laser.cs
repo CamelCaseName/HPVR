@@ -2,12 +2,12 @@
 using Il2CppInterop.Runtime.Injection;
 using Il2CppRootMotion.Dynamics;
 using MelonLoader;
+using SteamVR_Melon.InteractionSystem;
 using UnityEditor.Rendering.HighDefinition;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using Valve.VR;
-using Valve.VR.InteractionSystem;
 
 namespace HPVR.UI
 {
@@ -36,19 +36,21 @@ namespace HPVR.UI
         protected void Awake()
         {
             hand = GetComponent<Hand>();
-            sign = hand.handType == SteamVRInputSources.LeftHand ? -1 : 1;
-            if (hand.handType == SteamVRInputSources.LeftHand)
-            {
-                LeftLaser = this;
-            }
-            else if (hand.handType == SteamVRInputSources.RightHand)
-            {
-                RightLaser = this;
-            }
+            //todo replace by the builtin hand type
+            //sign = hand.handType == SteamVRInputSources.LeftHand ? -1 : 1;
+            //if (hand.handType == SteamVRInputSources.LeftHand)
+            //{
+            //    LeftLaser = this;
+            //}
+            //else if (hand.handType == SteamVRInputSources.RightHand)
+            //{
+            //    RightLaser = this;
+            //}
 
             //rootgo is attached to hand root, rootgo.forward is forward out of the fingers. more or less
             var laserRootGO = new GameObject("LaserRoot");
-            laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVRSkeletonJointIndexEnum.root).parent;
+            //todo replace by self lookup
+            //laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVRSkeletonJointIndexEnum.root).parent;
             laserRootGO.transform.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
             laserRootGO.transform.localEulerAngles = new Vector3(30, sign * -5, 0);
             LaserRoot = laserRootGO.transform;
@@ -237,14 +239,15 @@ namespace HPVR.UI
 
         private void CheckRadialShouldShow()
         {
-            if ((HPVR.Instance?.inGameMain ?? false)
-                                    && ((hand.uiInteractAction != null && hand.uiInteractAction.stateUp) || (hand.otherHand?.uiInteractAction != null && hand.otherHand.uiInteractAction.stateUp))
-                                    && otherLaser?.pointingAt is null
-                                    && (RadialMenu.Singleton?.IsShowing ?? false))
-            {
-                MelonLogger.Msg("make radial go away");
-                RadialMenu.Singleton?.Toggle();
-            }
+            //todo replace by unity input interacto
+            //if ((HPVR.Instance?.inGameMain ?? false)
+            //                        && ((hand.uiInteractAction != null && hand.uiInteractAction.stateUp) || (hand.otherHand?.uiInteractAction != null && hand.otherHand.uiInteractAction.stateUp))
+            //                        && otherLaser?.pointingAt is null
+            //                        && (RadialMenu.Singleton?.IsShowing ?? false))
+            //{
+            //    MelonLogger.Msg("make radial go away");
+            //    RadialMenu.Singleton?.Toggle();
+            //}
         }
 
         public static Vector3 WorldToUISpace(Canvas parentCanvas, Vector3 worldPos) => parentCanvas?.transform?.InverseTransformPoint(worldPos) ?? Vector3.zero;
