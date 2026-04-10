@@ -2,6 +2,12 @@
 "small" mod to add vr into house party.
 based on MelonLoader, modified SteamVR, modified OpenXR and a whole bunch of custom stuff.
 
+to build the last working state using SteamVR you need
+[my modified SteamVR](https://github.com/CamelCaseName/SteamVR_Melon/tree/SteamVR_compat) and [my modified UnityXR](https://github.com/CamelCaseName/SteamXR_Melon/tree/SteamVR_compat).
+
+The main Branch is currently being rewritten to not use SteamVR/OpenVR but OpenXR and the SteamVR OpenXR runtime instead.
+you can find a FSRstandalone branch, which contains a mod version to run FSR3 on the game.
+
 late 2025 showcase:
 
 [<img src="https://img.youtube.com/vi/md4gWZ6TkTk/hqdefault.jpg" width="600" height="300"
@@ -39,6 +45,7 @@ to use it you need to clone the repo and build the mod dll yourself!
 - [ ] using vr hands to punch
 - [ ] using vr hands to physically open/close doors
 - [ ] using vr hands to combine items
+- [ ] using vr hands to take off/put on clothes
 
 # compatibility
 ## game seller
