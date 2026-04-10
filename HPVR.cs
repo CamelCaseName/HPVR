@@ -93,6 +93,7 @@ namespace HPVR
         //todo use hand movement to masturbate
         //todo screenfade can maybe just stay as an override?
         //todo add compatibility for headset + xbox controller
+        //todo add component to undress manually - like move hands to hip, click, then down removes pants - similar for other clothing items
 
         public override void OnInitializeMelon()
         {
@@ -103,7 +104,7 @@ namespace HPVR
                 VRSystem.StartVR();
 #else
                 RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(SteamVR)));
-                RegisterTypeInIl2Cpp.RegisterAssemblywwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww(Assembly.GetAssembly(typeof(MelonXR)));
+                RegisterTypeInIl2Cpp.RegisterAssembly(Assembly.GetAssembly(typeof(MelonXR)));
                 UnityHooks.Init();
 #endif
             }

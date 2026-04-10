@@ -177,6 +177,8 @@ namespace HPVR.VR
             };
             Object.DontDestroyOnLoad(vrPlayer);
 
+            //XRGraphics.enabled
+
             //we need a steamvr player as well for the hands :(
             SteamVRobject = new GameObject("SteamVR");
             SteamVRobject.transform.parent = vrPlayer.transform;
