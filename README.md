@@ -2,7 +2,7 @@
 "small" mod to add vr into house party.
 based on MelonLoader, modified SteamVR, modified OpenXR and a whole bunch of custom stuff.
 
-to build the last working state using SteamVR you need
+to build the last working state using SteamVR you need this in SteamVR branch,
 [my modified SteamVR](https://github.com/CamelCaseName/SteamVR_Melon/tree/SteamVR_compat) and [my modified UnityXR](https://github.com/CamelCaseName/SteamXR_Melon/tree/SteamVR_compat).
 
 The main Branch is currently being rewritten to not use SteamVR/OpenVR but OpenXR and the SteamVR OpenXR runtime instead.
