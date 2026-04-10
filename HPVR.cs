@@ -24,6 +24,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.XR.Management;
 using Valve.VR;
 using Object = UnityEngine.Object;
 
@@ -130,6 +131,15 @@ namespace HPVR
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
+            //this all looks good, however we still only get one eye. rest works....
+            MelonLogger.Msg("active: " + XRGraphics.enabled);
+            MelonLogger.Msg("loaded: " + XRGraphics.loadedDeviceName);
+            MelonLogger.Msg("eye tex: " + XRGraphics.eyeTextureHeight + " " + XRGraphics.eyeTextureWidth);
+            MelonLogger.Msg("pass: " + XRGraphics.stereoRenderingMode);
+            MelonLogger.Msg("settings: " + XRGeneralSettings.Instance?.name);
+            MelonLogger.Msg("manager settings: " + XRGeneralSettings.Instance?.Manager?.name);
+            MelonLogger.Msg("loader: " + XRGeneralSettings.Instance?.Manager?.activeLoader?.name);
+
             MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
             inGameMain = sceneName == "GameMain" || sceneName == "ForestEnvironment";
             inMainMenu = sceneName == "MainMenu";
