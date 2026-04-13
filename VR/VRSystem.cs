@@ -139,7 +139,6 @@ namespace HPVR.VR
                 //add the hands to the player and start it
                 FinalizeSteamVRSetup();
 
-                //UnityEngine.Rendering.XRGraphics.stereoRenderingMode = UnityEngine.Rendering.XRGraphics.StereoRenderingMode.SinglePassInstanced;
                 UnityEngine.Rendering.TextureXR.maxViews = 2;
 
                 Initialized = true;
@@ -177,8 +176,6 @@ namespace HPVR.VR
             };
             Object.DontDestroyOnLoad(vrPlayer);
 
-            //XRGraphics.enabled
-
             //we need a steamvr player as well for the hands :(
             SteamVRobject = new GameObject("SteamVR");
             SteamVRobject.transform.parent = vrPlayer.transform;
@@ -188,7 +185,7 @@ namespace HPVR.VR
             var TrackingOrigin = new GameObject("trackingOrigin");
             TrackingOrigin.transform.parent = vrPlayer.transform;
             player.trackingOriginTransform = TrackingOrigin.transform;
-            MelonLogger.Msg(Camera.main?.ToString() ?? "camera isnull");
+            MelonLogger.Msg(Camera.main?.ToString() ?? "camera is null");
             player.hmdTransforms = new Transform[] { Camera.main!.transform };
             player.audioListener = Camera.main.transform;
             player.headCollider = SetUpCamera();
