@@ -20,11 +20,13 @@ using SteamVR_Melon.Util;
 using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Management;
+using UnityEngine.XR.OpenXR.Features.Interactions;
 using Valve.VR;
 using Object = UnityEngine.Object;
 
@@ -160,11 +162,19 @@ namespace HPVR
 #else
             MelonLogger.Msg("VR SYSTEM DISABLED IN THIS BUILD");
 #endif
-            MelonLogger.Msg("Available Layers:");
-            MelonLogger.Msg(LayerMask.LayerToName(0));
-            for (int i = 0; i < 32; i++)
+            //MelonLogger.Msg("Available Layers:");
+            //MelonLogger.Msg(LayerMask.LayerToName(0));
+            //for (int i = 0; i < 32; i++)
+            //{
+            //    MelonLogger.Msg(i.ToString() + ": " + LayerMask.LayerToName(i));
+            //}
+
+            if (inDisclaimer)
             {
-                MelonLogger.Msg(i.ToString() + ": " + LayerMask.LayerToName(i));
+                var pad = InputSystem.AddDevice<HPReverbG2ControllerProfile.ReverbG2Controller>();
+                MelonLogger.Msg("added " + pad.displayName);
+                var pad2 = InputSystem.AddDevice<DPadInteraction.DPadDevice>();
+                MelonLogger.Msg("added " + pad2.displayName);
             }
 
             UIManager.UpdateUIPos = true;
@@ -396,10 +406,10 @@ namespace HPVR
                     vol.active = false;
                 }
                 else
-                if (vol.GetIl2CppType() == Il2CppType.Of<ScreenSpaceReflection>())
-                {
-                    vol.active = false;
-                }
+                    if (vol.GetIl2CppType() == Il2CppType.Of<ScreenSpaceReflection>())
+                    {
+                        vol.active = false;
+                    }
                 if (vol.GetIl2CppType() == Il2CppType.Of<Bloom>())
                 {
                     vol.active = false;
@@ -463,6 +473,13 @@ namespace HPVR
             {
                 TryEndDisclaimerScreen();
             }
+            //var dpad = new DPadInteraction.DPad();
+            //MelonLogger.Msg("update");
+            //foreach (var contr in DPadInteraction.DPad.all)
+            //{
+            //    MelonLogger.Msg(contr.displayName);
+            //}
+
 #endif
             if (FSR_Enabled && ((inGameMain && GameMainLateStarted) || inMainMenu) && fsrScaler is not null && !fsrScaler.Initialized)
             {
