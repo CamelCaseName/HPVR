@@ -27,6 +27,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Management;
 using UnityEngine.XR.OpenXR.Features.Interactions;
+using UnityEngine.XR.OpenXR.Input;
 using Valve.VR;
 using Object = UnityEngine.Object;
 
@@ -58,7 +59,11 @@ namespace HPVR
         private bool setupVolumes;
         private MelonPreferences_Entry<Fsr3Upscaler.QualityMode> quality;
         private bool setUpLateStartHook = false;
+
+        //FSR HERE ###########################################################
         private static readonly bool FSR_Enabled = false;
+        //FSR HERE ###########################################################
+
         private bool secondSetup = false;
         private int AA = 2; // 0 = none, 1 = fxaa, 2 = smaa
 
@@ -171,10 +176,6 @@ namespace HPVR
 
             if (inDisclaimer)
             {
-                var pad = InputSystem.AddDevice<HPReverbG2ControllerProfile.ReverbG2Controller>();
-                MelonLogger.Msg("added " + pad.displayName);
-                var pad2 = InputSystem.AddDevice<DPadInteraction.DPadDevice>();
-                MelonLogger.Msg("added " + pad2.displayName);
             }
 
             UIManager.UpdateUIPos = true;
@@ -213,6 +214,15 @@ namespace HPVR
             }
             else if (inMainMenu)
             {
+                //foreach (var dev in InputSystem.devices)
+                //{
+                //    MelonLogger.Msg("devicename: " + dev.name);
+                //    foreach (var contr in dev.allControls)
+                //    {
+                //        MelonLogger.Msg("control: " + contr.name + " - " + contr.path);
+                //    }
+                //}
+
                 SetUpGraphicsSettings();
 #if !VR_DISABLED
                 //MelonLogger.Msg((counter++).ToString());
@@ -517,6 +527,7 @@ namespace HPVR
         public static void EarlyUpdate()
         {
 #if !VR_DISABLED
+            //MelonLogger.Msg("early update");
             VRSystem.Update();
             UIManager.Update();
 #endif

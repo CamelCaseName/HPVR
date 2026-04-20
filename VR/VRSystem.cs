@@ -1,24 +1,22 @@
-﻿using HPVR.FSR3;
-using HPVR.Gameplay.Behaviours;
+﻿using HPVR.Gameplay.Behaviours;
 using HPVR.utils;
 using Il2Cpp;
-using Il2CppEekCharacterEngine;
-using Il2CppEekCharacterEngine.Interaction;
-using Il2CppEekUI;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.InteractionSystem;
 using SteamVR_Melon.Standalone;
-using SteamVR_Melon.Util;
 using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.InputSystem.XR;
-using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.XR.OpenXR.Input;
 using Valve.VR;
+using Hand = SteamVR_Melon.InteractionSystem.Hand;
 using Object = UnityEngine.Object;
 
 namespace HPVR.VR
@@ -38,6 +36,7 @@ namespace HPVR.VR
         static private CapsuleCollider playerBody = null!;
         static private GameObject SteamVRobject = null!;
         static private readonly bool debug = true;
+        static private InputSystem_Actions? input;
 #nullable disable
         static private Hand leftHand;
         static private Hand rightHand;
@@ -121,6 +120,26 @@ namespace HPVR.VR
                 SteamVR.SafeDispose();
                 throw new NotSupportedException("VR Headset was not connected before starting the game");
             }
+
+            //MelonLogger.Msg("actions + maps");
+            input = new InputSystem_Actions();
+
+            //foreach (var act in actions.asset.actionMaps)
+            //{
+            //    MelonLogger.Msg(act.name + " | actions:");
+            //    foreach (var item in act.m_Actions)
+            //    {
+            //        MelonLogger.Msg(item.name + " | bindings:");
+            //        foreach (var bind in item.bindings)
+            //        {
+            //            MelonLogger.Msg(bind.path);
+            //        }
+            //    }
+            //}
+
+            //Camera.main.GetComponent<HDAdditionalCameraData>().xrRendering = true;
+
+            //hmdPose = InputSystem.actions.FindAction("");
         }
 
         static public void SyncPlayerAndHMD()
@@ -599,10 +618,13 @@ namespace HPVR.VR
                 SteamVRobject.transform.localPosition = -new Vector3(hmdRotationPositionOffset.x, 0, hmdRotationPositionOffset.z);
                 rotated = false;
             }
-            //todo replace by builtin pos lookup
-            //hmdAbsoluteLastPosition = ;
 
-            //vrCamRotation = vrPlayer.transform.rotation * poses[0].mDeviceToAbsoluteTracking.GetRotation();
+            var pos = input?.Player.Pose.ReadValue<Vector3>() ?? Vector3.zero;
+            MelonLogger.Msg("updating pos: " + pos.ToString());
+            //todo replace by builtin pos lookup
+            hmdAbsoluteLastPosition = pos;
+            vrCamRotation = vrPlayer.transform.rotation * (input?.Player.Look.ReadValue<Quaternion>() ?? Quaternion.identity);
+
             Vector3 locationDifference = hmdAbsoluteLastPosition - hmdRotationPositionOffset;
             locationDifference.y = 0;
             //reAdd player height
