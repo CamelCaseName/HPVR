@@ -46,6 +46,9 @@
     <None Remove="Resources\HPUI.dll" />
     <None Remove="Resources\OpenVRSettings.asset" />
     <None Remove="Resources\openxr_loader.dll" />
+    <None Remove="Resources\Silk.NET.Core.dll" />
+    <None Remove="Resources\Silk.NET.Maths.dll" />
+    <None Remove="Resources\Silk.NET.OpenXR.dll" />
     <None Remove="Resources\SteamVR_Melon.dll" />
     <None Remove="Resources\SteamXR_Melon.dll" />
     <None Remove="Resources\System.Security.Permissions.dll" />
@@ -89,6 +92,9 @@
     <EmbeddedResource Include="Resources\HPUI.dll" />
     <EmbeddedResource Include="Resources\OpenVRSettings.asset" />
     <EmbeddedResource Include="Resources\openxr_loader.dll" />
+    <EmbeddedResource Include="Resources\Silk.NET.Core.dll" />
+    <EmbeddedResource Include="Resources\Silk.NET.Maths.dll" />
+    <EmbeddedResource Include="Resources\Silk.NET.OpenXR.dll" />
     <EmbeddedResource Include="Resources\SteamVR_Melon.dll" />
     <EmbeddedResource Include="Resources\SteamXR_Melon.dll" />
     <EmbeddedResource Include="Resources\System.Security.Permissions.dll" />

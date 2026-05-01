@@ -21,6 +21,7 @@ using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
@@ -159,6 +160,7 @@ namespace HPVR
             VRSystem.Gravity = inMainMenu || inGameMain;
 
 #if !VR_DISABLED
+            //MelonXR.FirstSceneLoadInit();
             VRSystem.SetUpSteamVRUnity();
 
             UIManager.Initialize();
@@ -176,6 +178,28 @@ namespace HPVR
 
             if (inDisclaimer)
             {
+                var hmd = InputSystem.GetDevice<XRHMD>();
+                if (hmd is not null)
+                {
+                    MelonLogger.Msg("hmd controls:");
+                    foreach (var con in hmd.allControls)
+                    {
+                        MelonLogger.Msg(con.name + " | " + con.path);
+                    }
+                }
+                else
+                {
+                    MelonLogger.Msg("hmd is null");
+                }
+
+                //foreach (var dev in InputSystem.devices)
+                //{
+                //    MelonLogger.Msg("devicename: " + dev.name);
+                //    foreach (var contr in dev.allControls)
+                //    {
+                //        MelonLogger.Msg("control: " + contr.name + " - " + contr.path);
+                //    }
+                //}
             }
 
             UIManager.UpdateUIPos = true;
@@ -214,15 +238,6 @@ namespace HPVR
             }
             else if (inMainMenu)
             {
-                //foreach (var dev in InputSystem.devices)
-                //{
-                //    MelonLogger.Msg("devicename: " + dev.name);
-                //    foreach (var contr in dev.allControls)
-                //    {
-                //        MelonLogger.Msg("control: " + contr.name + " - " + contr.path);
-                //    }
-                //}
-
                 SetUpGraphicsSettings();
 #if !VR_DISABLED
                 //MelonLogger.Msg((counter++).ToString());

@@ -36,7 +36,7 @@ namespace HPVR.VR
         static private CapsuleCollider playerBody = null!;
         static private GameObject SteamVRobject = null!;
         static private readonly bool debug = true;
-        static private InputSystem_Actions? input;
+        static private InputSystem_Actions? HMDInput;
 #nullable disable
         static private Hand leftHand;
         static private Hand rightHand;
@@ -122,20 +122,7 @@ namespace HPVR.VR
             }
 
             //MelonLogger.Msg("actions + maps");
-            input = new InputSystem_Actions();
-
-            //foreach (var act in actions.asset.actionMaps)
-            //{
-            //    MelonLogger.Msg(act.name + " | actions:");
-            //    foreach (var item in act.m_Actions)
-            //    {
-            //        MelonLogger.Msg(item.name + " | bindings:");
-            //        foreach (var bind in item.bindings)
-            //        {
-            //            MelonLogger.Msg(bind.path);
-            //        }
-            //    }
-            //}
+            HMDInput = new InputSystem_Actions();
 
             //Camera.main.GetComponent<HDAdditionalCameraData>().xrRendering = true;
 
@@ -168,6 +155,7 @@ namespace HPVR.VR
             }
         }
 
+        static int i = 0;
         public static void Update()
         {
             Application.targetFrameRate = -1;
@@ -177,6 +165,12 @@ namespace HPVR.VR
 
             HandleControllerMovement();
             UpdateHMDPositions();
+
+            if (i++ > 200)
+            {
+                i = 0;
+                OpenXRInput.GetBoolean("GameMenu");
+            }
         }
 
         private static void FinalizeSteamVRSetup()
@@ -185,6 +179,12 @@ namespace HPVR.VR
             player.hands = new Hand[] { leftHand, rightHand };
             player.Init();
             MelonCoroutines.Start(player.Start());
+
+            //add input mapping:
+            OpenXRInput.AddInputMapping(new()
+            {
+                {"GameMenu","menu" }
+            });
         }
 
         private static void SetUpSteamVR()
@@ -619,11 +619,10 @@ namespace HPVR.VR
                 rotated = false;
             }
 
-            var pos = input?.Player.Pose.ReadValue<Vector3>() ?? Vector3.zero;
-            MelonLogger.Msg("updating pos: " + pos.ToString());
-            //todo replace by builtin pos lookup
+            var pos = HMDInput?.Player.Pose.ReadValue<Vector3>() ?? Vector3.zero;
+            //MelonLogger.Msg("updating pos: " + pos.ToString());
             hmdAbsoluteLastPosition = pos;
-            vrCamRotation = vrPlayer.transform.rotation * (input?.Player.Look.ReadValue<Quaternion>() ?? Quaternion.identity);
+            vrCamRotation = vrPlayer.transform.rotation * (HMDInput?.Player.Look.ReadValue<Quaternion>() ?? Quaternion.identity);
 
             Vector3 locationDifference = hmdAbsoluteLastPosition - hmdRotationPositionOffset;
             locationDifference.y = 0;
