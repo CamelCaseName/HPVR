@@ -121,7 +121,7 @@ namespace HPVR.VR
                 throw new NotSupportedException("VR Headset was not connected before starting the game");
             }
 
-            //MelonLogger.Msg("actions + maps");
+            MelonLogger.Msg("actions + maps");
             HMDInput = new InputSystem_Actions();
 
             //Camera.main.GetComponent<HDAdditionalCameraData>().xrRendering = true;
@@ -169,7 +169,7 @@ namespace HPVR.VR
             if (i++ > 200)
             {
                 i = 0;
-                OpenXRInput.GetBoolean("GameMenu");
+                OpenXRInput.GetBoolean("Interact");
             }
         }
 
@@ -183,7 +183,7 @@ namespace HPVR.VR
             //add input mapping:
             OpenXRInput.AddInputMapping(new()
             {
-                {"GameMenu","menu" }
+                {"Interact", "SecondaryButton" }
             });
         }
 
