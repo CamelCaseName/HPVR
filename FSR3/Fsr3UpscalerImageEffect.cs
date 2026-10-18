@@ -613,7 +613,7 @@ namespace HPVR.FSR3
             }
             catch (Exception ex)
             {
-                //MelonLogger.Warning(ex.Message);
+                MelonLogger.Warning(ex.Message);
                 MelonLogger.Warning("Computeshaders/-buffers or DepthStealer material were null all of a sudden, restarting FSR3...");
                 Restart();
             }

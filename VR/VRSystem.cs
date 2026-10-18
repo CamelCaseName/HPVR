@@ -1,5 +1,4 @@
-﻿using HPVR.FSR3;
-using HPVR.Gameplay.Behaviours;
+﻿using HPVR.Gameplay.Behaviours;
 using HPVR.utils;
 using Il2Cpp;
 using Il2CppEekCharacterEngine;
@@ -8,8 +7,7 @@ using Il2CppEekUI;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using SteamVR_Melon.Standalone;
-using SteamVR_Melon.Util;
-using SteamXRMelon;
+using SteamXR_Melon;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -217,6 +215,7 @@ namespace HPVR.VR
 
         private static void SetPlayerColliderHeight(float height)
         {
+            //todo scale such that the real life player is scaled to the in game player height
             height -= 0.3f;
             playerBody.height = height;
             playerBody.center = vrPlayer.transform.position + new Vector3(0, height / 2, 0);
@@ -256,6 +255,7 @@ namespace HPVR.VR
             leftController = new GameObject("Controller (left)");
             leftController.transform.parent = SteamVRobject.transform;
             leftController.transform.localPosition = new(0.25f, 1, 0);
+            //leftController.transform.localScale = new(-1, -1, -1);
             leftController.layer = LayerMask.NameToLayer("Penis");
             var leftHoverSphere = new GameObject("HoverPoint");
             var leftObjectAttachement = new GameObject("ObjectAttachement");
@@ -299,8 +299,12 @@ namespace HPVR.VR
             Object.DontDestroyOnLoad(vrGloveLeftModelSlimPrefab);
             MelonLogger.Warning("built the vrleftfallbackposer");
 
+            //var skinnedMesh = vrGloveLeftModelSlimPrefab.GetComponentInChildren<SkinnedMeshRenderer>();
+            //var meshObj = bundle.LoadAsset("assets/steamvr/models/vr_glove_left_model_slim.fbx", Il2CppType.Of<Mesh>()).Cast<Mesh>();
+            //skinnedMesh.sharedMesh = meshObj;
+            //vrGloveLeftModelSlimPrefab.transform.GetChild(0).localScale = Vector3.one;
             var skinnedMesh = vrGloveLeftModelSlimPrefab.GetComponentInChildren<SkinnedMeshRenderer>();
-            var meshObj = bundle.LoadAsset("assets/steamvr/models/vr_glove_left_model_slim.fbx", Il2CppType.Of<Mesh>()).Cast<Mesh>();
+            var meshObj = bundle.LoadAsset("assets/steamvr/models/vr_glove_right_model_slim.fbx", Il2CppType.Of<Mesh>()).Cast<Mesh>();
             skinnedMesh.sharedMesh = meshObj;
             vrGloveLeftModelSlimPrefab.transform.GetChild(0).localScale = Vector3.one;
 
@@ -327,6 +331,7 @@ namespace HPVR.VR
             leftRenderModel.handPrefab = vrGloveLeftModelSlimPrefab;
             leftRenderModel.Initialize();
             leftRenderModel.InitAction();
+            LeftRenderModelSlimPrefab.transform.localScale = new(-1, 1, 1);
             Object.DontDestroyOnLoad(LeftRenderModelSlimPrefab);
             MelonLogger.Warning("built the leftrendermodelslimprefab");
 
@@ -749,12 +754,14 @@ namespace HPVR.VR
 
             SteamVR_Actions.default_SnapTurnLeft.onStateDown += (fromAction, fromSource) =>
             {
+                MelonLogger.Msg("rotate left");
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
                 rotated = true;
             };
 
             SteamVR_Actions.default_SnapTurnRight.onStateDown += (fromAction, fromSource) =>
             {
+                MelonLogger.Msg("rotate right");
                 vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
                 rotated = true;
             };

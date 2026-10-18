@@ -82,12 +82,14 @@ namespace HPVR.utils
 
             for (int i = 0; i < incoming.Length; i++)
             {
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
                 fixed (T* fixedT = &incoming[0])
                 fixed (byte* pBytes = byteArray)
                 {
                     // Copy struct data directly to byte array using pointers
                     Buffer.MemoryCopy(fixedT, pBytes, structSize, structSize);
                 }
+#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
                 for (int j = 0; j < byteArray.Length; j++)
                 {
                     array[i * structSize + j] = byteArray[j];
@@ -103,7 +105,9 @@ namespace HPVR.utils
         {
             if (action is null)
             {
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
                 action = (Action)@delegate;
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
                 return;
             }
 
