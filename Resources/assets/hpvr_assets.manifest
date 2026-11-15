@@ -200,7 +200,7 @@ SerializeReferenceClassIdentifiers:
 - AssemblyName: SteamVR
   ClassName: Valve.VR.InteractionSystem.Sample.FloppyHand/Finger
 - AssemblyName: SteamVR
-  ClassName: Valve.VR.SteamVR_ActionSet
+  ClassName: Valve.VR.SteamVRActionset
 - AssemblyName: SteamVR
   ClassName: Valve.VR.SteamVR_Action_Boolean
 - AssemblyName: SteamVR

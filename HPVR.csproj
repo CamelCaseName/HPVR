@@ -19,19 +19,9 @@
   <ItemGroup>
     <None Remove="intiface-engine.exe" />
     <None Remove="Resources\actions\actions.json" />
-    <None Remove="Resources\actions\bindings_holographic_controller.json" />
+    <None Remove="Resources\actions\bindings_frame.json" />
     <None Remove="Resources\actions\bindings_knuckles.json" />
-    <None Remove="Resources\actions\bindings_logitech_stylus.json" />
     <None Remove="Resources\actions\bindings_oculus_touch.json" />
-    <None Remove="Resources\actions\bindings_vive_controller.json" />
-    <None Remove="Resources\actions\bindings_vive_cosmos_controller.json" />
-    <None Remove="Resources\actions\binding_holographic_hmd.json" />
-    <None Remove="Resources\actions\binding_index_hmd.json" />
-    <None Remove="Resources\actions\binding_rift.json" />
-    <None Remove="Resources\actions\binding_vive.json" />
-    <None Remove="Resources\actions\binding_vive_cosmos.json" />
-    <None Remove="Resources\actions\binding_vive_pro.json" />
-    <None Remove="Resources\actions\binding_vive_tracker_camera.json" />
     <None Remove="Resources\assets\CubePose small.asset" />
     <None Remove="Resources\assets\CubePose.asset" />
     <None Remove="Resources\assets\fallback_fist.asset" />
@@ -60,19 +50,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\actions\actions.json" />
-    <EmbeddedResource Include="Resources\actions\bindings_holographic_controller.json" />
+    <EmbeddedResource Include="Resources\actions\bindings_frame.json" />
     <EmbeddedResource Include="Resources\actions\bindings_knuckles.json" />
-    <EmbeddedResource Include="Resources\actions\bindings_logitech_stylus.json" />
     <EmbeddedResource Include="Resources\actions\bindings_oculus_touch.json" />
-    <EmbeddedResource Include="Resources\actions\bindings_vive_controller.json" />
-    <EmbeddedResource Include="Resources\actions\bindings_vive_cosmos_controller.json" />
-    <EmbeddedResource Include="Resources\actions\binding_holographic_hmd.json" />
-    <EmbeddedResource Include="Resources\actions\binding_index_hmd.json" />
-    <EmbeddedResource Include="Resources\actions\binding_rift.json" />
-    <EmbeddedResource Include="Resources\actions\binding_vive.json" />
-    <EmbeddedResource Include="Resources\actions\binding_vive_cosmos.json" />
-    <EmbeddedResource Include="Resources\actions\binding_vive_pro.json" />
-    <EmbeddedResource Include="Resources\actions\binding_vive_tracker_camera.json" />
     <EmbeddedResource Include="Resources\assets\CubePose small.asset" />
     <EmbeddedResource Include="Resources\assets\CubePose.asset" />
     <EmbeddedResource Include="Resources\assets\fallback_fist.asset" />
@@ -460,7 +440,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy .\bin\x64\Debug\net6.0\HPVR.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\HPVR.dll&quot; /y &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\HouseParty_Data\StreamingAssets\SteamVR\OpenVRSettings.asset&quot;" />
+    <Exec Command="copy .\bin\x64\Debug\net6.0\HPVR.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\HPVR.dll&quot; /y &amp; del &quot;G:\SteamLibrary\steamapps\common\House Party\HouseParty_Data\StreamingAssets\SteamVR\OpenVRSettings.asset&quot; &amp; &quot;C:\Program Files (x86)\Steam\steam.exe&quot; steam://rungameid/611790" />
   </Target>
 
 </Project>

@@ -36,6 +36,10 @@ namespace HPVR.UI
         protected void Awake()
         {
             hand = GetComponent<Hand>();
+            if(hand is null)
+            {
+                return;
+            }
             sign = hand.handType == SteamVRInputSources.LeftHand ? -1 : 1;
             if (hand.handType == SteamVRInputSources.LeftHand)
             {
@@ -114,6 +118,11 @@ namespace HPVR.UI
 
         protected void Update()
         {
+            if(hand is null)
+            {
+                Awake();
+                return;
+            }
             if (LaserRoot is null)
             {
                 return;
@@ -130,7 +139,7 @@ namespace HPVR.UI
             {
                 return;
             }
-            if (hand.hoverLocked)
+            if (hand?.hoverLocked ?? false)
             {
                 NoLasers();
                 return;
@@ -141,91 +150,99 @@ namespace HPVR.UI
                 return;
             }
 
-            if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
+            try
             {
-                var interact = hit.transform?.GetComponent<Interactable>();
-                interact ??= hit.transform?.GetComponentInParent<Interactable>();
-                interact ??= hit.transform?.GetComponentInChildren<Interactable>();
-
-                //MelonLogger.Msg("hit " + hit.transform?.name);
-
-                //may be a character
-                if (interact is null && hit.transform?.GetComponentInParent<PuppetMaster>() is not null)
+                if (Physics.Raycast(LaserRoot.position, LaserRoot.forward, out var hit, 3f, LaserMask))
                 {
-                    var trans = hit.transform;
-                    int i = 0;
-                    while (trans.parent != null && i++ < 10)
+                    var interact = hit.transform?.GetComponent<Interactable>();
+                    interact ??= hit.transform?.GetComponentInParent<Interactable>();
+                    interact ??= hit.transform?.GetComponentInChildren<Interactable>();
+
+                    //MelonLogger.Msg("hit " + hit.transform?.name);
+
+                    //may be a character
+                    if (interact is null && hit.transform?.GetComponentInParent<PuppetMaster>() is not null)
                     {
-                        trans = trans.parent;
+                        var trans = hit.transform;
+                        int i = 0;
+                        while (trans.parent != null && i++ < 10)
+                        {
+                            trans = trans.parent;
+                        }
+                        interact = trans.GetComponentInChildren<Interactable>();
                     }
-                    interact = trans.GetComponentInChildren<Interactable>();
-                }
 
-                if (interact is null)
-                {
-                    NoHit();
+                    if (interact is null)
+                    {
+                        NoHit();
 
-                    CheckRadialShouldShow();
-                    return;
-                }
+                        CheckRadialShouldShow();
+                        return;
+                    }
 
-                //we do hit the buttons at this point...
-                //MelonLogger.Msg("getting maybe ui");
-                if (hand.hoveringInteractable != interact)
-                {
-                    justEntered = true;
-                    hand.hoveringInteractable = interact;
-                }
-                pointingAt = interact;
+                    //we do hit the buttons at this point...
+                    //MelonLogger.Msg("getting maybe ui");
+                    if (hand?.hoveringInteractable != interact && hand is not null)
+                    {
+                        justEntered = true;
+                        hand.hoveringInteractable = interact;
+                    }
+                    pointingAt = interact;
 
-                hitPoint.position = hit.point;
-                LastHit = hit;
-                if (hand.ObjectIsAttached(interact.gameObject))
-                {
-                    //MelonLogger.Msg("deactivate because attached");
-                    NoLasers();
+                    hitPoint.position = hit.point;
+                    LastHit = hit;
+                    if (hand?.ObjectIsAttached(interact.gameObject) ?? false)
+                    {
+                        //MelonLogger.Msg("deactivate because attached");
+                        NoLasers();
+                    }
+                    else
+                    {
+                        //MelonLogger.Msg("set laser");
+                        LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
+                        LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
+                        LaserBeam.gameObject.SetActive(true);
+                        hitPoint.gameObject.SetActive(true);
+                    }
+
+                    var ui = pointingAt?.GetComponent<UIElement>();
+                    if (ui is not null)
+                    {
+                        if (hand?.otherHand?.hoveringInteractable is null)
+                        {
+                            var screenHit = WorldToUISpace(ui.canvas, hit.point);
+                            //var coll = hit.transform.GetComponent<Collider>();
+                            //MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
+                            if (justEntered)
+                            {
+                                justEntered = false;
+                                hand?.hoveringInteractable.OnHandHoverBeginInternal(hand, screenHit, true);
+                            }
+                            hand?.hoveringInteractable.HandHoverUpdateInternal(hand, screenHit, true);
+                        }
+                    }
                 }
                 else
                 {
-                    //MelonLogger.Msg("set laser");
-                    LaserBeam.localScale = new(0.005f, hit.distance / 2, 0.005f);
-                    LaserBeam.localPosition = new(0, 0, (hit.distance / 2));
-                    LaserBeam.gameObject.SetActive(true);
-                    hitPoint.gameObject.SetActive(true);
-                }
-
-                var ui = pointingAt?.GetComponent<UIElement>();
-                if (ui is not null)
-                {
-                    if (hand.otherHand?.hoveringInteractable is null)
-                    {
-                        var screenHit = WorldToUISpace(ui.canvas, hit.point);
-                        //var coll = hit.transform.GetComponent<Collider>();
-                        //MelonLogger.Msg(screenHit.ToString() + " " + hit.point.ToString() + " " + coll.bounds.center + " " + coll.bounds.min + " " + coll.bounds.max);
-                        if (justEntered)
-                        {
-                            justEntered = false;
-                            hand.hoveringInteractable.OnHandHoverBeginInternal(hand, screenHit, true);
-                        }
-                        hand.hoveringInteractable.HandHoverUpdateInternal(hand, screenHit, true);
-                    }
+                    NoHit();
+                    CheckRadialShouldShow();
                 }
             }
-            else
-            {
-                NoHit();
-                CheckRadialShouldShow();
-            }
+            catch { }
         }
 
         private void NoLasers()
         {
-            LaserBeam.gameObject.SetActive(false);
-            hitPoint.gameObject.SetActive(false);
+            LaserBeam.gameObject?.SetActive(false);
+            hitPoint.gameObject?.SetActive(false);
         }
 
         private void NoHit()
         {
+            if (hand is null)
+            {
+                return;
+            }
             if (!hand.IsHoveredByHand)
             {
                 hand.hoveringInteractable = null;

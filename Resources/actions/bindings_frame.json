@@ -1,0 +1,230 @@
+{
+   "action_manifest_version" : 0,
+   "alias_info" : {},
+   "app_key" : "application.generated.unity.hpvr2.exe",
+   "bindings" : {
+      "/actions/buggy" : {
+         "chords" : [],
+         "haptics" : [],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : []
+      },
+      "/actions/default" : {
+         "chords" : [],
+         "haptics" : [],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : []
+      },
+      "/actions/hpvr" : {
+         "haptics" : [
+            {
+               "output" : "/actions/hpvr/out/lefthaptic",
+               "path" : "/user/hand/left/output/haptic"
+            },
+            {
+               "output" : "/actions/hpvr/out/righthaptic",
+               "path" : "/user/hand/right/output/haptic"
+            }
+         ],
+         "poses" : [
+            {
+               "output" : "/actions/hpvr/in/pose",
+               "path" : "/user/hand/left/pose/raw"
+            },
+            {
+               "output" : "/actions/hpvr/in/pose",
+               "path" : "/user/hand/right/pose/raw"
+            }
+         ],
+         "skeleton" : [
+            {
+               "output" : "/actions/hpvr/in/skeletonlefthand",
+               "path" : "/user/hand/left/input/skeleton/left"
+            },
+            {
+               "output" : "/actions/hpvr/in/skeletonrighthand",
+               "path" : "/user/hand/right/input/skeleton/right"
+            }
+         ],
+         "sources" : [
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/interactui"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/flash"
+                  },
+                  "position" : {
+                     "output" : "/actions/hpvr/in/move"
+                  }
+               },
+               "mode" : "joystick",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/thumbstick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/grab"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/grab"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/gamemenu"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/view"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/gamemenu"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/menu"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/interactui"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "center" : {
+                     "output" : "/actions/hpvr/in/crouch"
+                  },
+                  "east" : {
+                     "output" : "/actions/hpvr/in/snapturnright"
+                  },
+                  "north" : {
+                     "output" : "/actions/hpvr/in/ui_radial"
+                  },
+                  "south" : {
+                     "output" : "/actions/hpvr/in/self_radial"
+                  },
+                  "west" : {
+                     "output" : "/actions/hpvr/in/snapturnleft"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "touch"
+               },
+               "path" : "/user/hand/right/input/thumbstick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/masturbate"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/dpad_down"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/pee"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/dpad_up"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/combat"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/y"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/inventory"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/a"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/memories"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/dpad_left"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/hpvr/in/opportunities"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/dpad_right"
+            }
+         ]
+      },
+      "/actions/platformer" : {
+         "chords" : [],
+         "haptics" : [],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : []
+      }
+   },
+   "category" : "steamvr_input",
+   "controller_type" : "frame_controller",
+   "description" : "",
+   "interaction_profile" : "",
+   "name" : "Frame Controller",
+   "options" : {
+      "simulate_hmd" : false,
+      "simulate_rendermodel" : "name_only",
+      "simulated_controller_type" : "oculus_touch"
+   },
+   "simulated_actions" : []
+}
