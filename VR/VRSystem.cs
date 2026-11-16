@@ -14,6 +14,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.UIElements;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
@@ -55,7 +56,11 @@ namespace HPVR.VR
         public static float speed = 0.5f;
         private static float FallTime = 0.01f;
         private static bool Grounded = false;
-        private static bool rotated;
+        private static bool rotated = true;
+
+        private static float angle = 0;
+        private static HandCollider? handColliderLeft;
+        private static HandCollider? handColliderRight;
 
         public static bool Initialized { get; private set; }
 
@@ -174,6 +179,7 @@ namespace HPVR.VR
             //we need a steamvr player as well for the hands :(
             SteamVRobject = new GameObject("SteamVR");
             SteamVRobject.transform.parent = vrPlayer.transform;
+            SteamVRobject.transform.localPosition = new(0.08f, 0, 0);
             MelonLogger.Msg("Created SteamVR Gameobject Container");
 
             var player = vrPlayer.AddComponent<Player>();
@@ -346,7 +352,7 @@ namespace HPVR.VR
             MelonLogger.Msg("built the leftrendermodelslimprefab");
 
             var handColliderLeftPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/handcolliderleft.prefab").Cast<GameObject>());
-            var handColliderLeft = handColliderLeftPrefab.AddComponent<HandCollider>();
+            handColliderLeft = handColliderLeftPrefab.AddComponent<HandCollider>();
             handColliderLeft.collisionMask = defaultHandMask;
             handColliderLeft.fingerColliders = new();
             handColliderLeft.fingerColliders.thumbColliders[0] = handColliderLeftPrefab.transform.GetChild(1).GetChild(0);
@@ -460,7 +466,7 @@ namespace HPVR.VR
             MelonLogger.Msg("built the rightrendermodelslimprefab");
 
             var handColliderrightPrefab = Object.Instantiate(bundle.LoadAsset("assets/steamvr/interactionsystem/core/prefabs/handcolliderright.prefab").Cast<GameObject>());
-            var handColliderRight = handColliderrightPrefab.AddComponent<HandCollider>();
+            handColliderRight = handColliderrightPrefab.AddComponent<HandCollider>();
             handColliderRight.collisionMask = defaultHandMask;
             handColliderRight.fingerColliders = new();
             handColliderRight.fingerColliders.thumbColliders[0] = handColliderrightPrefab.transform.GetChild(1).GetChild(0);
@@ -564,6 +570,30 @@ namespace HPVR.VR
          assets/steamvr/resources/steamvr_externalcamera.prefab
          */
 
+        public static void EnableRightCollider()
+        {
+            handColliderRight?.transform.GetChild(0).gameObject.SetActive(true);
+            handColliderRight?.transform.GetChild(1).gameObject.SetActive(true);
+        }
+
+        public static void EnableLeftCollider()
+        {
+            handColliderLeft?.transform.GetChild(0).gameObject.SetActive(true);
+            handColliderLeft?.transform.GetChild(1).gameObject.SetActive(true);
+        }
+
+        public static void DisableRightCollider()
+        {
+            handColliderRight?.transform.GetChild(0).gameObject.SetActive(false);
+            handColliderRight?.transform.GetChild(1).gameObject.SetActive(false);
+        }
+
+        public static void DisableLeftCollider()
+        {
+            handColliderLeft?.transform.GetChild(0).gameObject.SetActive(false);
+            handColliderLeft?.transform.GetChild(1).gameObject.SetActive(false);
+        }
+
         private static void HandleControllerMovement()
         {
             if (!MovementEnabled)
@@ -584,9 +614,9 @@ namespace HPVR.VR
             if (Physics.Raycast(vrPlayer.transform.position + new Vector3(0, Stepheight, 0), directionXZ, out RaycastHit feetInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
             {
                 //check if we hit the hands, we can iognore them
-                //MelonLogger.Msg("hit the " + feetInfo.transform.root.name + " with the feet");
-                if (feetInfo.transform.root != PlayerCharacter.Player.transform.root)
+                if (feetInfo.transform.root != PlayerCharacter.Player.transform.root && feetInfo.transform.root != vrPlayer)
                 {
+                    MelonLogger.Msg("hit the " + feetInfo.transform.root.name + " with the feet");
                     feetHadHit = true;
                 }
             }
@@ -594,9 +624,9 @@ namespace HPVR.VR
             //head
             if (Physics.Raycast(VrCamPosition, directionXZ, out RaycastHit headInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
             {
-                //MelonLogger.Msg("hit the " + headInfo.transform.root.name + " with the head");
-                if (headInfo.transform.root != PlayerCharacter.Player.transform.root)
+                if (headInfo.transform.root != PlayerCharacter.Player.transform.root && headInfo.transform.root != vrPlayer)
                 {
+                    MelonLogger.Msg("hit the " + headInfo.transform.root.name + " with the head");
                     headHadHit = true;
                 }
             }
@@ -604,10 +634,10 @@ namespace HPVR.VR
             //higher check
             if (Physics.Raycast(vrPlayer.transform.position + new Vector3(0, 2 * Stepheight, 0), directionXZ, out RaycastHit stepInfo, directionXZ.magnitude + playerBody.radius, playerBody.includeLayers))
             {
-                //MelonLogger.Msg("hit the " + stepInfo.transform.root.name + " with the step");
                 //ignore self collision
-                if (stepInfo.transform.root != PlayerCharacter.Player.transform.root)
+                if (stepInfo.transform.root != PlayerCharacter.Player.transform.root && stepInfo.transform.root != vrPlayer)
                 {
+                    MelonLogger.Msg("hit the " + stepInfo.transform.root.name + " with the step");
                     stepHadHit = true;
                 }
             }
@@ -709,12 +739,19 @@ namespace HPVR.VR
 
             if (rotated)
             {
-                HmdRotationPositionOffset = HmdAbsoluteLastPosition;
-                HmdRotationPositionOffset = HmdAbsoluteLastPosition;
+                //HmdRotationPositionOffset = HmdAbsoluteLastPosition;
+                //Vector3 playerFeetOffset = Player.instance.trackingOriginTransform.position - Player.instance.feetPositionGuess;
+                //Player.instance.trackingOriginTransform.position -= playerFeetOffset;
+                //Player.instance.transform.Rotate(Vector3.up, angle);
+                //playerFeetOffset = Quaternion.Euler(0.0f, angle, 0.0f) * playerFeetOffset;
+                //Player.instance.trackingOriginTransform.position += playerFeetOffset;
+                //rotated = false;
+                vrPlayer.transform.rotation *= Quaternion.AngleAxis(angle, Vector3.up);
                 HmdRotationPositionOffset = HmdAbsoluteLastPosition;
                 //keep height, but move "center" to new spot under the headset, so we can offset the real world space offset the player had from there and then apply the virtual rotation onyl to the difference we have
                 vrPlayer.transform.position = new Vector3(VrCamPosition.x, vrPlayer.transform.position.y, VrCamPosition.z);
                 SteamVRobject.transform.localPosition = -new Vector3(HmdRotationPositionOffset.x, 0, HmdRotationPositionOffset.z);
+                angle = 0;
                 rotated = false;
             }
             HmdAbsoluteLastPosition = poses[0].mDeviceToAbsoluteTracking.GetPosition();
@@ -779,15 +816,17 @@ namespace HPVR.VR
 
             SteamVRActions.hpvr_SnapTurnLeft.onStateDown += (fromAction, fromSource) =>
             {
-                MelonLogger.Msg("rotate left");
-                vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                //MelonLogger.Msg("rotate left");
+                //vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                angle = -45;
                 rotated = true;
             };
 
             SteamVRActions.hpvr_SnapTurnRight.onStateDown += (fromAction, fromSource) =>
             {
-                MelonLogger.Msg("rotate right");
-                vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
+                //MelonLogger.Msg("rotate right");
+                //vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
+                angle = 45;
                 rotated = true;
             };
 

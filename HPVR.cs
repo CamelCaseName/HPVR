@@ -17,7 +17,6 @@ using Il2CppInterop.Runtime;
 using Il2CppRootMotion.FinalIK;
 using MelonLoader;
 using SteamVR_Melon.Util;
-using System.Net.NetworkInformation;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -49,17 +48,15 @@ namespace HPVR
 #if !VR_DISABLED
         private bool updatedCameraCull = false;
         private bool createdPlayerHandTargets;
-        private InteractionObject? VRLeftHandInteract;
-        private InteractionObject? VRRightHandInteract;
         private Transform? LeftHandOpen;
         private Transform? RightHandOpen;
         private Transform? LeftHandRootBone;
         private Transform? RightHandRootBone;
-
-        public Vector3 leftHandFingerRotation = new(-10, 0, 100);
-        public Vector3 rightHandFingerRotation = new(10, 0, -100);
-        public Vector3 leftHandThumbRotation = new(-1, 5, 10);
-        public Vector3 rightHandThumbRotation = new(1, 5, -10);
+        private VRIK? vrik;
+        public Vector3 leftHandFingerRotation = new(0, -1, 60);
+        public Vector3 rightHandFingerRotation = new(0, 1, -60);
+        public Vector3 leftHandThumbRotation = new(-1, 10, 20);
+        public Vector3 rightHandThumbRotation = new(1, 10, -20);
 #endif
         private Fsr3UpscalerImageEffect? fsrScaler;
         private Fsr3UpscalerImageEffectHelper? fsrScalerHelper;
@@ -69,6 +66,8 @@ namespace HPVR
         private bool setUpLateStartHook = false;
         private static readonly bool FSR_Enabled = false;
         private bool secondSetup = false;
+        private int framecounter;
+
         //turn into option
         private readonly int AA = 2; // 0 = none, 1 = fxaa, 2 = smaa
 
@@ -200,6 +199,12 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
                 Player.instance.rightHand.Hide();
+                //todo need to re-enable but then we need to disable some player colliders
+                VRSystem.DisableLeftCollider();
+                VRSystem.DisableRightCollider();
+                //todo set laser positions
+                Laser.LeftLaser.SetLaserStartPosition(new(), new(67, 0, 0));
+                Laser.RightLaser.SetLaserStartPosition(new(), new(67, 0, 0));
                 //MelonLogger.Msg((counter++).ToString());
 
                 //MelonLogger.Msg((counter++).ToString());
@@ -207,6 +212,8 @@ namespace HPVR
                 cinemachineBrain.enabled = false;
 
                 //MelonLogger.Msg((counter++).ToString());
+
+                //todo add option to menu to recalibrate player height as an entry in the menu
 #endif
             }
             else if (inMainMenu)
@@ -221,6 +228,8 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
                 //MelonLogger.Msg((counter++).ToString());
+                VRSystem.EnableLeftCollider();
+                VRSystem.EnableRightCollider();
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
                 Player.instance.transform.position = new(0.55f, 0, -9);
@@ -288,11 +297,13 @@ namespace HPVR
                 if (Laser.LeftLaser is not null)
                 {
                     Laser.LeftLaser.LaserMask = Laser.DefaultLaserMask;
+                    Laser.LeftLaser.ResetLaserStartPosition();
                     //MelonLogger.Msg((counter++).ToString());
                 }
                 if (Laser.RightLaser is not null)
                 {
                     Laser.RightLaser.LaserMask = Laser.DefaultLaserMask;
+                    Laser.RightLaser.ResetLaserStartPosition();
                     //MelonLogger.Msg((counter++).ToString());
                 }
             }
@@ -465,7 +476,6 @@ namespace HPVR
                 if (PlayerCharacter.Player is not null && Player.instance.leftHand is not null && Player.instance.rightHand is not null && GameMainLateStarted)
                 {
                     CheckAndBindPlayerHandsToVRHands();
-                    UpdatePlayerHandFingerRotation();
                 }
             }
             else if (inLoadingScreen)
@@ -547,16 +557,12 @@ namespace HPVR
             //    0-lThumb3
             //Player.instance.leftHand.skeleton.fingerCurls
 
-            //todo: make gameobject where the controllers are
-            //set interactiontarget hand to left hand for left hand
-            //add the finger goal bones for left, respective right hand
-            //when grabbing an item, tranfer goal to that grabbed item
-            //after letting go, go back to track hand controller object
+            //todo: remove hands from animator, then set rotation directly
             //rthumb1.rotation = default rot * Player.instance.leftHand.skeleton.thumbCurl;
             //right hand finger curl is about (x 1,y 0,z -10) ratio per bone 
             //thumb is a bit different :(
             Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<float> leftCurls;
-            if (Player.instance.leftHand.HasSkeleton() && Player.instance.leftHand.skeleton is not null && Player.instance.leftHand.skeleton.fallbackCurlAction is not null)
+            if (Player.instance.leftHand.skeleton is not null)
             {
                 leftCurls = Player.instance.leftHand.skeleton.fingerCurls;
             }
@@ -571,24 +577,24 @@ namespace HPVR
                     SteamVRActions.hpvr_Flash.active ? 1 : 0,
                     SteamVRActions.hpvr_Flash.active ? 1 : 0 });
             }
-            LeftHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
-            LeftHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
-            LeftHandRootBone.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
-            LeftHandRootBone.GetChild(0).GetChild(1).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(1).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
-            LeftHandRootBone.GetChild(0).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
-            LeftHandRootBone.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
-            LeftHandRootBone.GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
-            LeftHandRootBone.GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
-            LeftHandRootBone.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
-            LeftHandRootBone.GetChild(1).GetChild(1).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(1).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
-            LeftHandRootBone.GetChild(1).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
-            LeftHandRootBone.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
-            LeftHandRootBone.GetChild(2).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(2).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
-            LeftHandRootBone.GetChild(2).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(2).GetChild(0).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
-            LeftHandRootBone.GetChild(2).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.transform.GetChild(2).GetChild(0).GetChild(0).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
+            LeftHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
+            LeftHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
+            LeftHandRootBone.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
+            LeftHandRootBone.GetChild(0).GetChild(1).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(1).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
+            LeftHandRootBone.GetChild(0).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
+            LeftHandRootBone.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[2]));
+            LeftHandRootBone.GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
+            LeftHandRootBone.GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
+            LeftHandRootBone.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[4]));
+            LeftHandRootBone.GetChild(1).GetChild(1).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(1).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
+            LeftHandRootBone.GetChild(1).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(1).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
+            LeftHandRootBone.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[3]));
+            LeftHandRootBone.GetChild(2).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(2).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
+            LeftHandRootBone.GetChild(2).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(2).GetChild(0).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
+            LeftHandRootBone.GetChild(2).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(2).GetChild(0).GetChild(0).localEulerAngles + (leftHandThumbRotation * leftCurls[0]));
 
             Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<float> rightCurls;
-            if (Player.instance.rightHand.HasSkeleton() && Player.instance.rightHand.skeleton is not null && Player.instance.rightHand.skeleton.fallbackCurlAction is not null)
+            if (Player.instance.rightHand.skeleton is not null)
             {
                 rightCurls = Player.instance.rightHand.skeleton.fingerCurls;
             }
@@ -596,29 +602,28 @@ namespace HPVR
             {
                 MelonLogger.Msg("we have no skeleton for the rgith");
                 rightCurls = new(new float[] {
+                    //todo fix those also :D
                     (SteamVRActions.hpvr_UI_Radial.active || (SteamVRActions.hpvr_InteractUI.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand)) ? 1 : 0,
                     (SteamVRActions.hpvr_Grab.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand) ? 1 : 0,
                     SteamVRActions.hpvr_Combat.active ? 1 : 0,
                     SteamVRActions.hpvr_Combat.active ? 1 : 0,
                     SteamVRActions.hpvr_Combat.active ? 1 : 0 });
             }
-            RightHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
-            RightHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
-            RightHandRootBone.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
-            RightHandRootBone.GetChild(0).GetChild(1).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
-            RightHandRootBone.GetChild(0).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
-            RightHandRootBone.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
-            RightHandRootBone.GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
-            RightHandRootBone.GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
-            RightHandRootBone.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
-            RightHandRootBone.GetChild(1).GetChild(1).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
-            RightHandRootBone.GetChild(1).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
-            RightHandRootBone.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
-            RightHandRootBone.GetChild(2).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(2).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
-            RightHandRootBone.GetChild(2).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(2).GetChild(0).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
-            RightHandRootBone.GetChild(2).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.transform.GetChild(2).GetChild(0).GetChild(0).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
-
-            //MelonLogger.Msg($"fingers: {leftCurls[0]}|{leftCurls[2]}|{leftCurls[4]}    {rightCurls[0]}|{rightCurls[2]}|{rightCurls[4]}");
+            RightHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
+            RightHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
+            RightHandRootBone.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
+            RightHandRootBone.GetChild(0).GetChild(1).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
+            RightHandRootBone.GetChild(0).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
+            RightHandRootBone.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[2]));
+            RightHandRootBone.GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
+            RightHandRootBone.GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
+            RightHandRootBone.GetChild(1).GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[4]));
+            RightHandRootBone.GetChild(1).GetChild(1).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
+            RightHandRootBone.GetChild(1).GetChild(1).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
+            RightHandRootBone.GetChild(1).GetChild(1).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(1).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[3]));
+            RightHandRootBone.GetChild(2).localRotation = Quaternion.Euler(RightHandOpen.GetChild(2).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
+            RightHandRootBone.GetChild(2).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(2).GetChild(0).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
+            RightHandRootBone.GetChild(2).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(2).GetChild(0).GetChild(0).localEulerAngles + (rightHandThumbRotation * rightCurls[0]));
         }
 
         public static void EarlyUpdate()
@@ -627,6 +632,14 @@ namespace HPVR
             VRSystem.Update();
             UIManager.Update();
 #endif
+        }
+
+        public override void OnLateUpdate()
+        {
+            if (inGameMain && GameMainLateStarted && PlayerCharacter.Player is not null && Player.instance.leftHand is not null && Player.instance.rightHand is not null && createdPlayerHandTargets)
+            {
+                UpdatePlayerHandFingerRotation();
+            }
         }
 
         public void UpdateDialogueResponses()
@@ -686,33 +699,14 @@ namespace HPVR
             }
         }
 
-        private static void ScalePlayerToHMDHeight()
+        private void ScalePlayerToHMDHeight()
         {
-            var headSetHeight = SteamVRCamera.instance.transform.position.y;
-            if (headSetHeight > 1f)
+            if (vrik is null)
             {
-                if (PlayerCharacter.Player.Gender == Genders.Male)
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.75f);
-                }
-                else
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 1.65f);
-                }
-                PlayerCharacter.Player.IsCrouching = false;
+                return;
             }
-            else
-            {
-                if (PlayerCharacter.Player.Gender == Genders.Male)
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.8f);
-                }
-                else
-                {
-                    PlayerCharacter.Player.SetDefaultScaleImmediately(headSetHeight / 0.73f);
-                }
-                PlayerCharacter.Player.IsCrouching = true;
-            }
+            float sizeF = (vrik.solver.spine.headTarget.position.y - vrik.references.root.position.y) / (vrik.references.head.position.y - vrik.references.root.position.y);
+            PlayerCharacter.Player.SetDefaultScaleImmediately(sizeF);
         }
 
         private static void TryEndDisclaimerScreen()
@@ -782,7 +776,7 @@ namespace HPVR
                 return;
             }
 
-            PlayerCharacter.Player.transform.position = Player.instance.transform.position;
+            PlayerCharacter.Player.transform.position = Player.instance.feetPositionGuess;
             if (PlayerCharacter.Player.Controller is not null)
             {
                 PlayerCharacter.Player.Controller.enabled = false;
@@ -822,224 +816,223 @@ namespace HPVR
                 MelonLogger.Warning("Creating Player Hand IK Targets");
                 CreatePlayerHandIKTargets();
                 createdPlayerHandTargets = true;
+                ScalePlayerToHMDHeight();
             }
-            //call playercfinalik startobjectinteraction override for left and right targets
-            //track if that interaction is still valid.
-            if (PlayerCharacter.Player.FinalIK.GetInteractionObject(FullBodyBipedEffector.LeftHand) == null)
-            {
-                MelonLogger.Warning("Binding player left hand to IK target");
-                PlayerCharacter.Player.FinalIK.StartObjectInteraction(VRLeftHandInteract, FullBodyBipedEffector.LeftHand, true);
-            }
-            else if (PlayerCharacter.Player.FinalIK.GetInteractionObject(FullBodyBipedEffector.RightHand) == null)
-            {
-                MelonLogger.Warning("Binding player right hand to IK target");
-                PlayerCharacter.Player.FinalIK.StartObjectInteraction(VRRightHandInteract, FullBodyBipedEffector.RightHand, true);
-            }
+            //else
+            //{
+            //    PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(4, 5);
+            //    PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(5, 5);
+            //}
 #endif
         }
 
         private void CreatePlayerHandIKTargets()
         {
+            //final ik tutorial leaked here https://github.com/suweitao8/FinalIKTutorial/blob/main/Assets/Plugins/RootMotion/FinalIK
+
+            //according to the tutorial:
+            MelonLogger.Msg("Setting up VRIK Targets");
+            var vriklHand = Object.Instantiate(PlayerCharacter.Player.lHand);
+            vriklHand.parent = Player.instance.leftHand.transform;
+            vriklHand.localRotation = Quaternion.Euler(10, 350, 80);
+            vriklHand.localPosition = new(0, 0, 0);
+            var vrikrHand = Object.Instantiate(PlayerCharacter.Player.rHand);
+            vrikrHand.parent = Player.instance.rightHand.transform;
+            vrikrHand.localRotation = Quaternion.Euler(10, 350, 280);
+            vrikrHand.localPosition = new(0, 0, 0);
+            var vrikneck = Object.Instantiate(PlayerCharacter.Player.Head);
+            vrikneck.parent = Player.instance.hmdTransform;
+            vrikneck.localRotation = Quaternion.Euler(0, 0, 0);
+            vrikneck.localPosition = new(0, -0.05f, -0.1f);
+            Object.DestroyImmediate(vrikneck.GetChild(6).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(5).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(4).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(3).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(2).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(1).gameObject);
+            Object.DestroyImmediate(vrikneck.GetChild(0).gameObject);
+
+            //maybe we can also just mask out the hands using lacyer 4 (left hand) and layer 5 (right hand)
+            //MelonLogger.Msg("turning off animator for the hands");
+            //PlayerCharacter.Player.Mecanim.Animator.enabled = false;
+            //PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(4, 5);
+            //PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(5, 5);
+
+            MelonLogger.Msg("Setting up VRIK");
+            PlayerCharacter.Player.FinalIK._enabled = false;
+            PlayerCharacter.Player.FinalIK.BodyIK.enabled = false;
+
+            var relaxer = PlayerCharacter.Player.lHand.parent.GetComponent<TwistRelaxer>();
+            relaxer.enabled = true;
+            relaxer = PlayerCharacter.Player.rHand.parent.GetComponent<TwistRelaxer>();
+            relaxer.enabled = true;
+
+            vrik = PlayerCharacter.Player.gameObject.AddComponent<VRIK>();
+            vrik.enabled = false;
+            vrik.solver.plantFeet = true;
+            vrik.solver.locomotion.mode = IKSolverVR.Locomotion.Mode.Procedural;
+            vrik.solver.locomotion.footDistance = 0.25f;
+            vrik.solver.locomotion.angleThreshold = 30;
+            vrik.solver.spine.headTarget = vrikneck;
+            vrik.solver.leftArm.target = vriklHand;
+            vrik.solver.rightArm.target = vrikrHand;
+            vrik.AutoDetectReferences();
+            //vrik.GuessHandOrientations();
+            vrik.enabled = true;
+            MelonLogger.Msg("Done setting VRIK up");
+
             //Create interactionobject for finalik
-            var VRLeftHandTarget = new GameObject("VRLeftHandTarget");
-            VRLeftHandTarget.transform.parent = Player.instance.leftHand.gameObject.transform;
-            var lHand = new GameObject("lHand");
-            lHand.transform.parent = VRLeftHandTarget.transform;
-            lHand.transform.localRotation = Quaternion.Euler(290, 100, 330);
-            LeftHandRootBone = lHand.transform;
-            var lCarpal1 = new GameObject("lCarpal1");
-            lCarpal1.transform.parent = lHand.transform;
-            lCarpal1.transform.localRotation = Quaternion.Euler(0, 0, 0);
-            lCarpal1.transform.localPosition = new(-0.0159f, 0.0061f, 0.0227f);
-            var lIndex1 = new GameObject("lIndex1");
-            lIndex1.transform.parent = lCarpal1.transform;
-            lIndex1.transform.localRotation = Quaternion.Euler(3.6095f, 1.1948f, 0.8308f);
-            lIndex1.transform.localPosition = new(-0.0408f, 0.0042f, 0.0384f);
-            var lIndex2 = new GameObject("lIndex2");
-            lIndex2.transform.parent = lIndex1.transform;
-            lIndex2.transform.localRotation = Quaternion.Euler(8.4157f, 3.5968f, 7.6962f);
-            lIndex2.transform.localPosition = new(-0.0326f, -0.0005f, 0.0216f);
-            var lIndex3 = new GameObject("lIndex3");
-            lIndex3.transform.parent = lIndex2.transform;
-            lIndex3.transform.localRotation = Quaternion.Euler(9.1338f, 3.9899f, 9.0933f);
-            lIndex3.transform.localPosition = new(-0.018f, -0.001f, 0.0105f);
-            var lMid1 = new GameObject("lMid1");
-            lMid1.transform.parent = lCarpal1.transform;
-            lMid1.transform.localRotation = Quaternion.Euler(9.2008f, 3.3929f, 6.8076f);
-            lMid1.transform.localPosition = new(-0.0531f, 0.002f, 0.021f);
-            var lMid2 = new GameObject("lMid2");
-            lMid2.transform.parent = lMid1.transform;
+            MelonLogger.Msg("creating left hand open copy");
+            LeftHandOpen = new GameObject("lHand").transform;
+            LeftHandOpen.parent = Player.instance.leftHand.transform;
+            LeftHandOpen.localRotation = Quaternion.Euler(290, 100, 330);
+            LeftHandRootBone = PlayerCharacter.Player.lHand;
+            var lCarpal1 = new GameObject("lCarpal1").transform;
+            lCarpal1.parent = LeftHandOpen;
+            lCarpal1.localRotation = Quaternion.Euler(0, 0, 0);
+            lCarpal1.localPosition = new(-0.0159f, 0.0061f, 0.0227f);
+            var lIndex1 = new GameObject("lIndex1").transform;
+            lIndex1.parent = lCarpal1;
+            lIndex1.localRotation = Quaternion.Euler(3.6095f, 1.1948f, 0.8308f);
+            lIndex1.localPosition = new(-0.0408f, 0.0042f, 0.0384f);
+            var lIndex2 = new GameObject("lIndex2").transform;
+            lIndex2.parent = lIndex1;
+            lIndex2.localRotation = Quaternion.Euler(8.4157f, 3.5968f, 7.6962f);
+            lIndex2.localPosition = new(-0.0326f, -0.0005f, 0.0216f);
+            var lIndex3 = new GameObject("lIndex3").transform;
+            lIndex3.parent = lIndex2;
+            lIndex3.localRotation = Quaternion.Euler(9.1338f, 3.9899f, 9.0933f);
+            lIndex3.localPosition = new(-0.018f, -0.001f, 0.0105f);
+            var lMid1 = new GameObject("lMid1").transform;
+            lMid1.parent = lCarpal1;
+            lMid1.localRotation = Quaternion.Euler(9.2008f, 3.3929f, 6.8076f);
+            lMid1.localPosition = new(-0.0531f, 0.002f, 0.021f);
+            var lMid2 = new GameObject("lMid2").transform;
+            lMid2.parent = lMid1;
             lMid2.transform.localRotation = Quaternion.Euler(10.9773f, 4.8565f, 11.7279f);
             lMid2.transform.localPosition = new(-0.0382f, 0.0006f, 0.0201f);
-            var lMid3 = new GameObject("lMid3");
-            lMid3.transform.parent = lMid2.transform;
-            lMid3.transform.localRotation = Quaternion.Euler(12.93f, 6.6297f, 16.2434f);
-            lMid3.transform.localPosition = new(-0.0218f, -0.0024f, 0.0124f);
-            var lCarpal2 = new GameObject("lCarpal2");
-            lCarpal2.transform.parent = lHand.transform;
-            lCarpal2.transform.localRotation = Quaternion.Euler(0, 0, 0);
-            lCarpal2.transform.localPosition = new(-0.0286f, -0.0003f, -0.0001f);
-            var lPinky1 = new GameObject("lPinky1");
-            lPinky1.transform.parent = lCarpal2.transform;
-            lPinky1.transform.localRotation = Quaternion.Euler(9.8077f, 7.0431f, 11.084f);
-            lPinky1.transform.localPosition = new(-0.047f, -0.0065f, 0.0048f);
-            var lPinky2 = new GameObject("lPinky2");
-            lPinky2.transform.parent = lPinky1.transform;
-            lPinky2.transform.localRotation = Quaternion.Euler(10.6143f, 5.7524f, 12.9547f);
-            lPinky2.transform.localPosition = new(-0.0263f, -0.0014f, 0.0087f);
-            var lPinky3 = new GameObject("lPinky3");
-            lPinky3.transform.parent = lPinky2.transform;
-            lPinky3.transform.localRotation = Quaternion.Euler(11.6115f, 6.8335f, 16.9866f);
-            lPinky3.transform.localPosition = new(-0.0159f, -0.0008f, 0.0053f);
-            var lRing1 = new GameObject("lRing1");
-            lRing1.transform.parent = lCarpal2.transform;
-            lRing1.transform.localRotation = Quaternion.Euler(10.9208f, 5.6854f, 11.8102f);
-            lRing1.transform.localPosition = new(-0.0439f, 0.0034f, 0.0245f);
-            var lRing2 = new GameObject("lRing2");
-            lRing2.transform.parent = lRing1.transform;
-            lRing2.transform.localRotation = Quaternion.Euler(10.8787f, 5.5033f, 12.0991f);
-            lRing2.transform.localPosition = new(-0.037f, -0.0019f, 0.0149f);
-            var lRing3 = new GameObject("lRing3");
-            lRing3.transform.parent = lRing2.transform;
-            lRing3.transform.localRotation = Quaternion.Euler(12.2844f, 6.7195f, 16.3946f);
-            lRing3.transform.localPosition = new(-0.0202f, -0.0013f, 0.0085f);
-            var lThumb1 = new GameObject("lThumb1");
-            lThumb1.transform.parent = lHand.transform;
-            lThumb1.transform.localRotation = Quaternion.Euler(12.8347f, 348.3466f, 5.5996f);
-            lThumb1.transform.localPosition = new(0.0018f, -0.0013f, 0.0271f);
-            var lThumb2 = new GameObject("lThumb2");
-            lThumb2.transform.parent = lThumb1.transform;
-            lThumb2.transform.localRotation = Quaternion.Euler(350.1626f, 0.616f, 0.7598f);
-            lThumb2.transform.localPosition = new(-0.0066f, -0f, 0.0405f);
-            var lThumb3 = new GameObject("lThumb3");
-            lThumb3.transform.parent = lThumb2.transform;
-            lThumb3.transform.localRotation = Quaternion.Euler(358.9155f, 351.3624f, 2.0598f);
-            lThumb3.transform.localPosition = new(-0.0138f, -0.0061f, 0.0258f);
-            LeftHandOpen = Object.Instantiate(lHand).transform;
-            LeftHandOpen.name = "VRLeftHandOpen";
-            var lTarget = lHand.AddComponent<InteractionTarget>();
-            lTarget.effectorType = FullBodyBipedEffector.LeftHand;
-            lTarget.rotateOnce = false;
-            lTarget.rotationMode = InteractionTarget.RotationMode.ThreeDOF;
-            VRLeftHandInteract = VRLeftHandTarget.AddComponent<InteractionObject>();
-            VRLeftHandInteract.multipliers = new(new[] {
-                new InteractionObject.Multiplier() {
-                    curve = InteractionObject.WeightCurve.Type.PositionWeight,
-                    multiplier = 1,
-                    result = InteractionObject.WeightCurve.Type.RotateBoneWeight }});
-            VRLeftHandInteract.targets = new(new[] { lTarget });
-            var curve = AnimationCurve.Linear(0, 0, 0.5f, 1);
-            curve.postWrapMode = WrapMode.ClampForever;
-            curve.preWrapMode = WrapMode.ClampForever;
-            VRLeftHandInteract.weightCurves = new(new[] {
-                new InteractionObject.WeightCurve()
-                {
-                    type = InteractionObject.WeightCurve.Type.PositionWeight,
-                    curve = curve
-                }
-            });
+            var lMid3 = new GameObject("lMid3").transform;
+            lMid3.parent = lMid2;
+            lMid3.localRotation = Quaternion.Euler(12.93f, 6.6297f, 16.2434f);
+            lMid3.localPosition = new(-0.0218f, -0.0024f, 0.0124f);
+            var lCarpal2 = new GameObject("lCarpal2").transform;
+            lCarpal2.parent = LeftHandOpen;
+            lCarpal2.localRotation = Quaternion.Euler(0, 0, 0);
+            lCarpal2.localPosition = new(-0.0286f, -0.0003f, -0.0001f);
+            var lPinky1 = new GameObject("lPinky1").transform;
+            lPinky1.parent = lCarpal2;
+            lPinky1.localRotation = Quaternion.Euler(9.8077f, 7.0431f, 11.084f);
+            lPinky1.localPosition = new(-0.047f, -0.0065f, 0.0048f);
+            var lPinky2 = new GameObject("lPinky2").transform;
+            lPinky2.parent = lPinky1;
+            lPinky2.localRotation = Quaternion.Euler(10.6143f, 5.7524f, 12.9547f);
+            lPinky2.localPosition = new(-0.0263f, -0.0014f, 0.0087f);
+            var lPinky3 = new GameObject("lPinky3").transform;
+            lPinky3.parent = lPinky2;
+            lPinky3.localRotation = Quaternion.Euler(11.6115f, 6.8335f, 16.9866f);
+            lPinky3.localPosition = new(-0.0159f, -0.0008f, 0.0053f);
+            var lRing1 = new GameObject("lRing1").transform;
+            lRing1.parent = lCarpal2;
+            lRing1.localRotation = Quaternion.Euler(10.9208f, 5.6854f, 11.8102f);
+            lRing1.localPosition = new(-0.0439f, 0.0034f, 0.0245f);
+            var lRing2 = new GameObject("lRing2").transform;
+            lRing2.parent = lRing1;
+            lRing2.localRotation = Quaternion.Euler(10.8787f, 5.5033f, 12.0991f);
+            lRing2.localPosition = new(-0.037f, -0.0019f, 0.0149f);
+            var lRing3 = new GameObject("lRing3").transform;
+            lRing3.parent = lRing2;
+            lRing3.localRotation = Quaternion.Euler(12.2844f, 6.7195f, 16.3946f);
+            lRing3.localPosition = new(-0.0202f, -0.0013f, 0.0085f);
+            var lThumb1 = new GameObject("lThumb1").transform;
+            lThumb1.parent = LeftHandOpen;
+            lThumb1.localRotation = Quaternion.Euler(12.8347f, 348.3466f, 5.5996f);
+            lThumb1.localPosition = new(0.0018f, -0.0013f, 0.0271f);
+            var lThumb2 = new GameObject("lThumb2").transform;
+            lThumb2.parent = lThumb1;
+            lThumb2.localRotation = Quaternion.Euler(350.1626f, 0.616f, 0.7598f);
+            lThumb2.localPosition = new(-0.0066f, -0f, 0.0405f);
+            var lThumb3 = new GameObject("lThumb3").transform;
+            lThumb3.parent = lThumb2;
+            lThumb3.localRotation = Quaternion.Euler(358.9155f, 351.3624f, 2.0598f);
+            lThumb3.localPosition = new(-0.0138f, -0.0061f, 0.0258f);
 
-            var VRRightHandTarget = new GameObject("VRRightHandTarget");
-            VRRightHandTarget.transform.parent = Player.instance.rightHand.gameObject.transform;
-            var rHand = new GameObject("rHand");
-            rHand.transform.parent = VRRightHandTarget.transform;
-            rHand.transform.localRotation = Quaternion.Euler(290, 100, 330);
-            RightHandRootBone = rHand.transform;
-            var rCarpal1 = new GameObject("rCarpal1");
-            rCarpal1.transform.parent = rHand.transform;
-            rCarpal1.transform.localRotation = Quaternion.Euler(0, 0, 0);
-            rCarpal1.transform.localPosition = new(0.0158f, 0.0056f, 0.0228f);
-            var rIndex1 = new GameObject("rIndex1");
-            rIndex1.transform.parent = rCarpal1.transform;
-            rIndex1.transform.localRotation = Quaternion.Euler(5.7488f, 357.6187f, 356.1321f);
-            rIndex1.transform.localPosition = new(0.041f, 0.0048f, 0.0379f);
-            var rIndex2 = new GameObject("rIndex2");
-            rIndex2.transform.parent = rIndex1.transform;
-            rIndex2.transform.localRotation = Quaternion.Euler(10.1488f, 355.3312f, 348.8887f);
-            rIndex2.transform.localPosition = new(0.0326f, -0.0005f, 0.0217f);
-            var rIndex3 = new GameObject("rIndex3");
-            rIndex3.transform.parent = rIndex2.transform;
-            rIndex3.transform.localRotation = Quaternion.Euler(10.8349f, 354.8885f, 347.4843f);
-            rIndex3.transform.localPosition = new(0.018f, -0.001f, 0.0105f);
-            var rMid1 = new GameObject("rMid1");
-            rMid1.transform.parent = rCarpal1.transform;
-            rMid1.transform.localRotation = Quaternion.Euler(7.5077f, 357.7875f, 356.568f);
-            rMid1.transform.localPosition = new(0.0533f, 0.0024f, 0.0205f);
-            var rMid2 = new GameObject("rMid2");
-            rMid2.transform.parent = rMid1.transform;
-            rMid2.transform.localRotation = Quaternion.Euler(9.3358f, 356.0557f, 351.7078f);
-            rMid2.transform.localPosition = new(0.0381f, 0.0006f, 0.0202f);
-            var rMid3 = new GameObject("rMid3");
-            rMid3.transform.parent = rMid2.transform;
+            MelonLogger.Msg("creating right hand open copy");
+            RightHandOpen = new GameObject("rHand").transform;
+            RightHandOpen.parent = Player.instance.rightHand.transform;
+            RightHandOpen.localRotation = Quaternion.Euler(290, 100, 330);
+            RightHandRootBone = PlayerCharacter.Player.rHand;
+            var rCarpal1 = new GameObject("rCarpal1").transform;
+            rCarpal1.parent = RightHandOpen;
+            rCarpal1.localRotation = Quaternion.Euler(0, 0, 0);
+            rCarpal1.localPosition = new(0.0158f, 0.0056f, 0.0228f);
+            var rIndex1 = new GameObject("rIndex1").transform;
+            rIndex1.parent = rCarpal1;
+            rIndex1.localRotation = Quaternion.Euler(5.7488f, 357.6187f, 356.1321f);
+            rIndex1.localPosition = new(0.041f, 0.0048f, 0.0379f);
+            var rIndex2 = new GameObject("rIndex2").transform;
+            rIndex2.parent = rIndex1;
+            rIndex2.localRotation = Quaternion.Euler(10.1488f, 355.3312f, 348.8887f);
+            rIndex2.localPosition = new(0.0326f, -0.0005f, 0.0217f);
+            var rIndex3 = new GameObject("rIndex3").transform;
+            rIndex3.parent = rIndex2;
+            rIndex3.localRotation = Quaternion.Euler(10.8349f, 354.8885f, 347.4843f);
+            rIndex3.localPosition = new(0.018f, -0.001f, 0.0105f);
+            var rMid1 = new GameObject("rMid1").transform;
+            rMid1.parent = rCarpal1;
+            rMid1.localRotation = Quaternion.Euler(7.5077f, 357.7875f, 356.568f);
+            rMid1.localPosition = new(0.0533f, 0.0024f, 0.0205f);
+            var rMid2 = new GameObject("rMid2").transform;
+            rMid2.parent = rMid1;
+            rMid2.localRotation = Quaternion.Euler(9.3358f, 356.0557f, 351.7078f);
+            rMid2.localPosition = new(0.0381f, 0.0006f, 0.0202f);
+            var rMid3 = new GameObject("rMid3").transform;
+            rMid3.parent = rMid2;
             rMid3.transform.localRotation = Quaternion.Euler(11.3442f, 354.4087f, 347.3017f);
             rMid3.transform.localPosition = new(0.0218f, -0.0024f, 0.0125f);
-            var rCarpal2 = new GameObject("rCarpal2");
-            rCarpal2.transform.parent = rHand.transform;
-            rCarpal2.transform.localRotation = Quaternion.Euler(0, 0, 0);
-            rCarpal2.transform.localPosition = new(0.0286f, 0.0003f, -0.0002f);
-            var rPinky1 = new GameObject("rPinky1");
-            rPinky1.transform.parent = rCarpal2.transform;
-            rPinky1.transform.localRotation = Quaternion.Euler(9.173f, 354.1744f, 352.6472f);
-            rPinky1.transform.localPosition = new(0.0465f, -0.0071f, 0.006f);
-            var rPinky2 = new GameObject("rPinky2");
-            rPinky2.transform.parent = rPinky1.transform;
-            rPinky2.transform.localRotation = Quaternion.Euler(9.7769f, 355.0669f, 350.8191f);
-            rPinky2.transform.localPosition = new(0.0263f, -0.0014f, 0.0088f);
-            var rPinky3 = new GameObject("rPinky3");
-            rPinky3.transform.parent = rPinky2.transform;
-            rPinky3.transform.localRotation = Quaternion.Euler(10.8329f, 354.0421f, 346.839f);
-            rPinky3.transform.localPosition = new(0.0159f, -0.0008f, 0.0053f);
-            var rRing1 = new GameObject("rRing1");
-            rRing1.transform.parent = rCarpal2.transform;
-            rRing1.transform.localRotation = Quaternion.Euler(10.0206f, 355.6122f, 351.8123f);
-            rRing1.transform.localPosition = new(0.0439f, 0.0028f, 0.0246f);
-            var rRing2 = new GameObject("rRing2");
-            rRing2.transform.parent = rRing1.transform;
-            rRing2.transform.localRotation = Quaternion.Euler(9.7437f, 355.339f, 351.6165f);
-            rRing2.transform.localPosition = new(0.037f, -0.0019f, 0.0149f);
-            var rRing3 = new GameObject("rRing3");
-            rRing3.transform.parent = rRing2.transform;
-            rRing3.transform.localRotation = Quaternion.Euler(11.2204f, 354.2007f, 347.3634f);
-            rRing3.transform.localPosition = new(0.0201f, -0.0014f, 0.0085f);
-            var rThumb1 = new GameObject("rThumb1");
-            rThumb1.transform.parent = rHand.transform;
-            rThumb1.transform.localRotation = Quaternion.Euler(16.2263f, 4.4125f, 353.1956f);
-            rThumb1.transform.localPosition = new(-0.0017f, -0.0012f, 0.0271f);
-            var rThumb2 = new GameObject("rThumb2");
-            rThumb2.transform.parent = rThumb1.transform;
-            rThumb2.transform.localRotation = Quaternion.Euler(350.1758f, 359.5684f, 359.2524f);
-            rThumb2.transform.localPosition = new(0.0066f, 0.0002f, 0.0405f);
-            var rThumb3 = new GameObject("rThumb3");
-            rThumb3.transform.parent = rThumb2.transform;
-            rThumb3.transform.localRotation = Quaternion.Euler(358.9277f, 8.5045f, 357.893f);
-            rThumb3.transform.localPosition = new(0.0138f, -0.006f, 0.0259f);
-            RightHandOpen = Object.Instantiate(rHand).transform;
-            RightHandOpen.name = "VRRightHandOpen";
-            var rTarget = rHand.AddComponent<InteractionTarget>();
-            rTarget.effectorType = FullBodyBipedEffector.RightHand;
-            rTarget.rotateOnce = false;
-            rTarget.rotationMode = InteractionTarget.RotationMode.ThreeDOF;
-            VRRightHandInteract = VRRightHandTarget.AddComponent<InteractionObject>();
-            VRRightHandInteract.multipliers = new(new[] {
-                new InteractionObject.Multiplier() {
-                    curve = InteractionObject.WeightCurve.Type.PositionWeight,
-                    multiplier = 1,
-                    result = InteractionObject.WeightCurve.Type.RotateBoneWeight }});
-            VRRightHandInteract.targets = new(new[] { lTarget });
-            VRRightHandInteract.weightCurves = new(new[] {
-                new InteractionObject.WeightCurve()
-                {
-                    type = InteractionObject.WeightCurve.Type.PositionWeight,
-                    curve = curve
-                }
-            });
+            var rCarpal2 = new GameObject("rCarpal2").transform;
+            rCarpal2.parent = RightHandOpen;
+            rCarpal2.localRotation = Quaternion.Euler(0, 0, 0);
+            rCarpal2.localPosition = new(0.0286f, 0.0003f, -0.0002f);
+            var rPinky1 = new GameObject("rPinky1").transform;
+            rPinky1.parent = rCarpal2;
+            rPinky1.localRotation = Quaternion.Euler(9.173f, 354.1744f, 352.6472f);
+            rPinky1.localPosition = new(0.0465f, -0.0071f, 0.006f);
+            var rPinky2 = new GameObject("rPinky2").transform;
+            rPinky2.parent = rPinky1;
+            rPinky2.localRotation = Quaternion.Euler(9.7769f, 355.0669f, 350.8191f);
+            rPinky2.localPosition = new(0.0263f, -0.0014f, 0.0088f);
+            var rPinky3 = new GameObject("rPinky3").transform;
+            rPinky3.parent = rPinky2;
+            rPinky3.localRotation = Quaternion.Euler(10.8329f, 354.0421f, 346.839f);
+            rPinky3.localPosition = new(0.0159f, -0.0008f, 0.0053f);
+            var rRing1 = new GameObject("rRing1").transform;
+            rRing1.parent = rCarpal2;
+            rRing1.localRotation = Quaternion.Euler(10.0206f, 355.6122f, 351.8123f);
+            rRing1.localPosition = new(0.0439f, 0.0028f, 0.0246f);
+            var rRing2 = new GameObject("rRing2").transform;
+            rRing2.parent = rRing1;
+            rRing2.localRotation = Quaternion.Euler(9.7437f, 355.339f, 351.6165f);
+            rRing2.localPosition = new(0.037f, -0.0019f, 0.0149f);
+            var rRing3 = new GameObject("rRing3").transform;
+            rRing3.parent = rRing2;
+            rRing3.localRotation = Quaternion.Euler(11.2204f, 354.2007f, 347.3634f);
+            rRing3.localPosition = new(0.0201f, -0.0014f, 0.0085f);
+            var rThumb1 = new GameObject("rThumb1").transform;
+            rThumb1.parent = RightHandOpen;
+            rThumb1.localRotation = Quaternion.Euler(16.2263f, 4.4125f, 353.1956f);
+            rThumb1.localPosition = new(-0.0017f, -0.0012f, 0.0271f);
+            var rThumb2 = new GameObject("rThumb2").transform;
+            rThumb2.parent = rThumb1;
+            rThumb2.localRotation = Quaternion.Euler(350.1758f, 359.5684f, 359.2524f);
+            rThumb2.localPosition = new(0.0066f, 0.0002f, 0.0405f);
+            var rThumb3 = new GameObject("rThumb3").transform;
+            rThumb3.parent = rThumb2;
+            rThumb3.localRotation = Quaternion.Euler(358.9277f, 8.5045f, 357.893f);
+            rThumb3.localPosition = new(0.0138f, -0.006f, 0.0259f);
 
             LeftHandOpen.hideFlags = HideFlags.HideAndDontSave;
             RightHandOpen.hideFlags = HideFlags.HideAndDontSave;
-            LeftHandRootBone.localPosition = Vector3.zero;
-            RightHandRootBone.localPosition = Vector3.zero;
-            VRLeftHandTarget.transform.localPosition = Vector3.zero;
-            VRRightHandTarget.transform.localPosition = Vector3.zero;
+            MelonLogger.Msg("Done with all VRIK setup");
         }
 
         private void CreateMainMenuBoundary()
@@ -1123,19 +1116,8 @@ namespace HPVR
                 Laser.RightLaser.LaserMask = mask;
             }
 
-            //turn off player collision and hide the mesh for the camera, but not for mirrors
-            //if (PlayerCharacter.Player.Gender == Genders.Male)
-            //{
-            //    var p = GameObject.Find("CH_PlayerMale");
-            //    p.SetLayerRecursively(LayerMask.NameToLayer("InvisibleToMainCamera"));
-            //}
-            //else
-            //{
-            //    var p = GameObject.Find("CH_PlayerFemale");
-            //    p.SetLayerRecursively(LayerMask.NameToLayer("InvisibleToMainCamera"));
-            //}
             PlayerCharacter.Player.Controller.enabled = false;
-            PlayerCharacter.Player._controlManager.DeactivateMovement();
+            //PlayerCharacter.Player._controlManager.DeactivateMovement();
             //PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
             foreach (var coll in PlayerCharacter.Player.GetColliders)
             {
@@ -1153,6 +1135,9 @@ namespace HPVR
                 SteamVRActions.hpvr_InteractUI.onStateUp += (state, source) => UpdateDialogueResponses();
             }
 
+            Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
+            Player.instance.transform.position = new(0.65f, 0, 3.55f);
+
             //foreach (var ui in UIManager.UIElements)
             //{
             //    ui.GetComponent<UIElement>().SetDebugMesh("");
@@ -1160,9 +1145,6 @@ namespace HPVR
 
             //this one might crash so we do it last
             SetUpInGameCanvas();
-
-            Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
-            Player.instance.transform.position = new(0.65f, 0, 3.55f);
 #endif
         }
 

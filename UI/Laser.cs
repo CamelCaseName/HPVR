@@ -36,7 +36,7 @@ namespace HPVR.UI
         protected void Awake()
         {
             hand = GetComponent<Hand>();
-            if(hand is null)
+            if (hand is null)
             {
                 return;
             }
@@ -53,9 +53,8 @@ namespace HPVR.UI
             //rootgo is attached to hand root, rootgo.forward is forward out of the fingers. more or less
             var laserRootGO = new GameObject("LaserRoot");
             laserRootGO.transform.parent = hand.skeleton.GetBone((int)SteamVRSkeletonJointIndexEnum.root).parent;
-            laserRootGO.transform.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
-            laserRootGO.transform.localEulerAngles = new Vector3(30, sign * -5, 0);
             LaserRoot = laserRootGO.transform;
+            ResetLaserStartPosition();
 
             var laserBeamGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             DontDestroyOnLoad(laserBeamGO);
@@ -114,6 +113,18 @@ namespace HPVR.UI
             laserBeamGO.SetActive(false);
             hitPoint.gameObject.SetActive(false);
             LaserBeam = laserBeamGO.transform;
+        }
+
+        public void ResetLaserStartPosition()
+        {
+            LaserRoot.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
+            LaserRoot.localEulerAngles = new Vector3(30, sign * -5, 0);
+        }
+
+        public void SetLaserStartPosition(Vector3 pos, Vector3 rot)
+        {
+            LaserRoot.localPosition = pos;
+            LaserRoot.localEulerAngles = rot;
         }
 
         protected void Update()
