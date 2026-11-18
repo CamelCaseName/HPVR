@@ -1,4 +1,5 @@
-﻿using Il2CppInterop.Runtime.Injection;
+﻿using Il2CppEekCharacterEngine.Interaction;
+using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 using Valve.VR.InteractionSystem;
@@ -18,6 +19,9 @@ namespace HPVR.Gameplay.Behaviours
 
         private Interactable? interactable = null;
 
+        private InteractiveItem? item = null;
+        private Rigidbody? rigidbody = null;
+
         //-------------------------------------------------
         protected virtual void Awake()
         {
@@ -26,6 +30,8 @@ namespace HPVR.Gameplay.Behaviours
             interactable.OnAttachedToHand += OnAttachedToHand;
             interactable.OnDetachedFromHand += OnDetachedFromHand;
             interactable.HandAttachedUpdate += HandAttachedUpdate;
+            item = GetComponent<InteractiveItem>();
+            rigidbody = gameObject.GetComponent<Rigidbody>();
         }
 
         //-------------------------------------------------
@@ -58,6 +64,16 @@ namespace HPVR.Gameplay.Behaviours
 
                     // Attach this object to the hand
                     hand.AttachObject(gameObject, startingGrabType, attachmentFlags);
+
+                    //set item to currently holding
+                    if (item is not null && IKInteraction.Singleton is not null)
+                    {
+                        IKInteraction.Singleton.CurrentlyHolding = item;
+                    }
+                    if (rigidbody is not null)
+                    {
+                        rigidbody.useGravity = true;
+                    }
                 }
                 else
                 {
@@ -112,8 +128,16 @@ namespace HPVR.Gameplay.Behaviours
 
                 //add speed and rotation when letting to to keep physics
                 //MelonLogger.Msg($"let go of {gameObject.name} with speed: {speed.x} {speed.y} {speed.z}");
-                gameObject.GetComponent<Rigidbody>().velocity = speed / Time.deltaTime;
-                gameObject.GetComponent<Rigidbody>().angularVelocity = angularSpeed / Time.deltaTime;
+                if (rigidbody is not null)
+                {
+                    rigidbody.velocity = speed / Time.deltaTime;
+                    rigidbody.angularVelocity = angularSpeed / Time.deltaTime;
+                }
+                //remove item from currently holding
+                if (item is not null && IKInteraction.Singleton is not null)
+                {
+                    IKInteraction.Singleton.CurrentlyHolding = null!;
+                }
             }
         }
 

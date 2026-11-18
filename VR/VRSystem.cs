@@ -1,12 +1,14 @@
 ﻿//#define OASIS_MODE
 
 using HPVR.Gameplay.Behaviours;
+using HPVR.UI;
 using HPVR.utils;
 using Il2Cpp;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
 using Il2CppEekUI;
 using Il2CppInterop.Runtime;
+using Il2CppRootMotion.FinalIK;
 using MelonLoader;
 using SteamVR_Melon.Standalone;
 using SteamXR_Melon;
@@ -14,7 +16,6 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
-using UnityEngine.UIElements;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
 using Object = UnityEngine.Object;
@@ -57,6 +58,7 @@ namespace HPVR.VR
         private static float FallTime = 0.01f;
         private static bool Grounded = false;
         private static bool rotated = true;
+        private static int rotatedFrameCounter = 0;
 
         private static float angle = 0;
         private static HandCollider? handColliderLeft;
@@ -156,8 +158,21 @@ namespace HPVR.VR
 
         public static void Update()
         {
+            if (rotatedFrameCounter > 0)
+            {
+                rotatedFrameCounter--;
+            }
             HandleControllerMovement();
             UpdateHMDPositions();
+
+            if (Time.timeScale < 0.01f)
+            {
+                HideChar();
+            }
+            else
+            {
+                ShowChar();
+            }
         }
 
         private static void FinalizeSteamVRSetup()
@@ -226,10 +241,9 @@ namespace HPVR.VR
 
         private static void SetPlayerColliderHeight(float height)
         {
-            //todo scale such that the real life player is scaled to the in game player height
             height -= 0.3f;
             playerBody.height = height;
-            playerBody.center = vrPlayer.transform.position + new Vector3(0, height / 2, 0);
+            playerBody.center = vrPlayer.transform.position + new Vector3(0, 0.1f + (height / 2), 0);
         }
 
         private static SphereCollider SetUpCamera()
@@ -698,8 +712,15 @@ namespace HPVR.VR
                     //we just got on the ground or are below push up, 
                     if (!Grounded || (vrPlayer.transform.position.y - groundInfo.point.y) < 0)
                     {
-                        supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
-                        //MelonLogger.Msg($"9: {groundInfo.distance}");
+                        if ((!HPVR.Instance?.inGameMain) ?? true)
+                        {
+                            supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
+                        }
+                        else if (groundInfo.transform.root != PlayerCharacter.Player.transform.root && groundInfo.transform.root != vrPlayer)
+                        {
+                            supposedMove += directionY.normalized * (groundInfo.distance - lift.y + 0.01f);
+                            //MelonLogger.Msg($"9: {groundInfo.distance}");
+                        }
                     }
                     Grounded = true;
                 }
@@ -816,53 +837,124 @@ namespace HPVR.VR
 
             SteamVRActions.hpvr_SnapTurnLeft.onStateDown += (fromAction, fromSource) =>
             {
+                if (rotatedFrameCounter > 0)
+                {
+                    return;
+                }
                 //MelonLogger.Msg("rotate left");
                 //vrPlayer.transform.rotation *= Quaternion.AngleAxis(-45, Vector3.up);
+                rotatedFrameCounter = 3;
                 angle = -45;
                 rotated = true;
             };
 
             SteamVRActions.hpvr_SnapTurnRight.onStateDown += (fromAction, fromSource) =>
             {
+                if (rotatedFrameCounter > 0)
+                {
+                    return;
+                }
                 //MelonLogger.Msg("rotate right");
                 //vrPlayer.transform.rotation *= Quaternion.AngleAxis(45, Vector3.up);
+                rotatedFrameCounter = 3;
                 angle = 45;
                 rotated = true;
             };
 
             SteamVRActions.hpvr_GameMenu.onStateDown += (fromAction, fromSource) =>
             {
-                GameMenu.Singleton?.Toggle();
+                if (GameMenu.Singleton is null)
+                {
+                    return;
+                }
+                GameMenu.Singleton.Toggle();
+                if (PlayerCharacter.Player._bodySkinnedMeshRenderer is null)
+                {
+                    return;
+                }
+                if (GameMenu.Singleton.IsShowing)
+                {
+                    HideChar();
+                }
+                else
+                {
+                    ShowChar();
+                }
             };
 
             SteamVRActions.hpvr_Inventory.onStateDown += (fromAction, fromSource) =>
             {
-                InventoryUI.Singleton?.Toggle();
+                if (InventoryUI.Singleton is null)
+                {
+                    return;
+                }
+                if (!InventoryUI.Singleton.IsShowing)
+                {
+                    var childs = InventoryUI.Singleton.Canvas.GetComponentsInChildren<UnityEngine.UI.Image>();
+                    foreach (var child in childs)
+                    {
+                        child.transform.localEulerAngles = Vector3.zero;
+                    }
+                }
+                InventoryUI.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Memories.onStateDown += (fromAction, fromSource) =>
             {
-                OpportunityWindowManager.Singleton?.OnMemories();
-                OpportunityWindowManager.Singleton?.Toggle();
+                if (OpportunityWindowManager.Singleton is null)
+                {
+                    return;
+                }
+                if (!OpportunityWindowManager.Singleton.IsShowing)
+                {
+                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>();
+                    foreach (var child in childs)
+                    {
+                        child.transform.localEulerAngles = Vector3.zero;
+                    }
+                }
+                OpportunityWindowManager.Singleton.OnMemories();
+                OpportunityWindowManager.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Opportunities.onStateDown += (fromAction, fromSource) =>
             {
-                OpportunityWindowManager.Singleton?.OnOpportunity();
-                OpportunityWindowManager.Singleton?.Toggle();
+                if (OpportunityWindowManager.Singleton is null)
+                {
+                    return;
+                }
+                if (!OpportunityWindowManager.Singleton.IsShowing)
+                {
+                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>();
+                    foreach (var child in childs)
+                    {
+                        child.transform.localEulerAngles = Vector3.zero;
+                    }
+                }
+                OpportunityWindowManager.Singleton.OnOpportunity();
+                OpportunityWindowManager.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Self_Radial.onStateDown += (fromAction, fromSource) =>
             {
+                if (rotatedFrameCounter > 0)
+                {
+                    return;
+                }
                 if (RadialMenu.Singleton is null || InteractionManager.Singleton is null || PlayerCharacter.Player is null)
                 {
                     return;
                 }
+                rotatedFrameCounter = 3;
                 RadialInteractable.ToggleRadial(Vector3.zero, PlayerCharacter.Player.Interaction);
             };
 
             SteamVRActions.hpvr_UI_Radial.onStateDown += (fromAction, fromSource) =>
             {
+                if (rotatedFrameCounter > 0)
+                {
+                    return;
+                }
                 if (OpportunityWindowManager.Singleton?.IsShowing ?? false)
                 {
                     OpportunityWindowManager.Singleton?.Toggle();
@@ -871,6 +963,7 @@ namespace HPVR.VR
                 {
                     InventoryUI.Singleton?.Toggle();
                 }
+                rotatedFrameCounter = 3;
                 UIRadialMenu.Singleton?.Toggle();
             };
 
@@ -916,6 +1009,30 @@ namespace HPVR.VR
 
             SetUpInput = true;
             MelonLogger.Msg("Activated SteamVR actions");
+        }
+
+        private static void ShowChar()
+        {
+            if (HPVR.Instance?.inGameMain ?? false)
+            {
+                PlayerCharacter.Player?.transform?.GetChild(0)?.gameObject?.SetActive(true);
+                Player.instance.leftHand?.Hide();
+                Player.instance.rightHand?.Hide();
+                Laser.LeftLaser?.SetLaserStartPosition(new(), new(60, 0, 0));
+                Laser.RightLaser?.SetLaserStartPosition(new(), new(60, 0, 0));
+            }
+        }
+
+        private static void HideChar()
+        {
+            if (HPVR.Instance?.inGameMain ?? false)
+            {
+                PlayerCharacter.Player?.transform?.GetChild(0)?.gameObject?.SetActive(false);
+                Player.instance.leftHand?.Show();
+                Laser.LeftLaser?.ResetLaserStartPosition();
+                Player.instance.rightHand?.Show();
+                Laser.RightLaser?.ResetLaserStartPosition();
+            }
         }
     }
 }

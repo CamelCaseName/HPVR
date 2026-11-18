@@ -52,7 +52,7 @@ namespace HPVR
         private Transform? RightHandOpen;
         private Transform? LeftHandRootBone;
         private Transform? RightHandRootBone;
-        private VRIK? vrik;
+        public VRIK? vrik;
         public Vector3 leftHandFingerRotation = new(0, -1, 60);
         public Vector3 rightHandFingerRotation = new(0, 1, -60);
         public Vector3 leftHandThumbRotation = new(-1, 10, 20);
@@ -66,7 +66,6 @@ namespace HPVR
         private bool setUpLateStartHook = false;
         private static readonly bool FSR_Enabled = false;
         private bool secondSetup = false;
-        private int framecounter;
 
         //turn into option
         private readonly int AA = 2; // 0 = none, 1 = fxaa, 2 = smaa
@@ -94,17 +93,19 @@ namespace HPVR
         public static bool Enabled { get; internal set; } = true;
         public static HPVR? Instance { get; private set; }
 
-        //todo add teleportation, maybe steamvrs teleportation component (involved)
-        //todo fix quest popup menu (find who populates that and then fix rotation/scale/z index there)
-        //todo fix opportunity menu
-        //todo fix memory menu
-        //todo set player holding/taking item accordingly to what the player is actually grabbing
-        //todo use fists to hit people, depending on speed and if fully made a fist
+        //& "C:\Program Files (x86)\Steam\steam.exe" steam://rungameid/611790
+        ////////todo fix quest popup menu (find who populates that and then fix rotation/scale/z index there)
+        ////////todo fix opportunity menu
+        ////////todo fix memory menu
+        ////////todo add option to menu to recalibrate player height as an entry in the menu
+        ////////todo set player holding/taking item accordingly to what the player is actually grabbing
         //todo turn off cutscene movement in game main, but keep the teleporting and rotation setting in x and z
         //todo use headset movement in POV sex
+        //todo use fists to hit people, depending on speed and if fully made a fist
         //todo use hand movement to masturbate
-        //todo screenfade can maybe just stay as an override?
-        //todo add compatibility for headset + xbox controller
+        //todo (later) screenfade can maybe just stay as an override?
+        //todo (later) add teleportation, maybe steamvrs teleportation component (involved)
+        //todo (later) add compatibility for headset + xbox controller
 
         public override void OnInitializeMelon()
         {
@@ -142,7 +143,7 @@ namespace HPVR
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             MelonLogger.Msg("[HPVR] preparing scene " + sceneName);
-            inGameMain = sceneName == "GameMain";
+            inGameMain = sceneName == "GameMain" || sceneName == "ForestEnvironment";
             inMainMenu = sceneName == "MainMenu";
             inLoadingScreen = sceneName == "LoadingScreen";
             inDisclaimer = sceneName == "Disclaimer";
@@ -153,28 +154,28 @@ namespace HPVR
                 DestroyFSR();
             }
 
-            VRSystem.Gravity = inMainMenu || inGameMain;
-
 #if !VR_DISABLED
+            VRSystem.Gravity = inMainMenu || inGameMain;
             VRSystem.SetUpSteamVRUnity();
-
             UIManager.Initialize();
 
             updatedCameraCull = false;
 #else
             MelonLogger.Msg("VR SYSTEM DISABLED IN THIS BUILD");
 #endif
-            MelonLogger.Msg("Available Layers:");
-            MelonLogger.Msg(LayerMask.LayerToName(0));
-            for (int i = 0; i < 32; i++)
-            {
-                MelonLogger.Msg(i.ToString() + ": " + LayerMask.LayerToName(i));
-            }
+            //MelonLogger.Msg("Available Layers:");
+            //MelonLogger.Msg(LayerMask.LayerToName(0));
+            //for (int i = 0; i < 32; i++)
+            //{
+            //    MelonLogger.Msg(i.ToString() + ": " + LayerMask.LayerToName(i));
+            //}
+
+            Camera.main.nearClipPlane = 0.01f;
 
             UIManager.UpdateUIPos = true;
             shownLoadingScreenInfo = false;
             //int counter = 0;
-            //MelonLogger.Msg((counter++).ToString());
+
             if (inGameMain)
             {
                 if (!setUpLateStartHook)
@@ -185,11 +186,9 @@ namespace HPVR
 #if !VR_DISABLED
                 SetUpPostProcessing();
                 playerChar = PlayerCharacter.Player.transform;
-                //MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
                 Player.instance.transform.position = new(0.65f, 0, 3.55f);
-                //MelonLogger.Msg((counter++).ToString());
 
                 Player.instance.leftHand.useHoverSphere = true;
                 Player.instance.leftHand.useControllerHoverComponent = false;
@@ -199,51 +198,35 @@ namespace HPVR
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
                 Player.instance.rightHand.Hide();
-                //todo need to re-enable but then we need to disable some player colliders
-                VRSystem.DisableLeftCollider();
-                VRSystem.DisableRightCollider();
-                //todo set laser positions
-                Laser.LeftLaser.SetLaserStartPosition(new(), new(67, 0, 0));
-                Laser.RightLaser.SetLaserStartPosition(new(), new(67, 0, 0));
-                //MelonLogger.Msg((counter++).ToString());
 
-                //MelonLogger.Msg((counter++).ToString());
-                var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
-                cinemachineBrain.enabled = false;
-
-                //MelonLogger.Msg((counter++).ToString());
-
-                //todo add option to menu to recalibrate player height as an entry in the menu
+                Laser.LeftLaser.SetLaserStartPosition(new(), new(60, 0, 0));
+                Laser.RightLaser.SetLaserStartPosition(new(), new(60, 0, 0));
 #endif
             }
             else if (inMainMenu)
             {
                 SetUpGraphicsSettings();
 #if !VR_DISABLED
-                //MelonLogger.Msg((counter++).ToString());
+
                 Player.instance.leftHand.useHoverSphere = false;
                 Player.instance.leftHand.useControllerHoverComponent = false;
                 Player.instance.leftHand.useFingerJointHover = false;
                 Player.instance.rightHand.useHoverSphere = false;
                 Player.instance.rightHand.useControllerHoverComponent = false;
                 Player.instance.rightHand.useFingerJointHover = false;
-                //MelonLogger.Msg((counter++).ToString());
+
                 VRSystem.EnableLeftCollider();
                 VRSystem.EnableRightCollider();
 
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
                 Player.instance.transform.position = new(0.55f, 0, -9);
-                //MelonLogger.Msg((counter++).ToString());
 
                 //stop the camera from lerping towards the looktargets
                 MainMenuCharacterCustomization.Singleton._cameraSpeedMultiplier = 0;
-                //MelonLogger.Msg((counter++).ToString());
 
                 CreateMainMenuBoundary();
-                //MelonLogger.Msg((counter++).ToString());
 
                 UIManager.UpdateUIPos = false;
-                //MelonLogger.Msg((counter++).ToString());
 #endif
             }
 
@@ -255,27 +238,25 @@ namespace HPVR
                     Player.instance.leftHand.useHoverSphere = false;
                     Player.instance.leftHand.useControllerHoverComponent = false;
                     Player.instance.leftHand.useFingerJointHover = false;
-                    //MelonLogger.Msg((counter++).ToString());
                 }
                 if (Player.instance.rightHand is not null)
                 {
                     Player.instance.rightHand.useHoverSphere = false;
                     Player.instance.rightHand.useControllerHoverComponent = false;
                     Player.instance.rightHand.useFingerJointHover = true;
-                    //MelonLogger.Msg((counter++).ToString());
                 }
                 Player.instance.transform.rotation = Quaternion.Euler(0, 0, 0);
-                //MelonLogger.Msg((counter++).ToString());
+
             }
 
             if (inLoadingScreen && Player.instance is not null)
             {
                 var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
                 cinemachineBrain.enabled = false;
-                //MelonLogger.Msg((counter++).ToString());
+
                 Player.instance.transform.position = new(0, 0, 3);
                 Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);
-                //MelonLogger.Msg((counter++).ToString());
+
                 foreach (var obj in Object.FindObjectsOfTypeAll(Il2CppType.Of<Canvas>()))
                 {
                     if (obj.name == "ScreenFade")
@@ -285,12 +266,11 @@ namespace HPVR
                     }
                     obj.Cast<Canvas>().gameObject.AddComponent<WorldSpaceOverlayUI>();
                 }
-                //MelonLogger.Msg((counter++).ToString());
             }
 
             UIManager.OnSceneChange();
             Hand.UpdateScene();
-            //MelonLogger.Msg((counter++).ToString());
+
 
             if (!inGameMain && Player.instance is not null)
             {
@@ -298,13 +278,11 @@ namespace HPVR
                 {
                     Laser.LeftLaser.LaserMask = Laser.DefaultLaserMask;
                     Laser.LeftLaser.ResetLaserStartPosition();
-                    //MelonLogger.Msg((counter++).ToString());
                 }
                 if (Laser.RightLaser is not null)
                 {
                     Laser.RightLaser.LaserMask = Laser.DefaultLaserMask;
                     Laser.RightLaser.ResetLaserStartPosition();
-                    //MelonLogger.Msg((counter++).ToString());
                 }
             }
 #endif
@@ -536,28 +514,27 @@ namespace HPVR
                 return;
             }
 
-            //player hand bone structure:
-            //lhand
-            //0-lCarpal1
-            //  0-lindex1
-            //    0-lindex2
-            //     0-lindex3
-            //  1-lmid1
-            //    0-lmid2
-            //      0-lmid3
-            //1-lCarpal2
-            //  0-pinky1
-            //    0-pinky2
-            //     0-pinky3
-            //  1-ring1
-            //    0-ring2
-            //      0-ring3
-            //2-lThumb1
-            //  0-lThumb2
-            //    0-lThumb3
-            //Player.instance.leftHand.skeleton.fingerCurls
+            /*player hand bone structure:
+            lhand
+            0-lCarpal1
+              0-lindex1
+                0-lindex2
+                 0-lindex3
+              1-lmid1
+                0-lmid2
+                  0-lmid3
+            1-lCarpal2
+              0-pinky1
+                0-pinky2
+                 0-pinky3
+              1-ring1
+                0-ring2
+                  0-ring3
+            2-lThumb1
+              0-lThumb2
+                0-lThumb3
+            Player.instance.leftHand.skeleton.fingerCurls*/
 
-            //todo: remove hands from animator, then set rotation directly
             //rthumb1.rotation = default rot * Player.instance.leftHand.skeleton.thumbCurl;
             //right hand finger curl is about (x 1,y 0,z -10) ratio per bone 
             //thumb is a bit different :(
@@ -570,12 +547,11 @@ namespace HPVR
             {
                 MelonLogger.Msg("we have no skeleton for the left");
                 leftCurls = new(new float[] {
-                    //todo fix those :D
-                    (SteamVRActions.hpvr_Self_Radial.active || (SteamVRActions.hpvr_InteractUI.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.LeftHand)) ? 1 : 0,
-                    (SteamVRActions.hpvr_Grab.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.LeftHand) ? 1 : 0,
-                    SteamVRActions.hpvr_Flash.active ? 1 : 0,
-                    SteamVRActions.hpvr_Flash.active ? 1 : 0,
-                    SteamVRActions.hpvr_Flash.active ? 1 : 0 });
+                    (SteamVRActions.hpvr_Move.active || (SteamVRActions.hpvr_GameMenu.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.LeftHand) || SteamVRActions.hpvr_Pee.active || SteamVRActions.hpvr_Masturbate.active ) ? 1 : 0,
+                    (SteamVRActions.hpvr_InteractUI.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.LeftHand) ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0 });
             }
             LeftHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
             LeftHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(LeftHandOpen.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (leftHandFingerRotation * leftCurls[1]));
@@ -602,12 +578,12 @@ namespace HPVR
             {
                 MelonLogger.Msg("we have no skeleton for the rgith");
                 rightCurls = new(new float[] {
-                    //todo fix those also :D
-                    (SteamVRActions.hpvr_UI_Radial.active || (SteamVRActions.hpvr_InteractUI.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand)) ? 1 : 0,
-                    (SteamVRActions.hpvr_Grab.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand) ? 1 : 0,
-                    SteamVRActions.hpvr_Combat.active ? 1 : 0,
-                    SteamVRActions.hpvr_Combat.active ? 1 : 0,
-                    SteamVRActions.hpvr_Combat.active ? 1 : 0 });
+                    (SteamVRActions.hpvr_Flash.active ||SteamVRActions.hpvr_SnapTurnLeft.active ||SteamVRActions.hpvr_SnapTurnRight.active ||SteamVRActions.hpvr_UI_Radial.active ||SteamVRActions.hpvr_Self_Radial.active ||
+                    (SteamVRActions.hpvr_GameMenu.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand) || SteamVRActions.hpvr_Combat.active || SteamVRActions.hpvr_Inventory.active ) ? 1 : 0,
+                    (SteamVRActions.hpvr_InteractUI.active && SteamVRActions.hpvr_InteractUI.activeDevice == SteamVRInputSources.RightHand) ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0,
+                    SteamVRActions.hpvr_Grab.active ? 1 : 0 });
             }
             RightHandRootBone.GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
             RightHandRootBone.GetChild(0).GetChild(0).GetChild(0).localRotation = Quaternion.Euler(RightHandOpen.GetChild(0).GetChild(0).GetChild(0).localEulerAngles + (rightHandFingerRotation * rightCurls[1]));
@@ -782,7 +758,6 @@ namespace HPVR
                 PlayerCharacter.Player.Controller.enabled = false;
             }
             PlayerCharacter.Player._controlManager?.DeactivateMovement();
-            //PlayerCharacter.Player.PuppetMaster?.Puppet?.gameObject?.SetActive(false);
 
             //set player crouching state
             if (SteamVRCamera.instance.transform.position.y - Player.instance.transform.position.y < 0.8f)
@@ -818,11 +793,6 @@ namespace HPVR
                 createdPlayerHandTargets = true;
                 ScalePlayerToHMDHeight();
             }
-            //else
-            //{
-            //    PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(4, 5);
-            //    PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(5, 5);
-            //}
 #endif
         }
 
@@ -843,7 +813,7 @@ namespace HPVR
             var vrikneck = Object.Instantiate(PlayerCharacter.Player.Head);
             vrikneck.parent = Player.instance.hmdTransform;
             vrikneck.localRotation = Quaternion.Euler(0, 0, 0);
-            vrikneck.localPosition = new(0, -0.05f, -0.1f);
+            vrikneck.localPosition = new(0, -0.05f, -0.12f);
             Object.DestroyImmediate(vrikneck.GetChild(6).gameObject);
             Object.DestroyImmediate(vrikneck.GetChild(5).gameObject);
             Object.DestroyImmediate(vrikneck.GetChild(4).gameObject);
@@ -851,12 +821,6 @@ namespace HPVR
             Object.DestroyImmediate(vrikneck.GetChild(2).gameObject);
             Object.DestroyImmediate(vrikneck.GetChild(1).gameObject);
             Object.DestroyImmediate(vrikneck.GetChild(0).gameObject);
-
-            //maybe we can also just mask out the hands using lacyer 4 (left hand) and layer 5 (right hand)
-            //MelonLogger.Msg("turning off animator for the hands");
-            //PlayerCharacter.Player.Mecanim.Animator.enabled = false;
-            //PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(4, 5);
-            //PlayerCharacter.Player.Mecanim.Animator.SetLayerWeight(5, 5);
 
             MelonLogger.Msg("Setting up VRIK");
             PlayerCharacter.Player.FinalIK._enabled = false;
@@ -1117,12 +1081,9 @@ namespace HPVR
             }
 
             PlayerCharacter.Player.Controller.enabled = false;
+            PlayerCharacter.Player.Mecanim.Animator.stabilizeFeet = true;
             //PlayerCharacter.Player._controlManager.DeactivateMovement();
             //PlayerCharacter.Player.PuppetMaster.Puppet.gameObject.SetActive(false);
-            foreach (var coll in PlayerCharacter.Player.GetColliders)
-            {
-                coll.enabled = false;
-            }
 
             MelonLogger.Msg("disabling Volumetric Fog");
             GameMenu.Singleton._fallbackFogGlobalVolume.SetActive(true);
@@ -1138,12 +1099,48 @@ namespace HPVR
             Player.instance.transform.rotation = Quaternion.Euler(0, 180, 0);//Quaternion.AngleAxis(180, Vector3.up);
             Player.instance.transform.position = new(0.65f, 0, 3.55f);
 
-            //foreach (var ui in UIManager.UIElements)
-            //{
-            //    ui.GetComponent<UIElement>().SetDebugMesh("");
-            //}
+            MelonLogger.Msg("removing player colliders");
+            foreach (var coll in PlayerCharacter.Player.GetColliders)
+            {
+                coll.enabled = false;
+            }
+            MelonLogger.Msg("removing player colliders2");
+            foreach (var coll in PlayerCharacter.Player.PuppetMaster.transform.FindDeepChild(PlayerCharacter.Player.Gender == Genders.Female ? "lShldrBend" : "lShldr").GetComponentsInChildren<Collider>())
+            {
+                coll.enabled = false;
+            }
+            MelonLogger.Msg("removing player colliders3");
+            foreach (var coll in PlayerCharacter.Player.PuppetMaster.transform.FindDeepChild(PlayerCharacter.Player.Gender == Genders.Female ? "rShldrBend" : "rShldr").GetComponentsInChildren<Collider>())
+            {
+                coll.enabled = false;
+            }
+
+            MelonLogger.Msg("removing cinemachine");
+            var cinemachineBrain = Object.FindObjectOfType<CinemachineBrain>();
+            cinemachineBrain.enabled = false;
+
+            MelonLogger.Msg("adding height cal button");
+            //add button to settings menu for height calibration
+            var restart = GameObject.Instantiate(GameMenu.Singleton.Canvas.transform.GetChild(0).GetChild(0).GetChild(2).GetChild(1).gameObject);
+            restart.transform.parent = GameMenu.Singleton.Canvas.transform.GetChild(0).GetChild(0).GetChild(2).transform;
+            restart.transform.localScale = Vector3.one;
+            restart.transform.localPosition = new(0, -310, 0);
+            restart.GetComponentInChildren<Text>().text = "Recalibrate Height";
+            Button button = restart.GetComponent<Button>();
+            button ??= restart.GetComponentInChildren<Button>();
+            button.onClick.m_PersistentCalls = new();
+            button.onClick.m_Calls = new();
+            button.onClick.AddListener(new Action(() =>
+            {
+                MelonLogger.Msg("rescaling player height");
+                HPVR.Instance?.ScalePlayerToHMDHeight();
+            }));
+            var background = GameMenu.Singleton.Canvas.GetComponent<RectTransform>();
+            background.sizeDelta = new(700, 820);
+            background.pivot = new(0.5f, 0.7f);
 
             //this one might crash so we do it last
+            MelonLogger.Msg("Setting um canvases");
             SetUpInGameCanvas();
 #endif
         }
@@ -1225,7 +1222,7 @@ namespace HPVR
                     default:
                         if ((canvas.transform?.parent?.name is (
                             "OpportunityWindow"
-                            or "QuestPopup" //todo test
+                            or "QuestPopup"
                             or "Messages"
                             or "InputManager2"
                             or "ThrowMeter" //todo fix at all
@@ -1237,7 +1234,6 @@ namespace HPVR
                             or "ThrowMeter"
                             )))
                         {
-                            //todo moving questpopup and inspect has to be done when updating the canvas position sadly
                             canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         }
                         break;

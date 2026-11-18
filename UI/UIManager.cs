@@ -74,6 +74,10 @@ namespace HPVR.UI
                 {
                     try
                     {
+                        if (canvas is null || canvas?.gameObject is null)
+                        {
+                            continue;
+                        }
                         if (!(canvas.gameObject?.active ?? false))
                         {
                             continue;
@@ -87,9 +91,10 @@ namespace HPVR.UI
                         canvas.position = SteamVRCamera.instance.transform.position + (SteamVRCamera.instance.transform.rotation * Vector3.forward * 1.6f);
                         canvas.rotation = SteamVRCamera.instance.transform.rotation;
                     }
-                    //todo FIX
-                    catch
+                    catch (Exception e)
                     {
+                        MelonLogger.Msg("caught exception trying to fix " + canvas?.name);
+                        MelonLogger.Error(e);
                         continue;
                     }
                 }

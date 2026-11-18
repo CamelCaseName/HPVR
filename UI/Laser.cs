@@ -117,19 +117,25 @@ namespace HPVR.UI
 
         public void ResetLaserStartPosition()
         {
-            LaserRoot.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
-            LaserRoot.localEulerAngles = new Vector3(30, sign * -5, 0);
+            if (LaserRoot is not null && LaserRoot?.parent is not null && !LaserRoot.WasCollected)
+            {
+                LaserRoot.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
+                LaserRoot.localEulerAngles = new Vector3(30, sign * -5, 0);
+            }
         }
 
         public void SetLaserStartPosition(Vector3 pos, Vector3 rot)
         {
-            LaserRoot.localPosition = pos;
-            LaserRoot.localEulerAngles = rot;
+            if (LaserRoot is not null && LaserRoot?.parent is not null && !LaserRoot.WasCollected)
+            {
+                LaserRoot.localPosition = pos;
+                LaserRoot.localEulerAngles = rot;
+            }
         }
 
         protected void Update()
         {
-            if(hand is null)
+            if (hand is null)
             {
                 Awake();
                 return;
@@ -244,8 +250,8 @@ namespace HPVR.UI
 
         private void NoLasers()
         {
-            LaserBeam.gameObject?.SetActive(false);
-            hitPoint.gameObject?.SetActive(false);
+            LaserBeam?.gameObject?.SetActive(false);
+            hitPoint?.gameObject?.SetActive(false);
         }
 
         private void NoHit()
