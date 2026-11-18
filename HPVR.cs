@@ -1102,17 +1102,17 @@ namespace HPVR
             MelonLogger.Msg("removing player colliders");
             foreach (var coll in PlayerCharacter.Player.GetColliders)
             {
-                coll.enabled = false;
+                coll.gameObject.SetActive(false);
             }
             MelonLogger.Msg("removing player colliders2");
             foreach (var coll in PlayerCharacter.Player.PuppetMaster.transform.FindDeepChild(PlayerCharacter.Player.Gender == Genders.Female ? "lShldrBend" : "lShldr").GetComponentsInChildren<Collider>())
             {
-                coll.enabled = false;
+                coll.gameObject.SetActive(false);
             }
             MelonLogger.Msg("removing player colliders3");
             foreach (var coll in PlayerCharacter.Player.PuppetMaster.transform.FindDeepChild(PlayerCharacter.Player.Gender == Genders.Female ? "rShldrBend" : "rShldr").GetComponentsInChildren<Collider>())
             {
-                coll.enabled = false;
+                coll.gameObject.SetActive(false);
             }
 
             MelonLogger.Msg("removing cinemachine");
@@ -1133,10 +1133,11 @@ namespace HPVR
             button.onClick.AddListener(new Action(() =>
             {
                 MelonLogger.Msg("rescaling player height");
+                GameMenu.Singleton?.Toggle();
                 HPVR.Instance?.ScalePlayerToHMDHeight();
             }));
             var background = GameMenu.Singleton.Canvas.GetComponent<RectTransform>();
-            background.sizeDelta = new(700, 820);
+            background.sizeDelta = new(700, 850);
             background.pivot = new(0.5f, 0.7f);
 
             //this one might crash so we do it last
@@ -1221,19 +1222,26 @@ namespace HPVR
                         break;
                     default:
                         if ((canvas.transform?.parent?.name is (
-                            "OpportunityWindow"
-                            or "QuestPopup"
-                            or "Messages"
+                            "Messages"
                             or "InputManager2"
+                            or "QuestPopup"
                             or "ThrowMeter" //todo fix at all
                             )) || (canvas.transform?.name is (
-                            "OpportunityWindow"
+                            "Messages"
                             or "QuestPopup"
-                            or "Messages"
                             or "InputManager2"
                             or "ThrowMeter"
                             )))
                         {
+                            canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
+                        }
+                        else if (canvas.transform?.parent?.name is (
+                            "OpportunityWindow"
+                            ))
+                        {
+                            canvas.MoveContents(new Vector3(-350, -50, 0));
+                            canvas.GetComponent<RectTransform>().sizeDelta *= 1.5f;
+                            canvas.GetComponent<RectTransform>().localPosition = Vector3.zero;
                             canvas.gameObject.AddComponent<WorldSpaceOverlayUI>();
                         }
                         break;

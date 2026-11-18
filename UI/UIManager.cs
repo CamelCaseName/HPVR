@@ -90,6 +90,16 @@ namespace HPVR.UI
 
                         canvas.position = SteamVRCamera.instance.transform.position + (SteamVRCamera.instance.transform.rotation * Vector3.forward * 1.6f);
                         canvas.rotation = SteamVRCamera.instance.transform.rotation;
+                        //todo maybe rotate the items here if not done for that canvas already
+                        /*
+                         
+            var childs = container.GetComponentsInChildren<RectTransform>();
+            foreach (var child in childs)
+            {
+                //MelonLogger.Msg($"{child.name} + {child.transform.position.x} + {child.transform.position.x}");
+                child.transform.localEulerAngles = Vector3.zero;
+            }
+                         */
                     }
                     catch (Exception e)
                     {

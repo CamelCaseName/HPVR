@@ -117,7 +117,7 @@ namespace HPVR.UI
 
         public void ResetLaserStartPosition()
         {
-            if (LaserRoot is not null && LaserRoot?.parent is not null && !LaserRoot.WasCollected)
+            if (LaserRoot is not null && !LaserRoot.WasCollected && hand?.skeleton is not null)
             {
                 LaserRoot.localPosition = new Vector3(sign * 0.04f, -0.043f, 0);
                 LaserRoot.localEulerAngles = new Vector3(30, sign * -5, 0);
@@ -126,7 +126,7 @@ namespace HPVR.UI
 
         public void SetLaserStartPosition(Vector3 pos, Vector3 rot)
         {
-            if (LaserRoot is not null && LaserRoot?.parent is not null && !LaserRoot.WasCollected)
+            if (LaserRoot is not null && !LaserRoot.WasCollected && hand?.skeleton is not null)
             {
                 LaserRoot.localPosition = pos;
                 LaserRoot.localEulerAngles = rot;

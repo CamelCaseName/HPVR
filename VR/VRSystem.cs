@@ -888,15 +888,15 @@ namespace HPVR.VR
                 {
                     return;
                 }
-                if (!InventoryUI.Singleton.IsShowing)
+                InventoryUI.Singleton.Toggle();
+                if (InventoryUI.Singleton.IsShowing)
                 {
-                    var childs = InventoryUI.Singleton.Canvas.GetComponentsInChildren<UnityEngine.UI.Image>();
+                    var childs = InventoryUI.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>(true);
                     foreach (var child in childs)
                     {
                         child.transform.localEulerAngles = Vector3.zero;
                     }
                 }
-                InventoryUI.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Memories.onStateDown += (fromAction, fromSource) =>
@@ -905,16 +905,16 @@ namespace HPVR.VR
                 {
                     return;
                 }
-                if (!OpportunityWindowManager.Singleton.IsShowing)
+                OpportunityWindowManager.Singleton.OnMemories();
+                OpportunityWindowManager.Singleton.Toggle();
+                if (OpportunityWindowManager.Singleton.IsShowing)
                 {
-                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>();
+                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>(true);
                     foreach (var child in childs)
                     {
                         child.transform.localEulerAngles = Vector3.zero;
                     }
                 }
-                OpportunityWindowManager.Singleton.OnMemories();
-                OpportunityWindowManager.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Opportunities.onStateDown += (fromAction, fromSource) =>
@@ -923,16 +923,16 @@ namespace HPVR.VR
                 {
                     return;
                 }
-                if (!OpportunityWindowManager.Singleton.IsShowing)
+                OpportunityWindowManager.Singleton.OnOpportunity();
+                OpportunityWindowManager.Singleton.Toggle();
+                if (OpportunityWindowManager.Singleton.IsShowing)
                 {
-                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>();
+                    var childs = OpportunityWindowManager.Singleton.Canvas.GetComponentsInChildren<UnityEngine.RectTransform>(true);
                     foreach (var child in childs)
                     {
                         child.transform.localEulerAngles = Vector3.zero;
                     }
                 }
-                OpportunityWindowManager.Singleton.OnOpportunity();
-                OpportunityWindowManager.Singleton.Toggle();
             };
 
             SteamVRActions.hpvr_Self_Radial.onStateDown += (fromAction, fromSource) =>
